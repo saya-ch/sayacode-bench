@@ -266,9 +266,9 @@ def test_cli_inherits_abort_marker_and_only_exports_input_hashes(
 ) -> None:
     manifest, rows = example()
     manifest_path, records_path = tmp_path / "manifest.json", tmp_path / "records.jsonl"
-    manifest_path.write_text(json.dumps(manifest))
-    records_path.write_text("\n".join(json.dumps(row) for row in rows))
-    (tmp_path / "abort.json").write_text('{"reason":"test_abort"}')
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    records_path.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+    (tmp_path / "abort.json").write_text('{"reason":"test_abort"}', encoding="utf-8")
     output = tmp_path / "sensitivity.json"
     monkeypatch.setattr(
         sys,
@@ -284,7 +284,7 @@ def test_cli_inherits_abort_marker_and_only_exports_input_hashes(
         ],
     )
     assert sensitivity.main() == 0
-    result = json.loads(output.read_text())
+    result = json.loads(output.read_text(encoding="utf-8"))
     assert result["status"] == "descriptive_ineligible"
     assert "experiment_aborted" in result["validity_issues"]
     assert set(result["inputs"]) == {"manifest_sha256", "records_sha256"}
@@ -298,7 +298,7 @@ def test_protocol_freeze_does_not_require_or_read_results(
     output = tmp_path / "protocol.json"
     monkeypatch.setattr(sys, "argv", ["sensitivity", "--freeze-protocol", "--output", str(output)])
     assert sensitivity.main() == 0
-    frozen = json.loads(output.read_text())
+    frozen = json.loads(output.read_text(encoding="utf-8"))
     assert len(frozen["script_sha256"]) == 64
     assert len(frozen["analysis_sha256"]) == 64
     assert frozen["samples"] == 10_000 and frozen["seed"] == 20261022
