@@ -1,0 +1,28 @@
+{
+  "calibration-qutebrowser": {
+    "task_config_sha256": "6a8ebba00f26592afdab33100a1bd5b687309404fe6d569834b63190a7f7631d",
+    "official_resources": {
+      "cpus": 1,
+      "memory_mb": 4096,
+      "storage_mb": 10240,
+      "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367"
+    },
+    "expected_image_id": "sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+    "expected_repo_digest": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "development-openlibrary": {
+    "task_config_sha256": "506e660efedc87aa0c111a6dc36c581b902707d448b6fdcfe52848acdaf87b41",
+    "official_resources": {
+      "cpus": 1,
+      "memory_mb": 4096,
+      "storage_mb": 10240,
+      "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c"
+    },
+    "expected_image_id": "sha256:94e6d17b2ccb9a6012860bd61e85fb9182b073f1673e46a01d0565989fe09add",
+    "expected_repo_digest": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:94e6d17b2ccb9a6012860bd61e85fb9182b073f1673e46a01d0565989fe09add",
+    "architecture": "amd64",
+    "os": "linux"
+  }
+}

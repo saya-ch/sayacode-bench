@@ -13,7 +13,7 @@
 | 原生 Linux 网络探针 | GitHub Actions 运行 `39740819102` 实际成功；这不替代未来正式主机上的实际探针 |
 | 无模型 oracle／nop upstream | 已统一为明确的 `http://127.0.0.1:9/v1/messages` sink，不依赖 Windows 宿主别名，不访问真实模型 |
 | Linux 校准工件复核 | 运行 `39740758231`：qutebrowser 已捕获补丁三次通过，Ansible 补丁三次失败、gold 三次通过、nop 失败；全部无模型，不是新增 Agent 尝试 |
-| 本机独立 Ubuntu WSL2 候选 | 已安装并核实独立 Engine／ext4，网络探针实际通过；固定八次诊断未达到就绪门槛，见 [WSL 记录](wsl-diagnostic.md) |
+| 本机独立 Ubuntu WSL2 候选 | 独立 Engine／ext4 与网络探针核实；已完成 WSL 3.0.3 升级后固定八次，参考解仍未达到就绪门槛，本轮本地平台配置试验结束，见 [WSL 记录](wsl-diagnostic.md) |
 | 用户提供的正式 Linux 主机 | 尚待确定；本文没有连接任何已有 SSH 主机、上传凭据或创建付费资源 |
 | 完整正式模型比较 | 尚未执行；校准、参考解和网络探针不是最终研究成绩 |
 

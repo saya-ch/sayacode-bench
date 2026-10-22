@@ -6,7 +6,7 @@ Harbor 管理任务环境、资源、执行和官方验证器；SAYACODE 继续�
 
 **当前处于基础设施门禁与资源校准，尚无公开基准成绩或已证实的调优收益。** 已执行和待完成项目见 [验证状态](docs/STATUS.md)。研究方法见 [预注册协议](docs/protocol.md)，执行顺序见 [工作计划](docs/WORK_PLAN.md)。
 
-固定的跨宿主诊断发现判分不一致：同一份 qutebrowser 交付在独立 Linux 三次通过，Ansible 交付三次未通过且参考解稳定通过。新 Ubuntu WSL2 独立 Engine 的参考解诊断也已单列；随机测试输入等差异仍需进一步控制，不唯一归因于宿主。原分与全部诊断保留，未混入正式效果统计。[校准证据](docs/calibration.md) · [WSL 诊断](docs/wsl-diagnostic.md) · [Linux 执行手册](docs/linux-execution.md)
+固定的跨宿主诊断发现判分不一致：同一份 qutebrowser 交付在独立 Linux 三次通过，Ansible 交付三次未通过且参考解稳定通过。独立 Ubuntu Engine、固定失败种子和 WSL 3.0.3 升级诊断均已完成并单独保留；升级后参考解仍未全部通过，本轮本地平台配置试验已结束，不反复更换版本到通过，也不唯一归因内核或硬件。原分与全部诊断未混入正式效果统计。[校准证据](docs/calibration.md) · [WSL 诊断](docs/wsl-diagnostic.md) · [Linux 执行手册](docs/linux-execution.md)
 
 ## 研究目标
 

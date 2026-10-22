@@ -33,7 +33,11 @@ Docker Engine 曾在安装 smoke 中连续返回 HTTP 500，旧中断现场保�
 
 随后已在本机建立独立 Ubuntu 24.04.5 WSL2／Docker Engine 29.7.2：发行版、socket、Engine ID 和 ext4 存储均核实，WSL 平台仍是 2.6.3／内核 6.6.87.2。新环境基础测试 509 通过、1 项 Docker 探针跳过；真实网络探针另行通过且四类资源独立清理确认。固定两题八次参考解／空解已完整执行：qutebrowser 为 oracle 1/0/0、nop 0；OpenLibrary 为 oracle 1/1/1、nop 0，因此未达到预定就绪门槛，模型调用仍为 0。该批未固定相同随机种子，不能单独用其差异唯一归因宿主；补充对照见下。完整边界见 [WSL 诊断](wsl-diagnostic.md)。
 
-固定失败种子的补充对照也已完成：同一镜像、原 pytest flags、Hypothesis seed 与 Python hash seed 下，本机三次 oracle 均为 0，GitHub Linux 三次均为 1，原生配置和判分证据完整。当前准备一次稳定版 WSL 更新，但安装器 Error 1730 要求管理员权限；更新尚未完成，新内核诊断未执行。正式模型研究仍未启动。最新实现本地测试 533 通过、3 项平台跳过，[四环境 CI 通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39775996208)。
+固定失败种子的补充对照也已完成：同一镜像、原 pytest flags、Hypothesis seed 与 Python hash seed 下，本机三次 oracle 均为 0，GitHub Linux 三次均为 1，原生配置和判分证据完整。最新实现本地测试 533 通过、3 项平台跳过，[四环境 CI 通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39778000838)。
+
+用户随后以管理员身份完成 WSL 更新，实际平台已核实为 **3.0.3.0／内核 6.18.54.1**；原 Error 1730 只属于此前未提权的安装尝试，不是当前阻碍。保持同一 Ubuntu、独立 Engine、Docker 包版本、全局 WSL 配置与评测实现，重新运行真实网络探针，1 项通过且四类资源独立清理检查通过；随后完整执行新批次固定八次：qutebrowser oracle **0/0/0**、nop **0**；OpenLibrary oracle **1/1/1**、nop **0**。qutebrowser 前两次参考解含 pytest `INTERNALERROR>`，三次日志均含 `TypeError`；不据此声称错误栈完全一致。8 项原生结果、默认验证器配置、实际镜像与资源均核对完整，结束后无残留试验容器或专属网络。
+
+**本轮本地平台配置试验已经结束。** WSL 升级成功，但新批次未达到预声明就绪门槛，不继续更换版本、修改依赖或重跑到通过；不唯一归因内核或硬件。最小证据见 [WSL 3 诊断工件](../reports/wsl3-fixture-diagnostic-20261022-v1/)，完整原始归档在仓库外保存。本轮模型请求及付费 API 费用均为 0，正式开发／最终验收仍未启动。下一条可行路线是托管 Linux 的真实 Agent 小规模校准；云端密钥保管、原始轨迹保密、全局预算与分片执行需要先落实，不能将既有无模型云端通过记录直接当成完整研究就绪。
 
 Windows 上曾因缓存路径过长导致 `CreateProcess` 工作目录无效；该未调用模型的门禁记录保留。实际运行改用独立短路径 `C:\sb\s`（源缓存）、`C:\sb\r`（结果），没有改写官方任务内容。
 

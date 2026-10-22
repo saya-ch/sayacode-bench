@@ -1,0 +1,16 @@
+{
+  "cohort": "wsl3-readiness-v1",
+  "phase": "platform_readiness_diagnostic",
+  "source_commit": "bd3c6490b2f80bfdd00993b2d57dacfeefe36f12",
+  "fixed_task_script": "scripts/diagnose_fixtures.py",
+  "planned_jobs": 8,
+  "oracle_repeats_per_task": 3,
+  "nop_repeats_per_task": 1,
+  "verifier_env_override": null,
+  "hypothesis_seed_override": null,
+  "python_hash_seed_override": null,
+  "model_requests": 0,
+  "must_finish_fixed_schedule": true,
+  "stop_rule": "if any fixed reference/control is unqualified, end local platform configuration experiments; no version bisect or retry until pass",
+  "formal_comparison_eligible": false
+}

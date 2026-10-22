@@ -107,12 +107,33 @@ qutebrowser 第二次失败发生在 Hypothesis 的 `int_from_bytes` 调用，�
 
 该对照每边固定三次全跑，没有按成绩重试。它是显式改变验证器环境参数的独立诊断，不进入正式研究，也不替换此前默认参数的八次结果。模型请求及付费 API 消耗仍为 0。
 
-## 平台更新的实际阻碍
+## 平台更新的历史阻碍
 
 后续只准备了一次升级到微软稳定版 WSL 3.0.3／内核 6.18.54.1 的新平台对照；Ubuntu、Engine、镜像、资源和评测代码保持原条件。若该新平台仍出现相同异常，就结束本轮本地平台配置试验，不继续更换版本到通过为止。
 
-内置更新的 Store 与 GitHub 下载方式均返回 HTTP 403。已从微软官方 release 下载完整 x64 MSI，SHA256 与官方资产元数据一致，Authenticode 为 Valid，签名者为 Microsoft Corporation。但 Windows Installer 在替换旧版本时返回 Error 1730（总退出码 1603），明确要求管理员权限。更新没有完成，实际版本仍为 2.6.3；不能将计划中的新内核对照写成已执行。
+内置更新的 Store 与 GitHub 下载方式均返回 HTTP 403。已从微软官方 release 下载完整 x64 MSI，SHA256 与官方资产元数据一致，Authenticode 为 Valid，签名者为 Microsoft Corporation。首次未提权安装时，Windows Installer 在替换旧版本时返回 Error 1730（总退出码 1603），明确要求管理员权限。当时更新未完成；这一失败记录保留，不覆盖为后续管理员安装成功。
 
-已核验的安装文件为 `wsl.3.0.3.0.x64.msi`，SHA256 `ae977286974255bd26bf925f00f40f5692c6b2084155cbc0563c09aea091f211`。管理员安装完成后，需先核验实际 WSL／内核版本，再在新目录运行一次网络探针和相同固定八次诊断。旧结果保持不变。安装器详细日志含用户信息，仅在仓库外保存；公开层只记录签名、错误码与未完成事实。
+已核验的安装文件为 `wsl.3.0.3.0.x64.msi`，SHA256 `ae977286974255bd26bf925f00f40f5692c6b2084155cbc0563c09aea091f211`。当时确定的后续步骤是：管理员安装完成后先核验实际 WSL／内核版本，再在新目录运行一次网络探针和相同固定八次诊断，旧结果保持不变。安装器详细日志含用户信息，仅在仓库外保存。
 
 来源：[微软稳定版发布页](https://github.com/microsoft/WSL/releases/tag/3.0.3)、[官方 WSL 更新命令](https://learn.microsoft.com/en-us/windows/wsl/basic-commands#update-wsl)。
+
+## WSL 3.0.3 升级后的固定八次诊断
+
+用户已通过管理员终端完成安装。随后独立读取 `wsl --version`、实际运行的 `uname -r` 与 Docker 服务端信息，确认平台为 **WSL 3.0.3.0、内核 `6.18.54.1-microsoft-standard-WSL2`**。这次核实的是实际启动的新内核，不仅是安装包或命令输出中的目标版本。
+
+新批次 `wsl3-readiness-v1` 在运行前单独保存计划和平台身份。Ubuntu 24.04.5、Docker Engine 29.7.2、Engine ID、Docker 相关包版本、ext4 存储、Python 3.13.12、全局 `.wslconfig` 哈希及评测实现哈希均保持并核实。实现对应提交 `bd3c6490b2f80bfdd00993b2d57dacfeefe36f12`；诊断脚本哈希也与既有默认八次脚本相同。
+
+新内核下的真实网络隔离探针 **1 项通过，41.16 秒**，四类独占资源均独立确认清理。该探针仅访问无付费本地 mock。随后按原顺序、默认验证器参数执行两题固定八次，未注入 Hypothesis seed 或 Python hash seed：
+
+| 任务 | oracle 第 1／2／3 次 | nop |
+| --- | --- | --- |
+| qutebrowser | 0 / 0 / 0 | 0 |
+| OpenLibrary | 1 / 1 / 1 | 0 |
+
+8 项都正常收尾并取得原生二值 reward；唯一请求身份、原生 Job／Trial 的任务与 Agent、默认 `VerifierConfig`、无资源和时间覆盖均已核对。实际镜像 digest、Linux／amd64、1 CPU／4 GiB 内存和相应 cgroup 限制与预定条件一致。Docker 的总内存加 swap 限制为 8 GiB，其中 swap 额度为 4 GiB；宿主配置仅有 2 GiB swap 可供整体使用，不能将容器额度当成保证可用量。文件系统未提供逐题存储硬配额，这一既有限制没有因升级而改变。
+
+qutebrowser 前两次 oracle 含 `INTERNALERROR>`，三次日志均含 `TypeError`，不能说三次错误栈完全一致。官方 stdout 的 `Required tests / Passed tests` 分别为 383/130、383/282、383/384；第三组数量不等于验收成功，仍保留原生 reward=0，不用日志数量重算官方评分。评分 0 和这些异常分别保留，不能用“Harbor 进程退出码为 0”声称就绪通过，也不能将参考解异常解释为 Agent 答题失败。OpenLibrary 三次 oracle 为 1，两个 nop 为 0；固定八次全部执行后才结束，没有根据中途成绩追加重复。
+
+公开最小证据见 [WSL 3 工件目录](../reports/wsl3-fixture-diagnostic-20261022-v1/)，包括原计划、逐次结果、镜像和资源、配置与原生结果哈希、异常类型与数量、独立探针和清理事实。完整原始目录另存仓库外，归档 SHA256 为 `9315c35de67f2065b5239bdbaa7a473ee4804066b17f134fbf3f7431e5852633`。旧 WSL 批次、固定种子对照和未提权安装失败记录均保留。
+
+**执行完成，就绪未通过，本轮本地平台配置试验结束。** 按升级前的停止规则，不继续更换 WSL 版本、修改任务依赖或反复运行到参考解通过。这说明单次稳定版升级未解决观察到的就绪问题，不能唯一归因内核、硬件或其他共享条件；不同默认随机种子的批次也不被当作严格因果实验。本批模型请求及付费 API 费用均为 **0**，不进入正式效果分母。

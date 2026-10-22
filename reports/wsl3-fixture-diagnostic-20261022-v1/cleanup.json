@@ -1,0 +1,10 @@
+{
+  "all_trial_containers_absent": true,
+  "remaining_networks": [
+    "bridge",
+    "host",
+    "none"
+  ],
+  "dedicated_networks_absent": true,
+  "checked_after_all_eight_trials": true
+}

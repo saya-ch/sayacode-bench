@@ -1,0 +1,146 @@
+[
+  {
+    "job_name": "cross-host-1-oracle-1",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "9166b2a97afcecfff06b0f70abc7ccd9e132e4b1417218ded689a2b5a2b285e8",
+      "task_id_matches": true,
+      "reward": 0.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "34beb79ac4d9b4d76f60894b7c7b2e535e6caf663e69cada1023923918e3b6e4",
+    "trial_config_sha256": "ee933c7816a984f6a97a1435823206c6f66a2bb57be406f98807458556a8dc21",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-1-oracle-2",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "dc4294fa9cd62ec5c68059d133dc24fd5dfa7404c37bd6ab660e0c335233a952",
+      "task_id_matches": true,
+      "reward": 0.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "99681ecf70a9da70cc65b3a2ba428ca5799f95006d824ad5543d1fac67467435",
+    "trial_config_sha256": "e68014347282bd7fb36f7904709569778a4136d00053fd60868c7affe87d5839",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-1-oracle-3",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "b8d73523408330e44d5be92731d7e5a30caa4be194e31770057e29ca5e43a594",
+      "task_id_matches": true,
+      "reward": 0.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "3d8324eed0c29246bb3654725023d104a0e8fe00eb8cbe5e056689c1d64c6923",
+    "trial_config_sha256": "82ca61538d2400dd0eddd6eba3d9307805886f47b3fe8171f60cb32060573cbe",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-1-nop-1",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "2a534a12dbd6f050ef8dfdc1825a9888a13a6199ffaf41df003507f264579b32",
+      "task_id_matches": true,
+      "reward": 0.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "d6d56c167bc4c8e0e326a31c66911f64a22e095faa14883e2dd6bb7ee2bdbab8",
+    "trial_config_sha256": "a210845a1e8349eb5be9b3ea29019a7ecea4de03d5dfc4e4be1ced1b425e8d57",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-2-oracle-1",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "3792b3c9974f4d6d4fa18602903a2ab3e3493b1102ac95647cd0b267e3f380f9",
+      "task_id_matches": true,
+      "reward": 1.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "be01f7ae4dd485511f5fb1957d2cb9d9d07dc94e44f3be8db077b0811c4fc362",
+    "trial_config_sha256": "ffc4758475450f9445f770b6b845e13e12926246056e5a1b35f00ce36908e090",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-2-oracle-2",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "b0f1d31a170bb777cfe6d155d871a31622f381c296fb1f1b9485651195e3cf06",
+      "task_id_matches": true,
+      "reward": 1.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "aba207b7c851746483d5f0fbd24564602128f0947ff060afe79b718edeb0bed0",
+    "trial_config_sha256": "8582e053c7e338778424be4a28cbb1f7d0957c27aaf43610fa5aa641f23af87d",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-2-oracle-3",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "afaef894085ff1d697d838fa14532d1c50ea4374e3367feb8f6b5e2a0f85465a",
+      "task_id_matches": true,
+      "reward": 1.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "43a7d261024de719601d3d8fc60cd8f11265dba0998913179acb2709a75f239b",
+    "trial_config_sha256": "dd2d2d592b2623d50763f5ba22f77fd2fd2892e8ef5e62e10c2fbef6837bb450",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  },
+  {
+    "job_name": "cross-host-2-nop-1",
+    "native_trial": {
+      "available": true,
+      "native_trial_result_sha256": "8261245a4c619a3e303309e02218623b59b273cc3dea239a64caa306ee788f07",
+      "task_id_matches": true,
+      "reward": 0.0,
+      "exception_type": null
+    },
+    "job_config_sha256": "0704d542dd7d46ff8354d982a5c5cda4c732b3fcf86124d17b6e6fda9ae3a319",
+    "trial_config_sha256": "887101d2ee9fb3aed8ae8d319f57155faf9812aea60894eab954f1f3478c6935",
+    "native_job_trial_agent_matches": true,
+    "native_verifier_config_is_default": true,
+    "verifier_env": {},
+    "native_resource_overrides_absent": true,
+    "native_agent_timeout_override_absent": true,
+    "runtime_resources_confirmed": true
+  }
+]
