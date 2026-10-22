@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "target_wsl_version": "3.0.3",
+  "target_kernel": "6.18.54.1",
+  "wsl_update_transport_error": "HTTP_403_0x80190193",
+  "installer_sha256": "ae977286974255bd26bf925f00f40f5692c6b2084155cbc0563c09aea091f211",
+  "authenticode_status": "Valid",
+  "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US",
+  "installer_exit_code": 1603,
+  "specific_installer_error": 1730,
+  "reason": "Windows Installer requires administrator rights to remove the existing WSL version during upgrade",
+  "upgrade_completed": false,
+  "actual_wsl_version_after_attempt": "2.6.3.0",
+  "upgraded_platform_diagnostic_executed": false,
+  "model_requests": 0,
+  "interpretation": "更新失败不计为升级后诊断；需要用户在管理员终端运行已核验安装器，不能据此声称新内核已验证。"
+}

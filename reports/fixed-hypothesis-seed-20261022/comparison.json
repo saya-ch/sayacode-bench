@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_commit": "4b477a55d424afbc9b07124ef8c77a596f52e5a1",
+  "cloud_workflow_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39776020824",
+  "cloud_artifact": "hypothesis-seed-39776020824-1",
+  "hypothesis_seed": "242126932532074149523975327703198283377",
+  "python_hash_seed": "0",
+  "verifier_env_equal": true,
+  "wsl_oracle_rewards": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "github_linux_oracle_rewards": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "model_requests": 0,
+  "formal_comparison_eligible": false,
+  "interpretation": "相同seed及参数仍有跨环境差异；不能唯一定位内核、硬件或其他条件。旧分保留。"
+}

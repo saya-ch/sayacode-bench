@@ -1,0 +1,8 @@
+{
+  "image_pytest_addopts_present": true,
+  "image_pytest_addopts_sha256": "fe4de00c89b2d6014cdf3d9b6d39794bd05a2369d4d238f31c403c3aac05e620",
+  "image_pytest_addopts_bytes": 56,
+  "verifier_env_sha256": "8baf717a09e60f7b351e88c381f2fab61405e630042a85b5bb534879bd8b63d1",
+  "hypothesis_seed": "242126932532074149523975327703198283377",
+  "python_hash_seed": "0"
+}

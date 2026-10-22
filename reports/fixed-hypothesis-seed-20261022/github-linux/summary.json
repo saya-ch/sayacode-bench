@@ -1,0 +1,27 @@
+{
+  "phase": "fixed_hypothesis_seed_fixture_diagnostic",
+  "planned_jobs": 3,
+  "recorded_jobs": 3,
+  "all_jobs_attempted": true,
+  "diagnostic_evidence_complete": true,
+  "oracle_all_passed": true,
+  "oracle_rewards": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "statuses": [
+    "completed",
+    "completed",
+    "completed"
+  ],
+  "hypothesis_seed": "242126932532074149523975327703198283377",
+  "python_hash_seed": "0",
+  "interrupted": false,
+  "external_diagnostic_window_seconds": 1500,
+  "model_requests": 0,
+  "formal_comparison_eligible": false,
+  "formal_validation_eligible": false,
+  "affects_original_scores": false,
+  "interpretation": "固定三次全新环境；验证器 env 追加 seed 并固定 Python hash seed，属于独立诊断偏离，不替换原始资格或模型评分。"
+}

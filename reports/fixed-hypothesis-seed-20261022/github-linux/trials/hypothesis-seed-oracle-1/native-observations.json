@@ -1,0 +1,21 @@
+{
+  "result": {
+    "available": true,
+    "native_trial_result_sha256": "d8beb7f9023f04785ea2afc7040c8d40b441ca50eb4b09a83986adbac57be3c9",
+    "task_id_matches": true,
+    "reward": 1.0,
+    "exception_type": null
+  },
+  "config": {
+    "available": true,
+    "matches_expected": true,
+    "native_job_config_sha256": "ad7e17eb8f8d33393ec699e1402b4b6abfcf0838071a3284d8387768561fa6a9",
+    "native_trial_config_sha256": "018dc58999fc98746cd54c2a7822fbc7f1a0a9024b492276af11d61ced2fe2fe",
+    "verifier_env_sha256": "8baf717a09e60f7b351e88c381f2fab61405e630042a85b5bb534879bd8b63d1",
+    "hypothesis_seed": "242126932532074149523975327703198283377",
+    "python_hash_seed": "0",
+    "agent": "oracle",
+    "task_id_matches": true,
+    "task_overrides": false
+  }
+}
