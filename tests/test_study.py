@@ -41,7 +41,7 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
     artifact.mkdir()
     wheel, requirements = artifact / "product.whl", artifact / "requirements.txt"
     wheel.write_bytes(b"frozen-wheel")
-    requirements.write_text("dependency==1\n")
+    requirements.write_text("dependency==1\n", encoding="utf-8")
     variants = {}
     for name in ("baseline", "candidate"):
         path = tmp_path / f"{name}.json"
@@ -161,7 +161,9 @@ def install_jobs(monkeypatch: Any) -> list[Any]:
                         },
                     },
                 )
-                (path / "agent" / "model.patch").write_text("diff --git a/x b/x\n+fixed\n")
+                (path / "agent" / "model.patch").write_text(
+                    "diff --git a/x b/x\n+fixed\n", encoding="utf-8"
+                )
             now = datetime.now(UTC)
             trial = SimpleNamespace(
                 task_name=task_id,
@@ -226,7 +228,8 @@ async def test_complete_offline_phase_uses_original_job_and_pristine_replay_then
         == 2
     )
     records = [
-        json.loads(line) for line in (experiment.output / "records.jsonl").read_text().splitlines()
+        json.loads(line)
+        for line in (experiment.output / "records.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert {(row["configuration"], row["repeat"]) for row in records} == {
         ("baseline", 1),
@@ -313,7 +316,8 @@ async def test_replay_failure_preserves_paid_source_record_and_blocks_implicit_r
     with pytest.raises(RuntimeError):
         await run_phase(experiment)
     records = [
-        json.loads(line) for line in (experiment.output / "records.jsonl").read_text().splitlines()
+        json.loads(line)
+        for line in (experiment.output / "records.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert len(records) == 1 and records[0]["input_tokens"] == 100
     assert records[0]["record_complete"] is False
@@ -386,7 +390,7 @@ def test_cli_report_cannot_remove_abort_with_complete_records(
         for name in experiment.variants
     ]
     records_path = experiment.output / "records.jsonl"
-    records_path.write_text("\n".join(json.dumps(row) for row in records))
+    records_path.write_text("\n".join(json.dumps(row) for row in records), encoding="utf-8")
     report = experiment.root / "report.json"
     monkeypatch.setattr(
         sys,
@@ -514,7 +518,20 @@ def gate_and_probe(bundle: Any) -> tuple[Path, Path]:
             "revision": bundle.manifest["revision"],
             "complete": True,
             "passed": True,
-            "tasks": [{**bundle.manifest["tasks"][0], "passed": True}],
+            "tasks": [
+                {
+                    **bundle.manifest["tasks"][0],
+                    "passed": True,
+                    "oracle": {
+                        "runtime_identity": {
+                            "available": True,
+                            "image_id": "sha256:" + "a" * 64,
+                            "architecture": "amd64",
+                            "os": "linux",
+                        }
+                    },
+                }
+            ],
         },
     )
     write_json(
@@ -536,7 +553,7 @@ def test_freeze_paid_budget_binds_prices_prior_records_and_no_raw_connection(
     earlier = []
     for index, name in enumerate(("dev", "holdout"), 1):
         path = experiment.root / f"{name}-records.jsonl"
-        path.write_text(json.dumps(prior_usage(index, index * 1_000_000)) + "\n")
+        path.write_text(json.dumps(prior_usage(index, index * 1_000_000)) + "\n", encoding="utf-8")
         earlier.append(path)
     policy = paid_policy(experiment, limit_cny=10, prior=earlier)
     gate, probe = gate_and_probe(experiment)
@@ -602,7 +619,7 @@ async def test_all_prior_stage_fees_stop_before_first_paid_call(
     prior = []
     for index in (1, 2):
         path = experiment.root / f"prior-stage-{index}.jsonl"
-        path.write_text(json.dumps(prior_usage(index, 1_000_000)) + "\n")
+        path.write_text(json.dumps(prior_usage(index, 1_000_000)) + "\n", encoding="utf-8")
         prior.append(path)
     use_paid_connection(experiment, paid_policy(experiment, limit_cny=5, prior=prior))
     result = await run_phase(experiment)
@@ -660,11 +677,11 @@ async def test_changed_frozen_fee_file_is_rejected_before_model_calls(
 ) -> None:
     calls = install_jobs(monkeypatch)
     prior = experiment.root / "prior.jsonl"
-    prior.write_text(json.dumps(prior_usage(1, 1)) + "\n")
+    prior.write_text(json.dumps(prior_usage(1, 1)) + "\n", encoding="utf-8")
     policy = paid_policy(experiment, prior=[prior])
     use_paid_connection(experiment, policy)
     target = Path(policy["price_snapshot"]["path"]) if which == "price_snapshot" else prior
-    target.write_text(target.read_text() + "\n")
+    target.write_text(target.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="发生变化"):
         await run_phase(experiment)
     assert not calls
@@ -675,13 +692,13 @@ async def test_prior_fee_file_changed_during_trial_stops_before_next_trial(
 ) -> None:
     calls = install_jobs(monkeypatch)
     prior = experiment.root / "prior.jsonl"
-    prior.write_text(json.dumps(prior_usage(1, 1)) + "\n")
+    prior.write_text(json.dumps(prior_usage(1, 1)) + "\n", encoding="utf-8")
     use_paid_connection(experiment, paid_policy(experiment, prior=[prior]))
     original = study.replay_official_trial
 
     async def replay_then_change(*args: Any, **kwargs: Any) -> dict[str, Any]:
         result = await original(*args, **kwargs)
-        prior.write_text(prior.read_text() + "\n")
+        prior.write_text(prior.read_text(encoding="utf-8") + "\n", encoding="utf-8")
         return result
 
     monkeypatch.setattr(study, "replay_official_trial", replay_then_change)
@@ -793,7 +810,7 @@ def test_invalid_fee_evidence_cancels_final_validation_eligibility(experiment: A
     assert valid["formal_validation_eligible"] is True
     assert valid["final_result_eligible"] is True
     price = Path(policy["price_snapshot"]["path"])
-    price.write_text(price.read_text() + "\n")
+    price.write_text(price.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     invalid = study.phase_summary(manifest, [row])
     assert invalid["paid_budget"]["evidence_valid"] is False
     assert invalid["formal_comparison_eligible"] is False
@@ -821,7 +838,8 @@ async def test_missing_runtime_stops_next_trial_without_erasing_official_grade(
     abort = read_json(experiment.output / "abort.json")
     assert abort["reason"] == "runtime_evidence_unconfirmed"
     rows = [
-        json.loads(line) for line in (experiment.output / "records.jsonl").read_text().splitlines()
+        json.loads(line)
+        for line in (experiment.output / "records.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert rows[0]["replay_reward"] == 1
     assert "experiment_aborted" in report["validity_issues"]
@@ -854,3 +872,35 @@ async def test_model_address_matches_actual_official_agent_network(
     path = Path(calls[0].agents[0].kwargs["profile_path"])
     expected = "https://model.invalid/v1" if mode == "public" else "http://saya-model-gateway:8080"
     assert read_json(path)["base_url"] == expected
+
+
+def test_runtime_image_must_match_qualification_not_only_replay() -> None:
+    source = {"available": True, "image_id": "sha256:new", "architecture": "amd64", "os": "linux"}
+    assert not study._runtime_confirmed(
+        {
+            "runtime_identity": source,
+            "runtime_comparison": {"same_image": True, "same_platform": True},
+        },
+        replay=True,
+        qualified={**source, "image_id": "sha256:old"},
+    )
+
+
+async def test_formal_manifest_cannot_omit_qualified_images(
+    experiment: Any, monkeypatch: Any
+) -> None:
+    calls = install_jobs(monkeypatch)
+    experiment.manifest.update(
+        phase="dev",
+        preflight_passed=True,
+        implementation=study.implementation_identity(),
+        artifacts={
+            "product_wheel": file_sha256(experiment.wheel),
+            "requirements": file_sha256(experiment.requirements),
+            "variants": {name: file_sha256(path) for name, path in experiment.variants.items()},
+        },
+    )
+    write_json(experiment.manifest_path, experiment.manifest)
+    with pytest.raises(ValueError, match="资格镜像"):
+        await run_phase(experiment)
+    assert calls == []

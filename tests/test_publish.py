@@ -74,7 +74,7 @@ def test_export_keeps_abort_and_is_not_overwritable(tmp_path):
     report = export_results(manifest, records, target)
     assert not report["final_result_eligible"]
     assert report["validity_issues"]
-    public_manifest = json.loads((target / "manifest.json").read_text())
+    public_manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
     assert public_manifest["connection_profiles"] == {"local": {"context_length": 65536}}
     with pytest.raises(ValueError):
         export_results(manifest, records, target)
@@ -258,7 +258,7 @@ def test_profile_explicit_parameters_preserved_and_unknown_provider_body_dropped
     )
     output = tmp_path / "public"
     export_results(manifest, records, output)
-    result = json.loads((output / "manifest.json").read_text())
+    result = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert "provider_parameters" not in result
     profile = result["connection_profiles"]["local"]
     assert profile["summary_trigger_tokens"] == 32000
@@ -273,8 +273,11 @@ def test_derived_budget_invalidity_remains_invalid_when_public_data_is_reanalyze
     )
     output = tmp_path / "public"
     result = export_results(manifest, records, output)
-    published = json.loads((output / "manifest.json").read_text())
-    rows = [json.loads(line) for line in (output / "records.jsonl").read_text().splitlines()]
+    published = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    rows = [
+        json.loads(line)
+        for line in (output / "records.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
     assert result["final_result_eligible"] is False
     assert "paid_budget_evidence_invalid" in published["validity_issues"]
     assert analyze_experiment(published, rows)["final_result_eligible"] is False

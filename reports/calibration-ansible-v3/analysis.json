@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "phase": "calibration",
+  "canonical_model": "DeepSeek-V4.1-Flash",
+  "tasks": 1,
+  "repositories": 1,
+  "repeats": 1,
+  "formal_comparison_eligible": false,
+  "formal_validation_eligible": false,
+  "final_result_eligible": false,
+  "conclusion_scope": "development_only",
+  "validity_issues": [],
+  "missing_trials": [],
+  "endpoint_counts": {
+    "local": 1
+  },
+  "endpoint_mismatches": [],
+  "groups": {
+    "baseline": {
+      "planned": 1,
+      "recorded": 1,
+      "judged": 1,
+      "successes": 0,
+      "failures": 1,
+      "unknown": 0,
+      "missing": 0,
+      "judged_attempt_rate": 0.0,
+      "task_macro_success_rate": 0.0,
+      "status_counts": {
+        "completed": 1
+      },
+      "resources": {
+        "attempts": 1,
+        "input_tokens": {
+          "observed": 1,
+          "missing": 0,
+          "reported_sum": 1784623
+        },
+        "output_tokens": {
+          "observed": 1,
+          "missing": 0,
+          "reported_sum": 36489
+        },
+        "duration_seconds": {
+          "observed": 1,
+          "missing": 0,
+          "reported_sum": 594.969155,
+          "median": 594.969155,
+          "p95": 594.969155
+        },
+        "complete_usage_attempts": 1,
+        "cost": null
+      }
+    }
+  },
+  "task_success_rates": {
+    "baseline": {
+      "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86": 0.0
+    }
+  },
+  "comparison": null,
+  "cautions": [
+    "若生成配对区间，按任务重抽样，不能将重复试验当成独立任务。",
+    "公开任务可能被模型训练见过；本结果不证明不存在污染。",
+    "小样本和同仓库相关性限制外推；区间不替代任务代表性。",
+    "已报告 token 不等于完整请求账本或实际费用。"
+  ]
+}

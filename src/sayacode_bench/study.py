@@ -245,12 +245,18 @@ def _save_records(path: Path, records: list[dict[str, Any]]) -> None:
     temporary.replace(path)
 
 
-def _runtime_confirmed(record: dict[str, Any], *, replay: bool) -> bool:
+def _runtime_confirmed(
+    record: dict[str, Any], *, replay: bool, qualified: dict[str, Any] | None = None
+) -> bool:
     """正式试验逐次核实实际镜像身份，不用同名 tag 替代证据。"""
     identity = record.get("runtime_identity")
     if not isinstance(identity, dict) or identity.get("available") is not True:
         return False
     if not identity.get("image_id") or not identity.get("architecture") or not identity.get("os"):
+        return False
+    if qualified is not None and any(
+        identity.get(key) != qualified.get(key) for key in ("image_id", "architecture", "os")
+    ):
         return False
     if replay:
         comparison = record.get("runtime_comparison", {})
@@ -289,6 +295,18 @@ def _prepare(
             raise ValueError("正式研究必须有已通过的环境与评分门禁")
         if manifest.get("implementation") != implementation_identity():
             raise ValueError("正式研究的评测实现身份已变化")
+        qualified = manifest.get("qualified_runtime_identities")
+        if (
+            not isinstance(qualified, dict)
+            or set(qualified) != {task["task_id"] for task in manifest["tasks"]}
+            or any(
+                not isinstance(value, dict)
+                or value.get("available") is not True
+                or not all(value.get(key) for key in ("image_id", "architecture", "os"))
+                for value in qualified.values()
+            )
+        ):
+            raise ValueError("正式研究必须冻结每道任务的资格镜像与平台身份")
         if manifest.get("phase") in {"holdout", "validation"}:
             receipt = manifest.get("candidate_receipt")
             if (
@@ -471,7 +489,9 @@ async def run_phase(
                 flush=True,
             )
             if manifest.get("runtime_evidence_required") is True and not _runtime_confirmed(
-                record, replay=require_replay
+                record,
+                replay=require_replay,
+                qualified=manifest.get("qualified_runtime_identities", {}).get(task_id),
             ):
                 record_stop(output, "runtime_evidence_unconfirmed")
                 break

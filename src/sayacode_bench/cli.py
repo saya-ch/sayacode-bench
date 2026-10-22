@@ -109,6 +109,11 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "phase": args.phase,
         "frozen": True,
         "runtime_evidence_required": True,
+        "qualified_runtime_identities": {
+            row["task_id"]: row.get("oracle", {}).get("runtime_identity")
+            for row in gate["tasks"]
+            if row["task_id"] in {task["task_id"] for task in tasks}
+        },
         "canonical_model": CANONICAL_MODEL,
         "benchmark": tasks[0]["benchmark"],
         "revision": tasks[0]["revision"],
@@ -138,6 +143,13 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "validity_issues": [],
         "scope": "固定公开子集和本地网络实现，不宣称官方完整榜单成绩",
     }
+    if any(
+        not isinstance(identity, dict)
+        or identity.get("available") is not True
+        or not all(identity.get(key) for key in ("image_id", "architecture", "os"))
+        for identity in manifest["qualified_runtime_identities"].values()
+    ):
+        raise ValueError("评分门禁缺少实际镜像和平台身份，请重新执行真实门禁")
     paid_budget = freeze_paid_budget(
         limit_cny=getattr(args, "paid_limit_cny", None),
         stop_fraction=getattr(args, "paid_stop_fraction", 0.8),

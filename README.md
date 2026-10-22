@@ -85,10 +85,12 @@ uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolatio
 
 探针未通过，不冻结正式研究。当前本地网络实现只支持无自定义 Compose 的单个 Linux 容器；不支持的任务在看模型成绩前排除。
 
+本机校准发现官方参考解也会遇到测试库内部异常，因此正式任务进一步执行固定的三次参考解与一次空解资格检查。规则、机械替补和全部排除范围见 [环境资格门禁](docs/fixture-gates.md)；筛选后的结果只代表本地环境资格子集。
+
 ## 正式工作流
 
 1. `prepare` 固定公开源，依据预声明资源与语言范围抽样。
-2. `sanity` 运行官方参考解与空解，不调用模型。
+2. `sanity` 运行初始参考解与空解；正式任务使用 `scripts/qualify_fixtures.py` 的固定资格门禁，不调用模型。
 3. 用独立校准题测量时间、接口稳定性与用量，再决定正式规模。
 4. `freeze --phase dev` 绑定任务、模型参数、生产 wheel、依赖、候选及评测实现身份。
 5. `run` 执行开发比较，保留原始和独立重判结果。

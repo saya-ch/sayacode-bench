@@ -358,6 +358,11 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
             public_manifest["artifacts"]["variants"] = _hashes(artifacts["variants"])
     if "implementation" in manifest:
         public_manifest["implementation"] = _hashes(manifest["implementation"])
+    if "qualified_runtime_identities" in manifest:
+        public_manifest["qualified_runtime_identities"] = {
+            task_id: _runtime(identity)
+            for task_id, identity in _object(manifest["qualified_runtime_identities"]).items()
+        }
     public_manifest["tasks"] = [
         _fields(_object(row), _TASK_FIELDS, str) for row in manifest["tasks"]
     ]
