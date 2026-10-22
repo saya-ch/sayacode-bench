@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "available": true,
+  "container_id": "7b6ef224a15393951a86587caeb987ad0c17b511baa4a13487a5748efc409f45",
+  "image_reference": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+  "image_id": "sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+  "repo_digests": [
+    "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3"
+  ],
+  "architecture": "amd64",
+  "os": "linux",
+  "working_directory": "/app",
+  "requested": {
+    "cpus": 1,
+    "memory_mb": 4096,
+    "storage_mb": 10240,
+    "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367"
+  },
+  "docker_limits": {
+    "NanoCpus": 1000000000,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "Memory": 4294967296,
+    "MemorySwap": 8589934592,
+    "StorageOpt": null
+  },
+  "cgroup_v2": {
+    "cpu.max": "100000 100000",
+    "memory.max": "4294967296",
+    "memory.swap.max": "4294967296"
+  },
+  "storage_hard_limit_supported": false,
+  "scope": "main container only; model gateway has separate CPU and memory limits"
+}

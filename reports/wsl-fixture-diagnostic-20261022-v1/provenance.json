@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "phase": "independent_wsl_engine_readiness_diagnostic",
+  "date": "2026-10-22",
+  "source_commit": "72c3698589e961f704bbf7109b803254863739a5",
+  "same_physical_machine_as_previous_desktop": true,
+  "wsl_platform_upgraded": false,
+  "independent_distribution_and_docker_engine": true,
+  "kernel": "6.6.87.2-microsoft-standard-WSL2",
+  "execution_complete": true,
+  "readiness_gate_passed": false,
+  "reason": "qutebrowser_reference_not_accepted_in_every_fixed_trial",
+  "model_requests": 0,
+  "paid_api_cost_cny": 0,
+  "formal_comparison_eligible": false,
+  "raw_summary_sha256": "3c7070b25824728adeebca13192d7e0cb27b5ee57a1eed8c51d5e76e98ebe71a",
+  "raw_records_sha256": "50a7da60093ed09187901fd6024bd0aba7929a5c27ef806d32079db4bf79b083",
+  "interpretation": "固定八次本机WSL独立Engine诊断；保留所有分数，不据跨宿主不同随机种子唯一归因环境，后续固定seed对照单列。"
+}

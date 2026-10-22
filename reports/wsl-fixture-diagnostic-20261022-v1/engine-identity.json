@@ -1,0 +1,20 @@
+{
+  "ServerVersion": "29.7.2",
+  "OperatingSystem": "Ubuntu 24.04.5 LTS",
+  "OSType": "linux",
+  "Architecture": "x86_64",
+  "KernelVersion": "6.6.87.2-microsoft-standard-WSL2",
+  "NCPU": 32,
+  "MemTotal": 8122388480,
+  "Driver": "overlayfs",
+  "DockerRootDir": "/var/lib/docker",
+  "CgroupDriver": "systemd",
+  "CgroupVersion": "2",
+  "previous_engine_id_sha256": "77c2bf39cb8c56a7f326a4689271375d3bc19ea3bdbac266a2945a8c48201a8a",
+  "distinct_engine_from_desktop": true,
+  "distribution": "sayacode-bench",
+  "filesystem": "ext4",
+  "virtual_disk_limit_gib": 64,
+  "paid_model_requests": 0,
+  "engine_id_sha256": "68cb1c24f347c989cde646b695fa06df1ea39ec39f504a57737a43b1c07090c0"
+}

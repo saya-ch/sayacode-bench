@@ -1,0 +1,131 @@
+{
+  "paid_model_requests": 0,
+  "passed": true,
+  "host_mock_selection": {
+    "strategy": "native_linux_default_bridge_gateway",
+    "host_address": "172.30.240.1"
+  },
+  "setup": {
+    "host_mock": {
+      "reachable": true,
+      "status": 200,
+      "body": "{\"source\": \"unpaid-local-mock\", \"path\": \"/health\"}"
+    },
+    "host_ip": "172.30.240.1",
+    "host_ip_tcp": true,
+    "bridge_host_tcp": true,
+    "public_domain_resolved": true,
+    "public_ip_tcp": true
+  },
+  "no_network": {
+    "gateway": {
+      "reachable": false,
+      "error_type": "URLError"
+    },
+    "host_mock": {
+      "reachable": false,
+      "error_type": "URLError"
+    },
+    "public_ip_tcp": false,
+    "host_ip_tcp": false
+  },
+  "agent": {
+    "chat": {
+      "reachable": true,
+      "status": 200,
+      "body": "{\"source\": \"unpaid-local-mock\", \"path\": \"/v1/chat/completions\"}"
+    },
+    "messages": {
+      "reachable": true,
+      "status": 200,
+      "body": "{\"source\": \"unpaid-local-mock\", \"path\": \"/v1/messages\"}"
+    },
+    "get_model": {
+      "reachable": true,
+      "status": 405
+    },
+    "other_path": {
+      "reachable": true,
+      "status": 404
+    },
+    "query": {
+      "reachable": true,
+      "status": 400
+    },
+    "reference_path": {
+      "reachable": true,
+      "status": 404
+    },
+    "reference_files_present": false,
+    "public_domain": {
+      "reachable": false,
+      "error_type": "URLError"
+    },
+    "public_ip_tcp": false,
+    "host_mock": {
+      "reachable": false,
+      "error_type": "URLError"
+    },
+    "bridge_host_tcp": false,
+    "public_domain_resolved": false,
+    "public_dns_error_type": "gaierror",
+    "host_ip_tcp": false,
+    "host_name_resolved": true,
+    "connect_status": 400
+  },
+  "verifier": {
+    "host_mock": {
+      "reachable": true,
+      "status": 200,
+      "body": "{\"source\": \"unpaid-local-mock\", \"path\": \"/health\"}"
+    },
+    "host_ip": "172.30.240.1",
+    "host_ip_tcp": true,
+    "bridge_host_tcp": true,
+    "public_domain_resolved": true,
+    "public_ip_tcp": true
+  },
+  "source_sha256": {
+    "network.py": "789c8fd0415a9d061e785ee4e7e8d37e29cd33a75eede7e090dc10262119d5a4",
+    "test_network.py": "b01566858aada658ca321fa4b63ff865aa5c8a195f383fdf9a4c444f6a0e6412"
+  },
+  "harbor_version": "0.24.0",
+  "nginx_image": "nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236",
+  "cleanup_confirmed": true,
+  "independent_cleanup_checks": {
+    "main_container_absent": true,
+    "gateway_container_absent": true,
+    "isolated_network_absent": true,
+    "public_networks_absent": true
+  },
+  "source_probe_sha256": "3b91a62174c5e07d3b0cd79d5a168d3097af034e58f7d879309ed438c75eae55",
+  "runtime_identity": {
+    "available": true,
+    "image_id": "sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b",
+    "repo_digests": [
+      "python@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b"
+    ],
+    "architecture": "amd64",
+    "os": "linux",
+    "requested": {
+      "cpus": 1,
+      "memory_mb": 256,
+      "storage_mb": 1024,
+      "docker_image": "python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b"
+    },
+    "docker_limits": {
+      "NanoCpus": 1000000000,
+      "CpuPeriod": 0,
+      "CpuQuota": 0,
+      "Memory": 268435456,
+      "MemorySwap": 536870912,
+      "StorageOpt": null
+    },
+    "cgroup_v2": {
+      "cpu.max": "100000 100000",
+      "memory.max": "268435456",
+      "memory.swap.max": "268435456"
+    },
+    "storage_hard_limit_supported": false
+  }
+}

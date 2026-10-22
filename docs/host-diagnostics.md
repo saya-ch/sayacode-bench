@@ -33,6 +33,8 @@
 
 目前完整模型对照尚未开始，不能给出可信的最终成功率或调优收益。
 
+随后本机独立 Ubuntu WSL2／Engine 也完成了固定八次诊断：qutebrowser 参考解为 1/0/0，OpenLibrary 为 1/1/1，空解均为 0。网络探针通过，实际 Engine、存储与旧 Desktop 不同，但仍共享原 WSL 内核和硬件。原来各批 Hypothesis 随机种子没有固定一致，跨宿主差异仍可能涉及随机输入等因素；后续固定种子对照单列，不能从目前结果唯一归因 Docker Desktop、WSL 内核或硬件。见 [WSL 诊断](wsl-diagnostic.md)。
+
 ## 原生 Linux 网络门禁
 
 [独立实际探针](https://github.com/saya-ch/sayacode-bench/actions/runs/39740819102) 已通过，未使用模型。安装与验证阶段可以访问本地 mock 和已缓存公网 IP；Agent 阶段只能经过固定网关调用指定模型路径，直接宿主 TCP、公网 TCP、其他路径、GET、查询参数与 CONNECT 均被阻断。完全断网阶段也不能访问网关。
