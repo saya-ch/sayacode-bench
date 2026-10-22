@@ -1,0 +1,346 @@
+# 将此模板复制到 saya-ch/sayacode-bench-runs 私有仓库；公开仓库拒绝执行。
+name: 私有云端两题生产校准
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_source_sha:
+        description: 已审阅的公开评测源码完整小写 SHA，禁止分支或标签
+        required: true
+        type: string
+      acknowledge_actions_billing:
+        description: 已确认私有 Actions 额度与费用；API 预算不包含 Actions 费用
+        required: true
+        default: false
+        type: boolean
+      execute_models:
+        description: 已授权 GitHub 使用专用模型密钥；关闭时仅无密钥工件预检
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: private-cloud-calibration
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: ${{ inputs.public_source_sha }}
+
+jobs:
+  preflight:
+    if: inputs.acknowledge_actions_billing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      model_ready: ${{ steps.ledger.outputs.ready }}
+    steps:
+      - name: 核实私有仓库、完整源码 SHA 与首次执行
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/repository.json"
+          python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/repository.json",encoding="utf-8")); assert d.get("full_name")=="saya-ch/sayacode-bench-runs" and d.get("private") is True and d.get("visibility")=="private"'
+          echo "JOB_DEADLINE_EPOCH=$(( $(date +%s) + 19800 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13'
+          enable-cache: false
+      - name: 安装固定依赖并重建精确生产工件
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv sync --frozen
+          uv run --no-sync python scripts/calibrate_cloud.py dry \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
+            --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
+            --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
+      - name: 缺失或未知历史费用时仅完成预检
+        id: ledger
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          receipt = Path(os.environ["RUNNER_TEMP"]) / "evidence/dry/preflight.json"
+          ready = json.loads(receipt.read_text(encoding="utf-8")).get("model_dispatch_ready") is True
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+              stream.write("ready=" + str(ready).lower() + "\n")
+          PY
+      - name: 上传前重新核实私有性
+        id: archive_guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/archive-repository.json",encoding="utf-8")); assert d.get("full_name")=="saya-ch/sayacode-bench-runs" and d.get("private") is True and d.get("visibility")=="private"'
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 仅在私有执行仓库保存原始证据
+        if: always() && steps.archive_guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-calibration-preflight-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: warn
+          retention-days: 3
+
+  qutebrowser:
+    needs: preflight
+    if: inputs.execute_models && needs.preflight.outputs.model_ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      continue: ${{ steps.continuation.outputs.allowed }}
+    steps:
+      - name: 核实私有仓库、完整源码 SHA 与首次执行
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/repository.json"
+          python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/repository.json",encoding="utf-8")); assert d.get("full_name")=="saya-ch/sayacode-bench-runs" and d.get("private") is True and d.get("visibility")=="private"'
+          echo "JOB_DEADLINE_EPOCH=$(( $(date +%s) + 19800 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13'
+          enable-cache: false
+      - name: 安装固定依赖并重建精确生产工件
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv sync --frozen
+          uv run --no-sync python scripts/calibrate_cloud.py dry \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
+            --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
+            --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
+      - name: 在本次 runner 实际验证网络与独立清理
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 固定三次参考解与一次空解，不按结果重试
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv run --no-sync python scripts/calibrate_cloud.py controls \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/controls" \
+            --fixture qutebrowser --cache "$RUNNER_TEMP/cloud-source" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json"
+      - name: 一次生产 Agent 与独立 pristine 重判
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_MODEL_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+        shell: bash
+        run: |
+          set -eu
+          uv run --no-sync python scripts/calibrate_cloud.py run \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model" \
+            --fixture qutebrowser --cache "$RUNNER_TEMP/cloud-source" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json" \
+            --controls "$RUNNER_TEMP/evidence/controls" --private-home "$RUNNER_TEMP/model-private" \
+            --deadline-epoch "$JOB_DEADLINE_EPOCH" \
+            --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
+            --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json" \
+            > "$RUNNER_TEMP/evidence/model-entry.log" 2>&1
+      - name: 仅按运行、用量与资源门禁决定是否继续
+        id: continuation
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "evidence/model/calibration.json"
+          allowed = path.is_file() and json.loads(path.read_text(encoding="utf-8")).get("continue_allowed") is True
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+              stream.write("allowed=" + str(allowed).lower() + "\n")
+          PY
+      - name: 上传前重新核实私有性
+        id: archive_guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/archive-repository.json",encoding="utf-8")); assert d.get("full_name")=="saya-ch/sayacode-bench-runs" and d.get("private") is True and d.get("visibility")=="private"'
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 仅在私有执行仓库保存原始证据
+        if: always() && steps.archive_guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-calibration-qutebrowser-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: warn
+          retention-days: 3
+
+  ansible:
+    needs: qutebrowser
+    if: inputs.execute_models && needs.qutebrowser.outputs.continue == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: 核实私有仓库、完整源码 SHA 与首次执行
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/repository.json"
+          python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/repository.json",encoding="utf-8")); assert d.get("full_name")=="saya-ch/sayacode-bench-runs" and d.get("private") is True and d.get("visibility")=="private"'
+          echo "JOB_DEADLINE_EPOCH=$(( $(date +%s) + 19800 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13'
+          enable-cache: false
+      - name: 安装固定依赖并重建精确生产工件
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv sync --frozen
+          uv run --no-sync python scripts/calibrate_cloud.py dry \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
+            --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
+            --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
+      - name: 继承第一题原始记录和费用，不重新执行
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cloud-calibration-qutebrowser-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/prior-cloud
+      - name: 在本次 runner 实际验证网络与独立清理
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 固定三次参考解与一次空解，不按结果重试
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv run --no-sync python scripts/calibrate_cloud.py controls \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/controls" \
+            --fixture ansible --cache "$RUNNER_TEMP/cloud-source" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json"
+      - name: 一次生产 Agent 与独立 pristine 重判
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_MODEL_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+        shell: bash
+        run: |
+          set -eu
+          uv run --no-sync python scripts/calibrate_cloud.py run \
+            --root "$PWD" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
+            --metadata "$RUNNER_TEMP/repository.json" \
+            --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model" \
+            --fixture ansible --cache "$RUNNER_TEMP/cloud-source" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json" \
+            --controls "$RUNNER_TEMP/evidence/controls" --private-home "$RUNNER_TEMP/model-private" \
+            --deadline-epoch "$JOB_DEADLINE_EPOCH" \
+            --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
+            --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json" \
+            --cloud-prior-records "$RUNNER_TEMP/prior-cloud/model/run/records.jsonl" \
+            --cloud-prior-report "$RUNNER_TEMP/prior-cloud/model/calibration.json" \
+            > "$RUNNER_TEMP/evidence/model-entry.log" 2>&1
+      - name: 上传前重新核实私有性
+        id: archive_guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/archive-repository.json",encoding="utf-8")); assert d.get("full_name")=="saya-ch/sayacode-bench-runs" and d.get("private") is True and d.get("visibility")=="private"'
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 仅在私有执行仓库保存原始证据
+        if: always() && steps.archive_guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-calibration-ansible-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: warn
+          retention-days: 3
