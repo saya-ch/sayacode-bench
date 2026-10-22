@@ -232,6 +232,8 @@ def phase_summary(
                 "final_result_eligible",
             ):
                 summary[field] = False
+            if isinstance(summary.get("comparison"), dict):
+                summary["comparison"]["bootstrap"] = None
     return summary
 
 

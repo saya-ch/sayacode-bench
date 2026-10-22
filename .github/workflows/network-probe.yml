@@ -1,0 +1,78 @@
+name: 无模型 Linux 网络隔离探针
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  network-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SAYACODE_BENCH_DOCKER_TESTS: '1'
+      SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/network-probe.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.5'
+          python-version: '3.13'
+          enable-cache: true
+      - name: 安装冻结依赖
+        run: uv sync --frozen
+      - name: 真实 Docker 分阶段探针
+        shell: bash
+        run: |
+          timeout --signal=INT --kill-after=20s 4m \
+            uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 独立核查本次资源清理并保存最小证据
+        if: always()
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          path = Path(os.environ['SAYACODE_BENCH_PROBE_OUTPUT'])
+          evidence = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
+          owned = evidence.get('owned_resources', {})
+          checks = {}
+          def absent(kind, value, by_id=False):
+              if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+', value):
+                  return False
+              filtering = f'id={value}' if by_id else f'name=^/{re.escape(value)}$' if kind == 'container' else f'name=^{re.escape(value)}$'
+              command = ['docker', kind, 'ls']
+              if kind == 'container':
+                  command.append('--all')
+              result = subprocess.run(command + ['--filter', filtering, '--format', '{{.ID}}'], capture_output=True, text=True, encoding='utf-8', check=True)
+              return not result.stdout.strip()
+          try:
+              checks['main_container_absent'] = absent('container', owned.get('main_container'), True)
+              checks['gateway_container_absent'] = absent('container', owned.get('gateway_container'))
+              checks['isolated_network_absent'] = absent('network', owned.get('isolated_network'))
+              public = owned.get('public_networks', [])
+              checks['public_networks_absent'] = bool(public) and all(absent('network', name) for name in public)
+              confirmed = bool(checks) and all(checks.values())
+          except Exception as exc:
+              checks['inspection_error_type'] = type(exc).__name__
+              confirmed = False
+          keep = ('paid_model_requests', 'passed', 'host_mock_selection', 'setup', 'no_network', 'agent', 'verifier', 'source_sha256', 'harbor_version', 'nginx_image')
+          minimal = {key: evidence[key] for key in keep if key in evidence}
+          minimal['cleanup_confirmed'] = confirmed
+          minimal['independent_cleanup_checks'] = checks
+          runtime = evidence.get('runtime', {})
+          minimal['runtime_identity'] = {key: runtime[key] for key in ('available', 'image_id', 'repo_digests', 'architecture', 'os', 'requested', 'docker_limits', 'cgroup_v2', 'storage_hard_limit_supported') if key in runtime}
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(minimal, indent=2) + '\n', encoding='utf-8')
+          if not confirmed or minimal.get('paid_model_requests') != 0 or minimal.get('passed') is not True:
+              raise SystemExit('network probe or independent cleanup verification failed')
+          PY
+      - name: 保存无凭据最小探针证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: network-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/network-probe.json
+          if-no-files-found: error
+          retention-days: 14

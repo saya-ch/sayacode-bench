@@ -904,3 +904,37 @@ async def test_formal_manifest_cannot_omit_qualified_images(
     with pytest.raises(ValueError, match="资格镜像"):
         await run_phase(experiment)
     assert calls == []
+
+
+def test_invalid_budget_evidence_removes_main_formal_interval(experiment: Any) -> None:
+    policy = paid_policy(experiment)
+    manifest = {
+        **experiment.manifest,
+        "phase": "holdout",
+        "candidate": "candidate",
+        "paid_budget": policy,
+        "tasks": [{"task_id": name, "repository": "repo"} for name in ("first", "second")],
+    }
+    rows = [
+        {
+            **prior_usage(index + 1, 100),
+            "task_id": task,
+            "configuration": label,
+            "repeat": 1,
+            "canonical_model": CANONICAL_MODEL,
+            "status": "completed",
+            "success": label == "candidate",
+            "verified": True,
+        }
+        for index, (task, label) in enumerate(
+            (task, label) for task in ("first", "second") for label in ("baseline", "candidate")
+        )
+    ]
+    valid = study.phase_summary(manifest, rows)
+    assert valid["formal_comparison_eligible"] is True
+    assert valid["comparison"]["bootstrap"] is not None
+    price = Path(policy["price_snapshot"]["path"])
+    price.write_text(price.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    invalid = study.phase_summary(manifest, rows)
+    assert invalid["formal_comparison_eligible"] is False
+    assert invalid["comparison"]["bootstrap"] is None

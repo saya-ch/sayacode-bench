@@ -1,0 +1,8 @@
+{
+  "workflow_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39736698121",
+  "commit": "5b02d41a128ec2f3b6ade6df53bb3de48b8b1bb5",
+  "source_artifact": "fixture-diagnostic-39736698121-1",
+  "source_summary_sha256": "d78527ef2c5ea6bfa76e099875e3cd5846cf7bab6ee319731eacf9cfb8e1ce69",
+  "model_requests": 0,
+  "interpretation": "同固定镜像digest在独立Linux宿主的无模型诊断，不是Agent效果样本。"
+}

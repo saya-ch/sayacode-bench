@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "script_sha256": "ead41c40f418e1fe8b9f10c7c4fd1e455ed52fb9fc7b3b4a745c87e9bd54e7cb",
+  "analysis_sha256": "3dd40c99b571ebb4418cfca4f26ed5f9482236a03515725e8925159fbb8eea54",
+  "validation_sha256": "b690e5c23f251e2ba17394338d58c51ffeb37aa2487071af48011080a16c9b89",
+  "budget_sha256": "21d4b25b2e579fce959be008fa87849aebb8ade6b428515a9f0de589c8237cda",
+  "samples": 10000,
+  "seed": 20261022,
+  "absolute_unit": "task mean across planned repeats; resample tasks",
+  "cluster_unit": "whole repository; retain all tasks and their repeat means",
+  "cluster_estimator": "task-macro delta with varying sampled cluster sizes",
+  "role": "prespecified sensitivity; never replaces primary task bootstrap"
+}

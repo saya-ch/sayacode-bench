@@ -1,0 +1,493 @@
+diff --git a/qutebrowser/app.py b/qutebrowser/app.py
+index 444d3e69e..1a18881b5 100644
+--- a/qutebrowser/app.py
++++ b/qutebrowser/app.py
+@@ -87,7 +87,7 @@ def run(args):
+ 
+     log.init.debug("Initializing directories...")
+     standarddir.init(args)
+-    resources.preload_resources()
++    resources.preload()
+ 
+     log.init.debug("Initializing config...")
+     configinit.early_init(args)
+diff --git a/qutebrowser/utils/resources.py b/qutebrowser/utils/resources.py
+index a1c5d7f85..d79cc26d6 100644
+--- a/qutebrowser/utils/resources.py
++++ b/qutebrowser/utils/resources.py
+@@ -17,29 +17,15 @@
+ # You should have received a copy of the GNU General Public License
+ # along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.
+ 
+-"""Resources related utilities"""
++"""Resources related utilities."""
+ 
+-import os
+-import os.path
+-import io
+-import re
+ import sys
+-import enum
+-import json
+-import datetime
+-import traceback
+-import functools
+ import contextlib
+ import posixpath
+-import shlex
+-import mimetypes
+ import pathlib
+-import ctypes
+-import ctypes.util
+-from typing import (Any, Callable, IO, Iterator, Optional,
+-                    Sequence, Tuple, Type, Union,
+-                    Iterable, TypeVar, TYPE_CHECKING)
++from typing import Dict, Iterable, Iterator
+ 
++import qutebrowser
+ 
+ # We cannot use the stdlib version on 3.7-3.8 because we need the files() API.
+ if sys.version_info >= (3, 9):
+@@ -47,13 +33,15 @@ if sys.version_info >= (3, 9):
+ else:  # pragma: no cover
+     import importlib_resources
+ 
+-import qutebrowser
+-_resource_cache = {}
+ 
+-def _resource_path(filename: str) -> pathlib.Path:
++# Preloaded resource contents, keyed by their relative POSIX path.
++cache: Dict[str, str] = {}
++
++
++def path(filename: str) -> pathlib.Path:
+     """Get a pathlib.Path object for a resource."""
+     assert not posixpath.isabs(filename), filename
+-    assert os.path.pardir not in filename.split(posixpath.sep), filename
++    assert posixpath.pardir not in filename.split(posixpath.sep), filename
+ 
+     if hasattr(sys, 'frozen'):
+         # For PyInstaller, where we can't store resource files in a qutebrowser/ folder
+@@ -62,8 +50,9 @@ def _resource_path(filename: str) -> pathlib.Path:
+ 
+     return importlib_resources.files(qutebrowser) / filename
+ 
++
+ @contextlib.contextmanager
+-def _resource_keyerror_workaround() -> Iterator[None]:
++def keyerror_workaround() -> Iterator[None]:
+     """Re-raise KeyErrors as FileNotFoundErrors.
+ 
+     WORKAROUND for zipfile.Path resources raising KeyError when a file was notfound:
+@@ -77,8 +66,8 @@ def _resource_keyerror_workaround() -> Iterator[None]:
+         raise FileNotFoundError(str(e))
+ 
+ 
+-def _glob_resources(
+-    resource_path: pathlib.Path,
++def _glob(
++    resource_root: pathlib.Path,
+     subdir: str,
+     ext: str,
+ ) -> Iterable[str]:
+@@ -88,32 +77,33 @@ def _glob_resources(
+     """
+     assert '*' not in ext, ext
+     assert ext.startswith('.'), ext
+-    path = resource_path / subdir
++    resource_subdir = resource_root / subdir
+ 
+-    if isinstance(resource_path, pathlib.Path):
+-        for full_path in path.glob(f'*{ext}'):  # . is contained in ext
+-            yield full_path.relative_to(resource_path).as_posix()
++    if isinstance(resource_root, pathlib.PurePath):
++        for full_path in resource_subdir.glob(f'*{ext}'):
++            if full_path.is_file():
++                yield full_path.relative_to(resource_root).as_posix()
+     else:  # zipfile.Path or importlib_resources compat object
+-        # Unfortunately, we can't tell mypy about resource_path being of type
++        # Unfortunately, we can't tell mypy about resource_root being of type
+         # Union[pathlib.Path, zipfile.Path] because we set "python_version = 3.6" in
+-        # .mypy.ini, but the zipfiel stubs (correctly) only declare zipfile.Path with
++        # .mypy.ini, but the zipfile stubs (correctly) only declare zipfile.Path with
+         # Python 3.8...
+-        assert path.is_dir(), path  # type: ignore[unreachable]
+-        for subpath in path.iterdir():
+-            if subpath.name.endswith(ext):
++        assert resource_subdir.is_dir(), resource_subdir
++        for subpath in resource_subdir.iterdir():
++            if subpath.is_file() and subpath.name.endswith(ext):
+                 yield posixpath.join(subdir, subpath.name)
+ 
+ 
+-def preload_resources() -> None:
++def preload() -> None:
+     """Load resource files into the cache."""
+-    resource_path = _resource_path('')
++    resource_root = path('')
+     for subdir, ext in [
+             ('html', '.html'),
+             ('javascript', '.js'),
+             ('javascript/quirks', '.js'),
+     ]:
+-        for name in _glob_resources(resource_path, subdir, ext):
+-            _resource_cache[name] = read_file(name)
++        for name in _glob(resource_root, subdir, ext):
++            cache[name] = read_file(name)
+ 
+ 
+ def read_file(filename: str) -> str:
+@@ -125,12 +115,11 @@ def read_file(filename: str) -> str:
+     Return:
+         The file contents as string.
+     """
+-    if filename in _resource_cache:
+-        return _resource_cache[filename]
++    if filename in cache:
++        return cache[filename]
+ 
+-    path = _resource_path(filename)
+-    with _resource_keyerror_workaround():
+-        return path.read_text(encoding='utf-8')
++    with keyerror_workaround():
++        return path(filename).read_text(encoding='utf-8')
+ 
+ 
+ def read_file_binary(filename: str) -> bytes:
+@@ -142,7 +131,5 @@ def read_file_binary(filename: str) -> bytes:
+     Return:
+         The file contents as a bytes object.
+     """
+-    path = _resource_path(filename)
+-    with _resource_keyerror_workaround():
+-        return path.read_bytes()
+-
++    with keyerror_workaround():
++        return path(filename).read_bytes()
+diff --git a/tests/unit/utils/test_resources.py b/tests/unit/utils/test_resources.py
+new file mode 100644
+index 000000000..571d1767a
+--- /dev/null
++++ b/tests/unit/utils/test_resources.py
+@@ -0,0 +1,174 @@
++# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:
++
++# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>
++#
++# This file is part of qutebrowser.
++#
++# qutebrowser is free software: you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation, either version 3 of the License, or
++# (at your option) any later version.
++#
++# qutebrowser is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.
++
++"""Tests for qutebrowser.utils.resources."""
++
++import sys
++import os.path
++import zipfile
++
++import pytest
++
++import qutebrowser
++from qutebrowser.utils import resources
++
++
++@pytest.fixture(params=[True, False])
++def freezer(request, monkeypatch):
++    if request.param and not getattr(sys, 'frozen', False):
++        monkeypatch.setattr(sys, 'frozen', True, raising=False)
++        monkeypatch.setattr(sys, 'executable', qutebrowser.__file__)
++    elif not request.param and getattr(sys, 'frozen', False):
++        # Want to test unfrozen tests, but we are frozen
++        pytest.skip("Can't run with sys.frozen = True!")
++
++
++@pytest.fixture
++def package_path(tmp_path):
++    return tmp_path / 'qutebrowser'
++
++
++@pytest.fixture
++def html_path(package_path):
++    path = package_path / 'html'
++    path.mkdir(parents=True)
++
++    for filename in ['test1.html', 'test2.html', 'README', 'unrelatedhtml']:
++        (path / filename).touch()
++
++    subdir = path / 'subdir'
++    subdir.mkdir()
++    (subdir / 'subdir-file.html').touch()
++
++    return path
++
++
++@pytest.fixture
++def html_zip(tmp_path, html_path):
++    if not hasattr(zipfile, 'Path'):
++        pytest.skip("Needs zipfile.Path")
++
++    zip_path = tmp_path / 'qutebrowser.zip'
++    with zipfile.ZipFile(zip_path, 'w') as zf:
++        for path in html_path.rglob('*'):
++            zf.write(path, path.relative_to(tmp_path))
++
++        assert sorted(zf.namelist()) == [
++            'qutebrowser/html/README',
++            'qutebrowser/html/subdir/',
++            'qutebrowser/html/subdir/subdir-file.html',
++            'qutebrowser/html/test1.html',
++            'qutebrowser/html/test2.html',
++            'qutebrowser/html/unrelatedhtml',
++        ]
++
++    yield zipfile.Path(zip_path) / 'qutebrowser'
++
++
++@pytest.fixture(params=['pathlib', 'zipfile'])
++def resource_root(request):
++    """Resource files packaged either directly or via a zip."""
++    if request.param == 'pathlib':
++        request.getfixturevalue('html_path')
++        return request.getfixturevalue('package_path')
++    elif request.param == 'zipfile':
++        return request.getfixturevalue('html_zip')
++    raise AssertionError(request.param)
++
++
++class TestGlob:
++
++    def test_glob(self, resource_root):
++        files = sorted(resources._glob(resource_root, 'html', '.html'))
++        assert files == ['html/test1.html', 'html/test2.html']
++
++    def test_glob_subdir(self, resource_root):
++        files = sorted(resources._glob(resource_root, 'html/subdir', '.html'))
++        assert files == ['html/subdir/subdir-file.html']
++
++
++@pytest.mark.usefixtures('freezer')
++class TestReadFile:
++
++    def test_readfile(self):
++        """Read a test file."""
++        content = resources.read_file(os.path.join('utils', 'testfile'))
++        assert content.splitlines()[0] == "Hello World!"
++
++    @pytest.mark.parametrize('filename', ['javascript/scroll.js',
++                                          'html/error.html'])
++    def test_read_cached_file(self, mocker, filename):
++        resources.preload()
++        assert filename in resources.cache
++        m = mocker.patch('qutebrowser.utils.resources.importlib_resources.files')
++        resources.read_file(filename)
++        m.assert_not_called()
++
++    def test_readfile_binary(self):
++        """Read a test file in binary mode."""
++        content = resources.read_file_binary(os.path.join('utils', 'testfile'))
++        assert content.splitlines()[0] == b"Hello World!"
++
++    @pytest.mark.parametrize('name', ['read_file', 'read_file_binary'])
++    @pytest.mark.parametrize('fake_exception', [KeyError, FileNotFoundError, None])
++    def test_not_found(self, name, fake_exception, monkeypatch):
++        """Test behavior when a resources file wasn't found.
++
++        With fake_exception, we emulate the rather odd error handling of certain Python
++        versions: https://bugs.python.org/issue43063
++        """
++        class BrokenFileFake:
++
++            def __init__(self, exc):
++                self.exc = exc
++
++            def read_bytes(self):
++                raise self.exc("File does not exist")
++
++            def read_text(self, encoding):
++                raise self.exc("File does not exist")
++
++            def __truediv__(self, _other):
++                return self
++
++        if fake_exception is not None:
++            monkeypatch.setattr(resources.importlib_resources, 'files',
++                                lambda _pkg: BrokenFileFake(fake_exception))
++
++        meth = getattr(resources, name)
++        with pytest.raises(FileNotFoundError):
++            meth('doesnotexist')
++
++
++class TestPath:
++
++    def test_valid(self):
++        path = resources.path('html/error.html')
++        assert path.name == 'error.html'
++
++    @pytest.mark.parametrize('filename', ['/absolute', '../parent'])
++    def test_invalid(self, filename):
++        with pytest.raises(AssertionError):
++            resources.path(filename)
++
++
++def test_keyerror_workaround():
++    with pytest.raises(FileNotFoundError):
++        with resources.keyerror_workaround():
++            raise KeyError('foo')
+diff --git a/tests/unit/utils/test_utils.py b/tests/unit/utils/test_utils.py
+index 5fb61bb2f..5cc7a1c2a 100644
+--- a/tests/unit/utils/test_utils.py
++++ b/tests/unit/utils/test_utils.py
+@@ -28,7 +28,6 @@ import functools
+ import re
+ import shlex
+ import math
+-import zipfile
+ 
+ from PyQt5.QtCore import QUrl, QRect
+ from PyQt5.QtGui import QClipboard
+@@ -39,7 +38,7 @@ import yaml
+ 
+ import qutebrowser
+ import qutebrowser.utils  # for test_qualname
+-from qutebrowser.utils import utils, version, usertypes, resources
++from qutebrowser.utils import utils, version, usertypes
+ 
+ 
+ class TestVersionNumber:
+@@ -122,125 +121,6 @@ class TestElidingFilenames:
+         assert utils.elide_filename(filename, length) == expected
+ 
+ 
+-@pytest.fixture(params=[True, False])
+-def freezer(request, monkeypatch):
+-    if request.param and not getattr(sys, 'frozen', False):
+-        monkeypatch.setattr(sys, 'frozen', True, raising=False)
+-        monkeypatch.setattr(sys, 'executable', qutebrowser.__file__)
+-    elif not request.param and getattr(sys, 'frozen', False):
+-        # Want to test unfrozen tests, but we are frozen
+-        pytest.skip("Can't run with sys.frozen = True!")
+-
+-
+-@pytest.mark.usefixtures('freezer')
+-class TestReadFile:
+-
+-    @pytest.fixture
+-    def package_path(self, tmp_path):
+-        return tmp_path / 'qutebrowser'
+-
+-    @pytest.fixture
+-    def html_path(self, package_path):
+-        path = package_path / 'html'
+-        path.mkdir(parents=True)
+-
+-        for filename in ['test1.html', 'test2.html', 'README', 'unrelatedhtml']:
+-            (path / filename).touch()
+-
+-        subdir = path / 'subdir'
+-        subdir.mkdir()
+-        (subdir / 'subdir-file.html').touch()
+-
+-        return path
+-
+-    @pytest.fixture
+-    def html_zip(self, tmp_path, html_path):
+-        if not hasattr(zipfile, 'Path'):
+-            pytest.skip("Needs zipfile.Path")
+-
+-        zip_path = tmp_path / 'qutebrowser.zip'
+-        with zipfile.ZipFile(zip_path, 'w') as zf:
+-            for path in html_path.rglob('*'):
+-                zf.write(path, path.relative_to(tmp_path))
+-
+-            assert sorted(zf.namelist()) == [
+-                'qutebrowser/html/README',
+-                'qutebrowser/html/subdir/',
+-                'qutebrowser/html/subdir/subdir-file.html',
+-                'qutebrowser/html/test1.html',
+-                'qutebrowser/html/test2.html',
+-                'qutebrowser/html/unrelatedhtml',
+-            ]
+-
+-        yield zipfile.Path(zip_path) / 'qutebrowser'
+-
+-    @pytest.fixture(params=['pathlib', 'zipfile'])
+-    def resource_root(self, request):
+-        """Resource files packaged either directly or via a zip."""
+-        if request.param == 'pathlib':
+-            request.getfixturevalue('html_path')
+-            return request.getfixturevalue('package_path')
+-        elif request.param == 'zipfile':
+-            return request.getfixturevalue('html_zip')
+-        raise utils.Unreachable(request.param)
+-
+-    def test_glob_resources(self, resource_root):
+-        files = sorted(resources._glob_resources(resource_root, 'html', '.html'))
+-        assert files == ['html/test1.html', 'html/test2.html']
+-
+-    def test_glob_resources_subdir(self, resource_root):
+-        files = sorted(resources._glob_resources(resource_root, 'html/subdir', '.html'))
+-        assert files == ['html/subdir/subdir-file.html']
+-
+-    def test_readfile(self):
+-        """Read a test file."""
+-        content = resources.read_file(os.path.join('utils', 'testfile'))
+-        assert content.splitlines()[0] == "Hello World!"
+-
+-    @pytest.mark.parametrize('filename', ['javascript/scroll.js',
+-                                          'html/error.html'])
+-    def test_read_cached_file(self, mocker, filename):
+-        resources.preload_resources()
+-        m = mocker.patch('qutebrowser.utils.resources.importlib_resources.files')
+-        resources.read_file(filename)
+-        m.assert_not_called()
+-
+-    def test_readfile_binary(self):
+-        """Read a test file in binary mode."""
+-        content = resources.read_file_binary(os.path.join('utils', 'testfile'))
+-        assert content.splitlines()[0] == b"Hello World!"
+-
+-    @pytest.mark.parametrize('name', ['read_file', 'read_file_binary'])
+-    @pytest.mark.parametrize('fake_exception', [KeyError, FileNotFoundError, None])
+-    def test_not_found(self, name, fake_exception, monkeypatch):
+-        """Test behavior when a resources file wasn't found.
+-
+-        With fake_exception, we emulate the rather odd error handling of certain Python
+-        versions: https://bugs.python.org/issue43063
+-        """
+-        class BrokenFileFake:
+-
+-            def __init__(self, exc):
+-                self.exc = exc
+-
+-            def read_bytes(self):
+-                raise self.exc("File does not exist")
+-
+-            def read_text(self, encoding):
+-                raise self.exc("File does not exist")
+-
+-            def __truediv__(self, _other):
+-                return self
+-
+-        if fake_exception is not None:
+-            monkeypatch.setattr(resources.importlib_resources, 'files',
+-                                lambda _pkg: BrokenFileFake(fake_exception))
+-
+-        meth = getattr(resources, name)
+-        with pytest.raises(FileNotFoundError):
+-            meth('doesnotexist')
+-
+-
+ @pytest.mark.parametrize('seconds, out', [
+     (-1, '-0:01'),
+     (0, '0:00'),

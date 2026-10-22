@@ -1,0 +1,555 @@
+diff --git a/lib/ansible/cli/galaxy.py b/lib/ansible/cli/galaxy.py
+index 51f1aa54dd..6b9db32d84 100644
+--- a/lib/ansible/cli/galaxy.py
++++ b/lib/ansible/cli/galaxy.py
+@@ -219,6 +219,12 @@ class GalaxyCLI(CLI):
+         download_parser.add_argument('--pre', dest='allow_pre_release', action='store_true',
+                                      help='Include pre-release versions. Semantic versioning pre-releases are ignored by default')
+ 
++        download_parser.add_argument('--no-cache', dest='no_cache', action='store_false',
++                                     help="Don't use cached Galaxy server responses.")
++        download_parser.add_argument('--clear-response-cache', dest='clear_response_cache', action='store_true',
++                                     default=False,
++                                     help='Clear the existing server response cache.')
++
+     def add_init_options(self, parser, parents=None):
+         galaxy_type = 'collection' if parser.metavar == 'COLLECTION_ACTION' else 'role'
+ 
+@@ -367,6 +373,11 @@ class GalaxyCLI(CLI):
+                                         help='A file containing a list of collections to be installed.')
+             install_parser.add_argument('--pre', dest='allow_pre_release', action='store_true',
+                                         help='Include pre-release versions. Semantic versioning pre-releases are ignored by default')
++            install_parser.add_argument('--no-cache', dest='no_cache', action='store_false',
++                                        help="Don't use cached Galaxy server responses.")
++            install_parser.add_argument('--clear-response-cache', dest='clear_response_cache', action='store_true',
++                                        default=False,
++                                        help='Clear the existing server response cache.')
+         else:
+             install_parser.add_argument('-r', '--role-file', dest='requirements',
+                                         help='A file containing a list of roles to be installed.')
+@@ -429,6 +440,10 @@ class GalaxyCLI(CLI):
+                       ('auth_url', False), ('v3', False)]
+ 
+         validate_certs = not context.CLIARGS['ignore_certs']
++        # The response cache is only used by the collection install and download actions, every other action
++        # behaves as if it was disabled.
++        no_cache = context.CLIARGS.get('no_cache', True)
++        clear_response_cache = context.CLIARGS.get('clear_response_cache', False)
+ 
+         config_servers = []
+ 
+@@ -474,7 +489,8 @@ class GalaxyCLI(CLI):
+ 
+             server_options['validate_certs'] = validate_certs
+ 
+-            config_servers.append(GalaxyAPI(self.galaxy, server_key, **server_options))
++            config_servers.append(GalaxyAPI(self.galaxy, server_key, no_cache=no_cache,
++                                            clear_response_cache=clear_response_cache, **server_options))
+ 
+         cmd_server = context.CLIARGS['api_server']
+         cmd_token = GalaxyToken(token=context.CLIARGS['api_key'])
+@@ -486,14 +502,16 @@ class GalaxyCLI(CLI):
+                 self.api_servers.append(config_server)
+             else:
+                 self.api_servers.append(GalaxyAPI(self.galaxy, 'cmd_arg', cmd_server, token=cmd_token,
+-                                                  validate_certs=validate_certs))
++                                                  validate_certs=validate_certs, no_cache=no_cache,
++                                                  clear_response_cache=clear_response_cache))
+         else:
+             self.api_servers = config_servers
+ 
+         # Default to C.GALAXY_SERVER if no servers were defined
+         if len(self.api_servers) == 0:
+             self.api_servers.append(GalaxyAPI(self.galaxy, 'default', C.GALAXY_SERVER, token=cmd_token,
+-                                              validate_certs=validate_certs))
++                                              validate_certs=validate_certs, no_cache=no_cache,
++                                              clear_response_cache=clear_response_cache))
+ 
+         context.CLIARGS['func']()
+ 
+@@ -626,7 +644,9 @@ class GalaxyCLI(CLI):
+                                           GalaxyAPI(self.galaxy,
+                                                     "explicit_requirement_%s" % req_name,
+                                                     req_source,
+-                                                    validate_certs=not context.CLIARGS['ignore_certs']))
++                                                    validate_certs=not context.CLIARGS['ignore_certs'],
++                                                    no_cache=context.CLIARGS.get('no_cache', True),
++                                                    clear_response_cache=context.CLIARGS.get('clear_response_cache', False)))
+ 
+                     requirements['collections'].append((req_name, req_version, req_source, req_type))
+                 else:
+diff --git a/lib/ansible/config/base.yml b/lib/ansible/config/base.yml
+index e9706876e8..045f7e792b 100644
+--- a/lib/ansible/config/base.yml
++++ b/lib/ansible/config/base.yml
+@@ -1430,6 +1430,19 @@ FACTS_MODULES:
+   type: list
+   vars:
+     - name: ansible_facts_modules
++GALAXY_CACHE_DIR:
++  default: ~/.ansible/galaxy_cache
++  description:
++  - The directory that stores cached responses from a Galaxy server.
++  - This is only used by the ``ansible-galaxy collection install`` and ``download`` commands.
++  - Cache files inside this dir will be ignored if they are world writable.
++  env:
++  - name: ANSIBLE_GALAXY_CACHE_DIR
++  ini:
++  - section: galaxy
++    key: cache_dir
++  type: path
++  version_added: '2.10'
+ GALAXY_IGNORE_CERTS:
+   name: Galaxy validate certs
+   default: False
+diff --git a/lib/ansible/galaxy/api.py b/lib/ansible/galaxy/api.py
+index 7f6ed9e50f..3bcb1e391f 100644
+--- a/lib/ansible/galaxy/api.py
++++ b/lib/ansible/galaxy/api.py
+@@ -5,9 +5,11 @@
+ from __future__ import (absolute_import, division, print_function)
+ __metaclass__ = type
+ 
++import errno
+ import hashlib
+ import json
+ import os
++import stat
+ import tarfile
+ import uuid
+ import time
+@@ -22,6 +24,7 @@ from ansible.module_utils._text import to_bytes, to_native, to_text
+ from ansible.module_utils.urls import open_url, prepare_multipart
+ from ansible.utils.display import Display
+ from ansible.utils.hashing import secure_hash_s
++from ansible.utils.path import makedirs_safe
+ 
+ try:
+     from urllib.parse import urlparse
+@@ -104,6 +107,31 @@ def _urljoin(*args):
+     return '/'.join(to_native(a, errors='surrogate_or_strict').strip('/') for a in args + ('',) if a)
+ 
+ 
++def get_cache_id(url):
++    """ Return a cache identifier for ``url`` based on the server it points at.
++
++    The identifier is built from the hostname and the port only, any path, query
++    string or credentials embedded in the URL are not part of it:
++
++        https://galaxy.ansible.com/api/ -> galaxy.ansible.com:
++        https://user:pass@server.com:8080/api/ -> server.com:8080
++
++    The port is an empty string when the URL doesn't specify one, or when the
++    port isn't a valid integer.
++
++    :param url: The URL to build the cache identifier for.
++    :return: The cache identifier as a text string.
++    """
++    url_info = urlparse(to_native(url, errors='surrogate_or_strict'))
++
++    try:
++        port = int(url_info.port)
++    except (TypeError, ValueError):
++        port = ''
++
++    return to_native("%s:%s" % (url_info.hostname, port))
++
++
+ class GalaxyError(AnsibleError):
+     """ Error for bad Galaxy server responses. """
+ 
+@@ -170,7 +198,7 @@ class GalaxyAPI:
+     """ This class is meant to be used as a API client for an Ansible Galaxy server """
+ 
+     def __init__(self, galaxy, name, url, username=None, password=None, token=None, validate_certs=True,
+-                 available_api_versions=None):
++                 available_api_versions=None, clear_response_cache=False, no_cache=True):
+         self.galaxy = galaxy
+         self.name = name
+         self.username = username
+@@ -180,8 +208,104 @@ class GalaxyAPI:
+         self.validate_certs = validate_certs
+         self._available_api_versions = available_api_versions or {}
+ 
++        # The cache directory is looked up on each initialization so changes to the configured value
++        # (for example through the environment) are honored for every GalaxyAPI instance.
++        b_cache_dir = to_bytes(C.GALAXY_CACHE_DIR, errors='surrogate_or_strict')
++        self._b_cache_path = os.path.join(b_cache_dir, b'api.json')
++
++        if clear_response_cache and os.path.exists(self._b_cache_path):
++            # The whole response cache is server independent, so it is discarded before anything is read from it.
++            os.remove(self._b_cache_path)
++
++        self._cache = None
++        if not no_cache:
++            try:
++                makedirs_safe(b_cache_dir, mode=0o700)
++            except (OSError, IOError) as err:
++                # A cache that can't be created is not fatal, the command still works without cached responses.
++                display.vvvv("Error creating Galaxy cache dir '%s': %s" % (to_text(b_cache_dir), to_text(err)))
++            else:
++                self._cache = self._load_cache()
++
+         display.debug('Validate TLS certificates for %s: %s' % (self.api_server, self.validate_certs))
+ 
++    def _load_cache(self):
++        """ Load the Galaxy response cache from disk, resetting it when it can't be trusted or read. """
++        if not os.path.exists(self._b_cache_path):
++            cache = {'version': 1}
++            try:
++                self._write_cache(cache, mode=0o600)
++            except (OSError, IOError) as err:
++                # The cache is an optimization, an unwritable cache dir must not prevent the command from running.
++                display.vvvv("Error creating Galaxy cache file '%s': %s" % (to_text(self._b_cache_path), to_text(err)))
++            return cache
++
++        if stat.S_IMODE(os.stat(self._b_cache_path).st_mode) & 0o002:
++            # Any user on the host can modify the cache, it can't be trusted as a source of responses.
++            display.warning("Galaxy cache has world writable access (%s), ignoring it as a cache source."
++                            % to_text(self._b_cache_path))
++            return None
++
++        try:
++            with open(self._b_cache_path, 'rb') as cache_fd:
++                cache = json.load(cache_fd)
++        except (OSError, IOError, ValueError) as err:
++            display.vvvv("Error reading Galaxy cache file '%s': %s" % (to_text(self._b_cache_path), to_text(err)))
++            cache = None
++        else:
++            if isinstance(cache, dict) and cache.get('version') == 1:
++                return cache
++
++            display.vvvv("Galaxy cache file '%s' has an unknown version, resetting it"
++                         % to_text(self._b_cache_path))
++
++        # The cache is unusable but the file is still owned by the current user, so reuse it with empty contents.
++        cache = {'version': 1}
++        try:
++            self._write_cache(cache)
++        except (OSError, IOError) as err:
++            display.vvvv("Error resetting Galaxy cache file '%s': %s" % (to_text(self._b_cache_path), to_text(err)))
++
++        return cache
++
++    def _write_cache(self, cache, mode=None):
++        """ Write ``cache`` to the Galaxy response cache file. """
++        cache_json = to_bytes(json.dumps(cache), errors='surrogate_or_strict')
++
++        if mode is None and not os.path.exists(self._b_cache_path):
++            mode = 0o600
++
++        if mode is None:
++            # An existing cache file is rewritten in place, its permissions are left untouched.
++            with open(self._b_cache_path, 'wb') as cache_fd:
++                cache_fd.write(cache_json)
++            return
++
++        try:
++            cache_fd = os.open(self._b_cache_path, os.O_CREAT | os.O_WRONLY | os.O_EXCL, mode)
++        except OSError as err:
++            if err.errno != errno.EEXIST:
++                raise
++            # Another process created the file in the meantime, fall back to rewriting it in place.
++            with open(self._b_cache_path, 'wb') as cache_fd:
++                cache_fd.write(cache_json)
++            return
++
++        try:
++            os.write(cache_fd, cache_json)
++        finally:
++            os.close(cache_fd)
++
++        # The permissions passed to os.open are limited by the process umask, make sure the requested mode is applied.
++        os.chmod(self._b_cache_path, mode)
++
++    def _save_cache(self):
++        """ Persist the in memory cache, failures are not fatal as the cache is only an optimization. """
++        try:
++            self._write_cache(self._cache)
++        except (OSError, IOError) as err:
++            display.vvvv("Error writing Galaxy cache file '%s': %s" % (to_text(self._b_cache_path), to_text(err)))
++
+     @property
+     @g_connect(['v1', 'v2', 'v3'])
+     def available_api_versions(self):
+@@ -189,6 +313,15 @@ class GalaxyAPI:
+         return self._available_api_versions
+ 
+     def _call_galaxy(self, url, args=None, headers=None, method=None, auth_required=False, error_context_msg=None):
++        # Only cache requests that read a resource, any other method can change the response for a URL.
++        use_cache = self._cache is not None and method in (None, 'GET')
++        if use_cache:
++            cache_id = get_cache_id(url)
++            server_cache = self._cache.get(cache_id)
++            if isinstance(server_cache, dict) and url in server_cache:
++                display.vvvv("Calling Galaxy at %s (using cached response)" % url)
++                return server_cache[url]
++
+         headers = headers or {}
+         self._add_auth_token(headers, url, required=auth_required)
+ 
+@@ -208,6 +341,13 @@ class GalaxyAPI:
+             raise AnsibleError("Failed to parse Galaxy response from '%s' as JSON:\n%s"
+                                % (resp.url, to_native(resp_data)))
+ 
++        if use_cache:
++            if not isinstance(self._cache.get(cache_id), dict):
++                self._cache[cache_id] = {}
++
++            self._cache[cache_id][url] = data
++            self._save_cache()
++
+         return data
+ 
+     def _add_auth_token(self, headers, url, token_type=None, required=False):
+diff --git a/test/units/cli/test_galaxy.py b/test/units/cli/test_galaxy.py
+index c6c09159f1..baabd5db7a 100644
+--- a/test/units/cli/test_galaxy.py
++++ b/test/units/cli/test_galaxy.py
+@@ -731,6 +731,31 @@ def test_collection_build(collection_artifact):
+             assert len(file_entry.keys()) == 5
+ 
+ 
++@pytest.mark.parametrize('extra_args, expected_no_cache, expected_clear_cache', [
++    ([], True, False),
++    (['--no-cache'], False, False),
++    (['--clear-response-cache'], True, True),
++    (['--no-cache', '--clear-response-cache'], False, True),
++])
++def test_collection_install_cache_options(monkeypatch, reset_cli_args, tmp_path, extra_args,
++                                          expected_no_cache, expected_clear_cache):
++    mock_galaxy_api = MagicMock()
++    monkeypatch.setattr(ansible.cli.galaxy, 'GalaxyAPI', mock_galaxy_api)
++
++    mock_install = MagicMock()
++    monkeypatch.setattr(ansible.cli.galaxy, 'install_collections', mock_install)
++
++    galaxy_args = ['ansible-galaxy', 'collection', 'install', 'namespace.collection',
++                   '--collections-path', to_text(tmp_path)] + extra_args
++    GalaxyCLI(args=galaxy_args).run()
++
++    assert mock_install.call_count == 1
++    assert mock_galaxy_api.call_count > 0
++    for api_call in mock_galaxy_api.call_args_list:
++        assert api_call[1]['no_cache'] is expected_no_cache
++        assert api_call[1]['clear_response_cache'] is expected_clear_cache
++
++
+ @pytest.fixture()
+ def collection_install(reset_cli_args, tmp_path_factory, monkeypatch):
+     mock_install = MagicMock()
+diff --git a/test/units/galaxy/test_api.py b/test/units/galaxy/test_api.py
+index f333a64b57..209070caba 100644
+--- a/test/units/galaxy/test_api.py
++++ b/test/units/galaxy/test_api.py
+@@ -9,6 +9,7 @@ __metaclass__ = type
+ import json
+ import os
+ import re
++import stat
+ import pytest
+ import tarfile
+ import tempfile
+@@ -22,7 +23,7 @@ from ansible.errors import AnsibleError
+ from ansible.galaxy import api as galaxy_api
+ from ansible.galaxy.api import CollectionVersionMetadata, GalaxyAPI, GalaxyError
+ from ansible.galaxy.token import BasicAuthToken, GalaxyToken, KeycloakToken
+-from ansible.module_utils._text import to_native, to_text
++from ansible.module_utils._text import to_bytes, to_native, to_text
+ from ansible.module_utils.six.moves.urllib import error as urllib_error
+ from ansible.utils import context_objects as co
+ from ansible.utils.display import Display
+@@ -910,3 +911,193 @@ def test_get_role_versions_pagination(monkeypatch, responses):
+     assert mock_open.mock_calls[0][1][0] == 'https://galaxy.com/api/v1/roles/432/versions/?page_size=50'
+     if len(responses) == 2:
+         assert mock_open.mock_calls[1][1][0] == 'https://galaxy.com/api/v1/roles/432/versions/?page=2&page_size=50'
++
++
++@pytest.fixture()
++def galaxy_cache_dir(tmp_path, monkeypatch):
++    cache_dir = to_text(tmp_path / u'galaxy_cache')
++    monkeypatch.setattr(galaxy_api.C, 'GALAXY_CACHE_DIR', cache_dir)
++    yield cache_dir
++
++
++def _write_cache_file(cache_dir, content, mode=0o600):
++    os.makedirs(cache_dir)
++    cache_path = os.path.join(cache_dir, 'api.json')
++    with open(cache_path, 'wb') as cache_fd:
++        cache_fd.write(content)
++    os.chmod(cache_path, mode)
++
++    return cache_path
++
++
++@pytest.mark.parametrize('url, expected', [
++    ('https://galaxy.ansible.com/api/', 'galaxy.ansible.com:'),
++    ('https://galaxy.ansible.com/', 'galaxy.ansible.com:'),
++    ('http://localhost:8080/api/', 'localhost:8080'),
++    ('http://localhost/api/', 'localhost:'),
++    (u'https://galaxy.server.com/api/automation-hub/', u'galaxy.server.com:'),
++    (u'https://user:pass@galaxy.server.com:8443/api/', u'galaxy.server.com:8443'),
++    ('https://galaxy.server.com:notaport/api/', 'galaxy.server.com:'),
++    ('https://galaxy.server.com:/api/', 'galaxy.server.com:'),
++])
++def test_get_cache_id(url, expected):
++    assert galaxy_api.get_cache_id(url) == expected
++
++
++def test_init_no_cache_by_default(galaxy_cache_dir):
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/')
++
++    assert api._cache is None
++    assert not os.path.exists(galaxy_cache_dir)
++
++
++def test_init_no_cache_ignores_existing_cache(galaxy_cache_dir):
++    cache_path = _write_cache_file(galaxy_cache_dir, to_bytes(json.dumps({'version': 1})))
++
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=True)
++
++    assert api._cache is None
++    with open(cache_path, 'rb') as cache_fd:
++        assert json.loads(to_text(cache_fd.read())) == {'version': 1}
++
++
++def test_init_creates_cache(galaxy_cache_dir):
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++
++    cache_path = os.path.join(galaxy_cache_dir, 'api.json')
++    with open(cache_path, 'rb') as cache_fd:
++        assert cache_fd.read() == b'{"version": 1}'
++
++    assert stat.S_IMODE(os.stat(cache_path).st_mode) == 0o600
++    assert stat.S_IMODE(os.stat(galaxy_cache_dir).st_mode) == 0o700
++    assert api._cache == {'version': 1}
++
++
++def test_init_loads_existing_cache(galaxy_cache_dir):
++    cache_content = {
++        'version': 1,
++        'galaxy.ansible.com:': {'https://galaxy.ansible.com/api/v2/collections/ns/coll/': {'a': 'b'}},
++    }
++    cache_path = _write_cache_file(galaxy_cache_dir, to_bytes(json.dumps(cache_content)))
++
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++
++    assert api._cache == cache_content
++    with open(cache_path, 'rb') as cache_fd:
++        assert json.loads(to_text(cache_fd.read())) == cache_content
++
++
++@pytest.mark.parametrize('content, mode', [
++    (b'not valid json', 0o640),
++    (to_bytes(json.dumps({})), 0o640),
++    (to_bytes(json.dumps({'version': 2})), 0o644),
++])
++def test_init_resets_unusable_cache(galaxy_cache_dir, content, mode):
++    cache_path = _write_cache_file(galaxy_cache_dir, content, mode=mode)
++
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++
++    assert api._cache == {'version': 1}
++    with open(cache_path, 'rb') as cache_fd:
++        assert cache_fd.read() == b'{"version": 1}'
++
++    # Resetting the cache must not change the permissions of the file that is already in place.
++    assert stat.S_IMODE(os.stat(cache_path).st_mode) == mode
++
++
++def test_init_world_writable_cache_warns(galaxy_cache_dir, monkeypatch):
++    cache_content = {'version': 1, 'galaxy.ansible.com:': {'url': 'response'}}
++    cache_path = _write_cache_file(galaxy_cache_dir, to_bytes(json.dumps(cache_content)), mode=0o666)
++
++    mock_warning = MagicMock()
++    monkeypatch.setattr(Display, 'warning', mock_warning)
++
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++
++    assert api._cache is None
++    # The untrusted cache is ignored, it is not removed or reset.
++    with open(cache_path, 'rb') as cache_fd:
++        assert json.loads(to_text(cache_fd.read())) == cache_content
++
++    assert stat.S_IMODE(os.stat(cache_path).st_mode) == 0o666
++    assert mock_warning.call_count == 1
++
++
++def test_clear_response_cache(galaxy_cache_dir):
++    cache_path = _write_cache_file(galaxy_cache_dir, to_bytes(json.dumps({'version': 1})))
++
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', clear_response_cache=True)
++
++    assert api._cache is None
++    assert not os.path.exists(cache_path)
++
++
++def test_clear_response_cache_and_recreate(galaxy_cache_dir):
++    _write_cache_file(galaxy_cache_dir, to_bytes(json.dumps({'version': 1, 'server:80': {'url': 'response'}})))
++
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', clear_response_cache=True, no_cache=False)
++
++    cache_path = os.path.join(galaxy_cache_dir, 'api.json')
++    assert api._cache == {'version': 1}
++    with open(cache_path, 'rb') as cache_fd:
++        assert cache_fd.read() == b'{"version": 1}'
++    assert stat.S_IMODE(os.stat(cache_path).st_mode) == 0o600
++
++
++def test_clear_response_cache_missing_file(galaxy_cache_dir):
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', clear_response_cache=True)
++
++    assert api._cache is None
++    assert not os.path.exists(galaxy_cache_dir)
++
++
++def test_cached_response_is_reused(galaxy_cache_dir, monkeypatch):
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++    url = 'https://galaxy.ansible.com/api/v2/collections/ns/coll/'
++
++    mock_open = MagicMock()
++    mock_open.return_value = StringIO(to_text(json.dumps({'cached': 'response'})))
++    monkeypatch.setattr(galaxy_api, 'open_url', mock_open)
++
++    assert api._call_galaxy(url) == {'cached': 'response'}
++    assert api._call_galaxy(url) == {'cached': 'response'}
++    assert mock_open.call_count == 1
++
++    # The response is persisted so a later run doesn't need to hit the server again.
++    with open(os.path.join(galaxy_cache_dir, 'api.json'), 'rb') as cache_fd:
++        cache = json.loads(to_text(cache_fd.read()))
++    assert cache['galaxy.ansible.com:'][url] == {'cached': 'response'}
++
++    new_api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++    assert new_api._call_galaxy(url) == {'cached': 'response'}
++    assert mock_open.call_count == 1
++
++
++def test_post_is_not_cached(galaxy_cache_dir, monkeypatch):
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/', no_cache=False)
++    url = 'https://galaxy.ansible.com/api/v2/collections/ns/coll/'
++
++    mock_open = MagicMock()
++    mock_open.side_effect = [StringIO(to_text(json.dumps({'call': 1}))), StringIO(to_text(json.dumps({'call': 2})))]
++    monkeypatch.setattr(galaxy_api, 'open_url', mock_open)
++
++    assert api._call_galaxy(url, method='POST') == {'call': 1}
++    assert api._call_galaxy(url, method='POST') == {'call': 2}
++    assert mock_open.call_count == 2
++
++    with open(os.path.join(galaxy_cache_dir, 'api.json'), 'rb') as cache_fd:
++        assert json.loads(to_text(cache_fd.read())) == {'version': 1}
++
++
++def test_no_cache_bypasses_cache(galaxy_cache_dir, monkeypatch):
++    api = GalaxyAPI(None, 'test', 'https://galaxy.ansible.com/api/')
++    url = 'https://galaxy.ansible.com/api/v2/collections/ns/coll/'
++
++    mock_open = MagicMock()
++    mock_open.side_effect = [StringIO(to_text(json.dumps({'call': 1}))), StringIO(to_text(json.dumps({'call': 2})))]
++    monkeypatch.setattr(galaxy_api, 'open_url', mock_open)
++
++    assert api._call_galaxy(url) == {'call': 1}
++    assert api._call_galaxy(url) == {'call': 2}
++    assert mock_open.call_count == 2
++    assert not os.path.exists(galaxy_cache_dir)

@@ -1,0 +1,50 @@
+{
+  "phase": "cross_host_fixture_diagnostic",
+  "planned_jobs": 8,
+  "recorded_jobs": 8,
+  "all_jobs_attempted": true,
+  "all_expected_images_confirmed": true,
+  "interrupted": false,
+  "fixtures": {
+    "calibration-qutebrowser": {
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "expected_digest": "sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+      "oracle_rewards": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "nop_rewards": [
+        0.0
+      ],
+      "statuses": [
+        "completed",
+        "completed",
+        "completed",
+        "completed"
+      ]
+    },
+    "development-openlibrary": {
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "expected_digest": "sha256:94e6d17b2ccb9a6012860bd61e85fb9182b073f1673e46a01d0565989fe09add",
+      "oracle_rewards": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "nop_rewards": [
+        0.0
+      ],
+      "statuses": [
+        "completed",
+        "completed",
+        "completed",
+        "completed"
+      ]
+    }
+  },
+  "model_requests": 0,
+  "formal_comparison_eligible": false,
+  "affects_local_scores": false,
+  "interpretation": "固定八次，不按成绩挑选；跨宿主诊断不替换本地评分或资格决定。"
+}

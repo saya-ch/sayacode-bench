@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import os
 import shlex
+import sys
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -260,6 +262,107 @@ class _MockAPI(BaseHTTPRequestHandler):
         pass
 
 
+def _select_host_mock_address(
+    operating_system: str, bridge: dict[str, Any] | None, platform: str
+) -> dict[str, str]:
+    """桌面使用官方宿主别名；原生同宿主 Linux 使用已校验桥地址。"""
+    if "docker desktop" in operating_system.casefold():
+        return {"strategy": "docker_desktop_host_alias", "host_address": "host.docker.internal"}
+    if platform != "linux":
+        raise ValueError("非 Docker Desktop 探针只支持同宿主原生 Linux Docker")
+    if not isinstance(bridge, dict) or bridge.get("Driver") != "bridge":
+        raise ValueError("原生 Linux 需要默认 Docker bridge 信息")
+    ipam = bridge.get("IPAM")
+    if not isinstance(ipam, dict) or not isinstance(ipam.get("Config"), list):
+        raise ValueError("默认桥缺少合法 IPAM Config")
+    settings = ipam["Config"]
+    gateways = set()
+    for entry in settings:
+        gateway = entry.get("Gateway") if isinstance(entry, dict) else None
+        if not isinstance(gateway, str):
+            continue
+        try:
+            address = ipaddress.ip_address(gateway)
+        except ValueError:
+            raise ValueError("默认桥 Gateway 不是合法地址") from None
+        if address.version != 4:
+            continue
+        private = any(
+            address in ipaddress.ip_network(cidr)
+            for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+        )
+        if not private:
+            raise ValueError("默认桥 Gateway 必须是 RFC1918 私有 IPv4")
+        gateways.add(str(address))
+    if len(gateways) != 1:
+        raise ValueError("默认桥需要唯一的私有 IPv4 Gateway")
+    return {"strategy": "native_linux_default_bridge_gateway", "host_address": gateways.pop()}
+
+
+async def _host_mock_selection() -> dict[str, str]:
+    info = json.loads(await network.docker("info", "--format", "{{json .}}"))
+    operating_system = str(info.get("OperatingSystem", ""))
+    bridge = None
+    if "docker desktop" not in operating_system.casefold():
+        inspected = json.loads(await network.docker("network", "inspect", "bridge"))
+        if not isinstance(inspected, list) or len(inspected) != 1:
+            raise ValueError("无法确定默认 Docker bridge")
+        bridge = inspected[0]
+    return _select_host_mock_address(operating_system, bridge, sys.platform)
+
+
+def test_desktop_uses_host_alias_without_assuming_linux_bridge_reaches_windows() -> None:
+    assert _select_host_mock_address("Docker Desktop", None, "win32") == {
+        "strategy": "docker_desktop_host_alias",
+        "host_address": "host.docker.internal",
+    }
+
+
+def test_native_linux_uses_private_default_bridge_gateway() -> None:
+    bridge = {"Driver": "bridge", "IPAM": {"Config": [{"Gateway": "172.17.0.1"}]}}
+    assert _select_host_mock_address("Ubuntu 24.04", bridge, "linux") == {
+        "strategy": "native_linux_default_bridge_gateway",
+        "host_address": "172.17.0.1",
+    }
+
+
+@pytest.mark.parametrize("gateway", ["8.8.8.8", "127.0.0.1", "169.254.1.1", "fd00::1", "invalid"])
+def test_native_linux_rejects_invalid_or_nonprivate_gateway(gateway: str) -> None:
+    bridge = {"Driver": "bridge", "IPAM": {"Config": [{"Gateway": gateway}]}}
+    with pytest.raises(ValueError):
+        _select_host_mock_address("Ubuntu", bridge, "linux")
+
+
+def test_native_host_route_is_not_assumed_from_windows_remote_engine() -> None:
+    with pytest.raises(ValueError, match="同宿主"):
+        _select_host_mock_address("Ubuntu", None, "win32")
+
+
+@pytest.mark.parametrize("config", [[], [{"Gateway": "172.17.0.1"}, {"Gateway": "172.18.0.1"}]])
+def test_native_default_bridge_requires_unique_ipv4_gateway(config: list[dict[str, str]]) -> None:
+    with pytest.raises(ValueError, match="唯一"):
+        _select_host_mock_address(
+            "Ubuntu", {"Driver": "bridge", "IPAM": {"Config": config}}, "linux"
+        )
+
+
+async def test_host_mock_selection_queries_bridge_only_on_native_linux(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+
+    async def docker(*args: str, **kwargs: Any) -> str:
+        calls.append(args)
+        if args[0] == "info":
+            return json.dumps({"OperatingSystem": "Ubuntu"})
+        return json.dumps([{"Driver": "bridge", "IPAM": {"Config": [{"Gateway": "172.17.0.1"}]}}])
+
+    monkeypatch.setattr(network, "docker", docker)
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert (await _host_mock_selection())["host_address"] == "172.17.0.1"
+    assert calls[-1] == ("network", "inspect", "bridge")
+
+
 _PROBE = r"""
 import http.client,json,pathlib,socket,urllib.error,urllib.request
 config=json.loads(CONFIG_JSON)
@@ -281,9 +384,10 @@ if config['phase']=='none':
     result['gateway']=request(config['gateway']+'/v1/messages','POST')
     result['host_mock']=request(config['mock'])
     result['public_ip_tcp']=tcp('1.1.1.1',443)
+    result['host_ip_tcp']=tcp(config['host_ip'],config['mock_port'])
 elif config['phase']=='public':
     result['host_mock']=request(config['mock'])
-    result['host_ip']=socket.gethostbyname('host.docker.internal')
+    result['host_ip']=socket.gethostbyname(config['host_address'])
     result['host_ip_tcp']=tcp(result['host_ip'],config['mock_port'])
     result['bridge_host_tcp']=tcp(config['bridge_host'],config['mock_port'])
     try:result['public_domain_resolved']=bool(socket.gethostbyname('example.com'))
@@ -309,7 +413,7 @@ else:
         result['public_domain_resolved']=False
         result['public_dns_error_type']=type(e).__name__
     result['host_ip_tcp']=tcp(config['host_ip'],config['mock_port'])
-    try:result['host_name_resolved']=bool(socket.gethostbyname('host.docker.internal'))
+    try:result['host_name_resolved']=bool(socket.gethostbyname(config['host_address']))
     except OSError as e:
         result['host_name_resolved']=False
         result['host_dns_error_type']=type(e).__name__
@@ -322,12 +426,51 @@ print(json.dumps(result))
 """
 
 
+def test_disconnected_probe_checks_cached_ip_without_using_dns_as_isolation_proof(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import socket
+    import urllib.error
+    import urllib.request
+
+    attempted = []
+
+    def blocked(address: tuple[str, int], **kwargs: Any) -> Any:
+        attempted.append(address)
+        raise OSError("controlled offline route")
+
+    class Offline:
+        def open(self, *args: Any, **kwargs: Any) -> Any:
+            raise urllib.error.URLError("controlled offline route")
+
+    def no_dns(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("无网络阶段必须直接验证已缓存 IP")
+
+    monkeypatch.setattr(socket, "create_connection", blocked)
+    monkeypatch.setattr(socket, "gethostbyname", no_dns)
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *args: Offline())
+    config = {
+        "phase": "none",
+        "gateway": GATEWAY_BASE_URL,
+        "mock": "http://172.17.0.1:45123/health",
+        "host_address": "172.17.0.1",
+        "host_ip": "172.17.0.1",
+        "mock_port": 45123,
+    }
+    exec("CONFIG_JSON=" + repr(json.dumps(config)) + "\n" + _PROBE, {})
+    result = json.loads(capsys.readouterr().out)
+    assert result["host_ip_tcp"] is False
+    assert ("172.17.0.1", 45123) in attempted
+
+
 @pytest.mark.skipif(
     os.environ.get("SAYACODE_BENCH_DOCKER_TESTS") != "1", reason="显式启用真实 Docker 离线网络探针"
 )
 async def test_real_docker_network_isolation(tmp_path: Path) -> None:
     """只访问本地 mock 与公共连通性探针，不调用任何付费模型。"""
 
+    host_selection = await _host_mock_selection()
+    host_address = host_selection["host_address"]
     image = (
         "python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b"
     )
@@ -348,19 +491,24 @@ async def test_real_docker_network_isolation(tmp_path: Path) -> None:
         task_env_config=EnvironmentConfig(
             docker_image=image, cpus=1, memory_mb=256, storage_mb=1024
         ),
-        chat_upstream=f"http://host.docker.internal:{port}/v1/chat/completions",
-        messages_upstream=f"http://host.docker.internal:{port}/v1/messages",
+        chat_upstream=f"http://{host_address}:{port}/v1/chat/completions",
+        messages_upstream=f"http://{host_address}:{port}/v1/messages",
         network_policy=NetworkPolicy(network_mode=NetworkMode.PUBLIC),
         phase_network_policies=[
             NetworkPolicy(network_mode=NetworkMode.ALLOWLIST, allowed_hosts=[GATEWAY_HOST])
         ],
     )
-    evidence: dict[str, Any] = {"paid_model_requests": 0, "passed": False}
+    evidence: dict[str, Any] = {
+        "paid_model_requests": 0,
+        "passed": False,
+        "host_mock_selection": host_selection,
+    }
 
     async def probe(phase: str) -> dict[str, Any]:
         config = {
             "phase": phase,
-            "mock": f"http://host.docker.internal:{port}/health",
+            "mock": f"http://{host_address}:{port}/health",
+            "host_address": host_address,
             "mock_port": port,
             "gateway": GATEWAY_BASE_URL,
             "bridge_host": next(iter(environment._public_networks.values()))["Gateway"],
@@ -382,6 +530,7 @@ async def test_real_docker_network_isolation(tmp_path: Path) -> None:
         evidence["runtime"] = runtime
         public = evidence["setup"] = await probe("public")
         assert public["host_mock"]["status"] == 200
+        assert json.loads(public["host_mock"]["body"])["source"] == "unpaid-local-mock"
         assert public["host_ip_tcp"] is True
         assert public["public_ip_tcp"] is True
         await environment.set_network_policy(NetworkPolicy(network_mode=NetworkMode.NO_NETWORK))
@@ -389,6 +538,7 @@ async def test_real_docker_network_isolation(tmp_path: Path) -> None:
         assert offline["gateway"]["reachable"] is False
         assert offline["host_mock"]["reachable"] is False
         assert offline["public_ip_tcp"] is False
+        assert offline["host_ip_tcp"] is False
         await environment.set_network_policy(
             NetworkPolicy(network_mode=NetworkMode.ALLOWLIST, allowed_hosts=[GATEWAY_HOST])
         )
@@ -412,6 +562,12 @@ async def test_real_docker_network_isolation(tmp_path: Path) -> None:
         assert verifier["public_ip_tcp"] is True
         evidence["passed"] = True
     finally:
+        evidence["owned_resources"] = {
+            "main_container": environment._container_id,
+            "gateway_container": environment.gateway.container,
+            "isolated_network": environment.gateway.network,
+            "public_networks": list(environment._public_networks),
+        }
         evidence["history"] = environment._network_history
         evidence["gateway_startup_log"] = environment.gateway.startup_log
         evidence["gateway_runtime_log"] = await network.docker(
@@ -436,9 +592,30 @@ async def test_real_docker_network_isolation(tmp_path: Path) -> None:
                 "--format",
                 "{{.ID}}",
             )
+            if environment._container_id:
+                assert not await network.docker(
+                    "container",
+                    "ls",
+                    "--all",
+                    "--filter",
+                    f"id={environment._container_id}",
+                    "--format",
+                    "{{.ID}}",
+                )
+            for owned_network in environment._public_networks:
+                assert not await network.docker(
+                    "network",
+                    "ls",
+                    "--filter",
+                    f"name=^{owned_network}$",
+                    "--format",
+                    "{{.ID}}",
+                )
             evidence["cleanup_complete"] = True
+            evidence["cleanup_confirmed"] = bool(environment._container_id)
         except BaseException as error:
             evidence["cleanup_complete"] = False
+            evidence["cleanup_confirmed"] = False
             evidence["cleanup_error_type"] = type(error).__name__
             evidence["passed"] = False
             raise

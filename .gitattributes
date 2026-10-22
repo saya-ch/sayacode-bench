@@ -2,3 +2,4 @@
 *.png -text
 *.whl -text
 *.zip -text
+*.patch -text

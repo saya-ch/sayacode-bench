@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "phase": "cross_host_fixture_diagnostic",
+  "benchmark": "swe-bench-pro-v2",
+  "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+  "harbor_version": "0.24.0",
+  "model_agent_used": false,
+  "model_requests": 0,
+  "fixtures": [
+    {
+      "name": "calibration-qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "digest": "sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+      "immutable_image": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+      "original_image_reference": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367"
+    },
+    {
+      "name": "development-openlibrary",
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "digest": "sha256:94e6d17b2ccb9a6012860bd61e85fb9182b073f1673e46a01d0565989fe09add",
+      "immutable_image": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:94e6d17b2ccb9a6012860bd61e85fb9182b073f1673e46a01d0565989fe09add",
+      "original_image_reference": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c"
+    }
+  ],
+  "schedule": [
+    {
+      "fixture": "calibration-qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "oracle",
+      "repeat": 1,
+      "job_name": "cross-host-1-oracle-1"
+    },
+    {
+      "fixture": "calibration-qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "oracle",
+      "repeat": 2,
+      "job_name": "cross-host-1-oracle-2"
+    },
+    {
+      "fixture": "calibration-qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "oracle",
+      "repeat": 3,
+      "job_name": "cross-host-1-oracle-3"
+    },
+    {
+      "fixture": "calibration-qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "nop",
+      "repeat": 1,
+      "job_name": "cross-host-1-nop-1"
+    },
+    {
+      "fixture": "development-openlibrary",
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "agent": "oracle",
+      "repeat": 1,
+      "job_name": "cross-host-2-oracle-1"
+    },
+    {
+      "fixture": "development-openlibrary",
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "agent": "oracle",
+      "repeat": 2,
+      "job_name": "cross-host-2-oracle-2"
+    },
+    {
+      "fixture": "development-openlibrary",
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "agent": "oracle",
+      "repeat": 3,
+      "job_name": "cross-host-2-oracle-3"
+    },
+    {
+      "fixture": "development-openlibrary",
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "agent": "nop",
+      "repeat": 1,
+      "job_name": "cross-host-2-nop-1"
+    }
+  ],
+  "interpretation": "固定八次，不按成绩挑选；跨宿主诊断不替换本地评分或资格决定。",
+  "formal_comparison_eligible": false,
+  "affects_local_scores": false
+}

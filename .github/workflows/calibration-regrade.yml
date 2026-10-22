@@ -1,0 +1,36 @@
+name: 无模型校准补丁云端复核
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calibration-regrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.5'
+          python-version: '3.13'
+          enable-cache: true
+      - name: 安装冻结评测依赖
+        run: uv sync --frozen
+      - name: 固定十次全新环境补丁重判及参考控制
+        shell: bash
+        run: |
+          timeout --signal=INT --kill-after=60s 25m \
+            uv run --no-sync python -m scripts.regrade_calibration_patches \
+            --cache "$RUNNER_TEMP/calibration-regrade-source" \
+            --output "$RUNNER_TEMP/calibration-regrade"
+      - name: 保存最小复核证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibration-regrade-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/calibration-regrade/public/
+          if-no-files-found: warn
+          retention-days: 14
