@@ -63,7 +63,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
         with:
           version: '0.12.5'
-          python-version: '3.13'
+          python-version: '3.13.12'
           enable-cache: false
       - name: 安装固定依赖并重建精确生产工件
         working-directory: bench
@@ -76,6 +76,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
@@ -144,7 +145,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
         with:
           version: '0.12.5'
-          python-version: '3.13'
+          python-version: '3.13.12'
           enable-cache: false
       - name: 安装固定依赖并重建精确生产工件
         working-directory: bench
@@ -157,6 +158,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
@@ -176,6 +178,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/controls" \
             --fixture qutebrowser --cache "$RUNNER_TEMP/cloud-source" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json"
@@ -191,6 +194,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model" \
             --fixture qutebrowser --cache "$RUNNER_TEMP/cloud-source" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json" \
@@ -263,7 +267,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
         with:
           version: '0.12.5'
-          python-version: '3.13'
+          python-version: '3.13.12'
           enable-cache: false
       - name: 安装固定依赖并重建精确生产工件
         working-directory: bench
@@ -276,6 +280,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
@@ -300,6 +305,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/controls" \
             --fixture ansible --cache "$RUNNER_TEMP/cloud-source" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json"
@@ -315,6 +321,7 @@ jobs:
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
+            --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model" \
             --fixture ansible --cache "$RUNNER_TEMP/cloud-source" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json" \

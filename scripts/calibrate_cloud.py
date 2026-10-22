@@ -32,6 +32,11 @@ from sayacode_bench.network import docker
 from sayacode_bench.sources import SOURCES, fetch_source, tree_digest
 from sayacode_bench.study import freeze_paid_budget, run_phase
 
+if __package__:
+    from .diagnose_wheel import compare_wheels
+else:
+    from diagnose_wheel import compare_wheels
+
 EXECUTION_REPOSITORY = "saya-ch/sayacode-bench-runs"
 REVISION = "66f92766bba642462d4bbe5479e83f91f9211862"
 IMAGE_REPOSITORY = "ghcr.io/scaleapi/swe-bench_pro-v2"
@@ -67,6 +72,14 @@ PROFILE = {
     "file_search": True,
     "tool_selector_max_tools": None,
 }
+
+
+class ArtifactGateError(ValueError):
+    """只携带可公开的工件门禁原因枚举，不附带命令或 HTTP 正文。"""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 def require_private(metadata: dict[str, Any]) -> None:
@@ -121,23 +134,40 @@ def source_identity(root: Path, source_sha: str, workflow: Path) -> dict[str, An
         "public_repository": "saya-ch/sayacode-bench",
         "public_source_sha": source_sha,
         "script_sha256": file_sha256(Path(__file__)),
+        "wheel_diagnostic_sha256": file_sha256(Path(__file__).with_name("diagnose_wheel.py")),
         "workflow_sha256": file_sha256(workflow),
         "implementation": implementation_identity(),
     }
 
 
-def build_baseline(root: Path, artifacts: Path, requirements: Path) -> dict[str, Any]:
-    """只接受原始依赖文件；不以 Linux 重新导出来冒充相同字节。"""
+def build_baseline(
+    root: Path, artifacts: Path, requirements: Path, wheel_input: Path | None = None
+) -> dict[str, Any]:
+    """显式选择原件；平台重建只作诊断，不能自动替换冻结运行包。"""
     identity = read_json(root / "reproduction" / "identity.json")
     archive = root / "reproduction" / "product-baseline-source.zip"
     if file_sha256(archive) != identity["source_archive_sha256"]:
-        raise ValueError("生产源码归档身份不一致")
+        raise ArtifactGateError("source_archive_hash_mismatch")
     if not requirements.is_file():
-        raise FileNotFoundError("missing_original_requirements")
+        raise ArtifactGateError("missing_original_requirements")
     if file_sha256(requirements) != identity["requirements_sha256"]:
-        raise ValueError("原始 requirements 文件身份不一致")
-    wheel = artifacts / "wheel" / "sayacode-3.2.4-py3-none-any.whl"
-    if not wheel.exists():
+        raise ArtifactGateError("requirements_hash_mismatch")
+    filename = "sayacode-3.2.4-py3-none-any.whl"
+    selected = None
+    if wheel_input is not None:
+        if not wheel_input.is_file():
+            raise ArtifactGateError("missing_original_wheel")
+        if file_sha256(wheel_input) != identity["production_wheel_sha256"]:
+            raise ArtifactGateError("original_wheel_hash_mismatch")
+        # 私有输入名可为 product-baseline.whl；仅保字节复制为 pip 接受的规范文件名。
+        selected = artifacts / "original" / filename
+        selected.parent.mkdir(parents=True, exist_ok=True)
+        if selected.exists() and file_sha256(selected) != identity["production_wheel_sha256"]:
+            raise ArtifactGateError("original_wheel_cache_hash_mismatch")
+        if not selected.exists():
+            shutil.copyfile(wheel_input, selected)
+    rebuilt = artifacts / "wheel" / filename
+    if not rebuilt.exists():
         source = artifacts / "baseline-source"
         source.mkdir(parents=True, exist_ok=False)
         with zipfile.ZipFile(archive) as contents:
@@ -150,22 +180,54 @@ def build_baseline(root: Path, artifacts: Path, requirements: Path) -> dict[str,
                     or ":" in item.filename
                     or stat.S_ISLNK(item.external_attr >> 16)
                 ):
-                    raise ValueError("生产归档含不允许的路径或链接")
+                    raise ArtifactGateError("source_archive_path_rejected")
             contents.extractall(source)
-        wheel.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            ["uv", "build", "--wheel", "--out-dir", str(wheel.parent), str(source)],
-            check=True,
-            capture_output=True,
-            timeout=600,
-        )
-    if file_sha256(wheel) != identity["production_wheel_sha256"]:
-        raise ValueError("Linux 重建 wheel 与原始生产包不同，停止本次校准")
+        rebuilt.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            subprocess.run(
+                ["uv", "build", "--wheel", "--out-dir", str(rebuilt.parent), str(source)],
+                check=True,
+                capture_output=True,
+                timeout=600,
+            )
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise ArtifactGateError("wheel_rebuild_failed") from exc
+    if selected is not None:
+        try:
+            diagnostic = compare_wheels(selected, rebuilt)
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
+            raise ArtifactGateError("wheel_archive_unreadable") from exc
+    else:
+        diagnostic = {
+            "allowed": file_sha256(rebuilt) == identity["production_wheel_sha256"],
+            "mode": "exact_rebuild_without_original_input",
+            "original_sha256": identity["production_wheel_sha256"],
+            "rebuilt_sha256": file_sha256(rebuilt),
+        }
+    write_json(artifacts / "rebuild-diagnostic.json", diagnostic)
+    if not diagnostic["allowed"]:
+        raise ArtifactGateError("wheel_rebuild_difference_rejected")
+    if selected is None:
+        selected = rebuilt
     return {
-        "wheel": str(wheel.resolve()),
+        "wheel": str(selected.resolve()),
+        "wheel_selection": "explicit_original" if wheel_input is not None else "exact_rebuild",
+        "original_wheel_input": str(wheel_input.resolve()) if wheel_input is not None else None,
+        "rebuild_diagnostic": diagnostic,
         "requirements": str(requirements.resolve()),
         "identity": identity,
     }
+
+
+def archive_rebuild_diagnostic(artifacts: Path, output: Path) -> None:
+    """归档前缀仅用于已核实的私有仓库；保留真实重建 wheel，不修正其字节。"""
+    diagnostic = artifacts / "rebuild-diagnostic.json"
+    files = [diagnostic, *sorted((artifacts / "wheel").glob("*.whl"))]
+    for source in files:
+        if source.is_file():
+            target = output / "rebuild" / source.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
 
 
 def task_row(root: Path, fixture: str, cache: Path) -> tuple[dict[str, Any], Path]:
@@ -587,6 +649,7 @@ def parser() -> argparse.ArgumentParser:
     for name in ("root", "requirements", "artifacts", "output", "metadata", "workflow"):
         result.add_argument(f"--{name}", type=Path, required=True)
     result.add_argument("--source-sha", required=True)
+    result.add_argument("--wheel", type=Path, help="显式原始冻结 wheel；不自动回退为平台重建包")
     result.add_argument("--fixture", choices=tuple(FIXTURES))
     result.add_argument("--cache", type=Path)
     result.add_argument("--probe", type=Path)
@@ -602,11 +665,18 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = parser().parse_args()
+    stage = "repository_guard"
     try:
         require_private(read_json(args.metadata))
+        stage = "source_identity"
+        source = source_identity(args.root, args.source_sha, args.workflow)
+        stage = "artifact_preflight"
+        if args.command != "dry" and args.wheel is None:
+            raise ArtifactGateError("explicit_original_wheel_required")
+        artifacts = build_baseline(args.root, args.artifacts, args.requirements, args.wheel)
         frozen = {
-            "source": source_identity(args.root, args.source_sha, args.workflow),
-            "artifacts": build_baseline(args.root, args.artifacts, args.requirements),
+            "source": source,
+            "artifacts": artifacts,
             "host": {
                 "system": platform.system(),
                 "kernel": platform.release(),
@@ -615,6 +685,7 @@ def main() -> int:
                 "runner_image_version": os.environ.get("ImageVersion"),
             },
         }
+        stage = args.command
         if args.command == "dry":
             args.output.mkdir(parents=True, exist_ok=False)
             ledger_reason = prior_ledger_reason(args.prior_records, args.prior_ledger_receipt)
@@ -647,16 +718,28 @@ def main() -> int:
                 ):
                     raise ValueError("run 需要资格证据、隔离私有目录和 job 截止时间")
                 passed = asyncio.run(calibrate(args, frozen)).get("execution_confirmed", False)
+        archive_rebuild_diagnostic(args.artifacts, args.output)
         print(json.dumps({"passed": passed, "command": args.command}))
         return 0 if passed else 1
     except Exception as exc:
         # 不把模型异常正文、HTTP 内容或私有 profile 写到控制台。
         args.output.mkdir(parents=True, exist_ok=True)
+        reason = exc.reason if isinstance(exc, ArtifactGateError) else f"{stage}_failed"
+        report = {
+            "error_type": type(exc).__name__,
+            "stage": stage,
+            "reason": reason,
+            "model_calls_unknown": args.command == "run" and stage == "run",
+        }
+        try:
+            archive_rebuild_diagnostic(args.artifacts, args.output)
+        except OSError as archive_error:
+            report["diagnostic_archive_error_type"] = type(archive_error).__name__
         write_json(
             args.output / "entry-error.json",
-            {"error_type": type(exc).__name__, "model_calls_unknown": args.command == "run"},
+            report,
         )
-        print(json.dumps({"passed": False, "error_type": type(exc).__name__}))
+        print(json.dumps({"passed": False, **report}))
         return 1
 
 

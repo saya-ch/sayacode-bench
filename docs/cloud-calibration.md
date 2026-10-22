@@ -6,10 +6,11 @@
 
 - 公开仓库提供 `scripts/calibrate_cloud.py`、离线测试及工作流模板。
 - 主任务已建立私有执行仓库 `saya-ch/sayacode-bench-runs`，原始 requirements 已单独保留。
-- 新模板尚未触发；没有通过本工作流调用模型或上传模型密钥。
+- 用户已授权密钥托管于指定私有仓库、以新起点计算后续 100 元、早期探针费用单列未知，并仅使用免费 Actions。授权不扩大为完整正式研究。
+- 首轮私有工作流在工件 preflight 阶段失败，两个模型 job 被跳过，模型调用为零。原始日志和 artifact 已私有保存，见 [首轮最小失败事实](../reports/cloud-calibration-preflight-failure-20261022-v1.json)。
 - 精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 已完成 Windows 实际无密钥预检，源码重建 wheel 与原始基线逐字节一致；本地 565 通过、3 项平台跳过，四环境 CI 通过。这不是云端 Linux 模型运行证据，最小记录见 [准备工件](../reports/cloud-calibration-preparation-20261022-v1.json)。
-- GitHub API 凭据不能读取账户私有 Actions 余量；准备记录保留当时的未知状态。随后已通过本机登录页面只读核查实际额度与现有支出控制，账户财务详情仅留仓库外，未修改设置。工作流使用方式仍待用户确认，不能将免费计划说明当作实际余量。
-- 既有远端探针包含未保存的用量，历史预算范围尚未确认。因此当前必须保持模型派发阻断；无需密钥的工件预检仍可独立完成。
+- GitHub API 凭据不能读取账户私有 Actions 余量；准备记录保留当时的未知状态。随后已通过本机登录页面只读核查实际免费额度与现有支出控制，并获得仅使用免费 Actions 的授权；账户财务详情仅留仓库外，未修改设置，不能将免费计划说明当作实际余量。
+- 首轮云端生成 wheel 未被保存于原 artifact；不能宣称已经直接比较该云端 wheel。本机纯 Linux 复现发现同源码 wheel 与原件的 90 个条目内容、顺序及属性相同，字节差异仅为 ZIP `create_system`。下一 cohort 将保存本次云端的真实重建 wheel 和完整诊断，再依据实际证据决定放行。
 
 相关协议见 [研究协议](protocol.md)、[Linux 执行说明](linux-execution.md) 和 [生产基线重建](../reproduction/README.md)。
 
@@ -18,7 +19,7 @@
 | 位置 | 内容 |
 | --- | --- |
 | 公开评测仓库 | 校准脚本、测试、官方源 revision、固定题目、精确生产源码归档、实现与价格快照 |
-| 私有执行仓库 | 工作流、原始 requirements、历史费用账本及人工预算范围声明 |
+| 私有执行仓库 | 工作流、原始 wheel／requirements、历史费用账本及人工预算范围声明 |
 | 私有 Actions artifact | 全部原生 job、对话轨迹、事件、补丁、验证器日志、runtime、用量和清理证据 |
 | runner 临时私有目录 | 本次独占连接目录；不属于上传前缀，结束时删除原 profile 及受限网络的网关副本 |
 
@@ -30,6 +31,7 @@
 
 ```text
 artifacts/
+  product-baseline.whl
   product-baseline-requirements.txt
   prior-paid-records.jsonl
   prior-paid-records.receipt.json
@@ -41,19 +43,31 @@ artifacts/
 9eab06fb395d7b9bb84e14bfea83b79b4ab66d904c941c3b1606d39ed9712073
 ```
 
-脚本校验公开生产源码归档，使用固定 uv 重建 wheel，再严格核对原 wheel SHA：
+运行时显式指定私有仓库提供的原始 `product-baseline.whl`，严格核对冻结 SHA：
 
 ```text
 7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe
 ```
 
-不同字节会停止，不以同版本号替代身份，也不重新导出 requirements 冒充原文件。结果目录、公开源码、源缓存、生产工件和私有 profile 目录相互分离。
+原件字节不同会停止，不以同版本号替代身份。输入名 `product-baseline.whl` 不是 pip 的规范 wheel 名，脚本仅将原件保字节复制为独占工件目录中的 `sayacode-3.2.4-py3-none-any.whl`，实际 Agent 始终安装该 SHA 的原件。
+
+### 无模型重建诊断
+
+所有 workflow 入口均显式传入 `--wheel execution/artifacts/product-baseline.whl`。脚本同时从固定公开源码归档重建诊断 wheel，宿主 CPython 固定为 3.13.12，uv 为 0.12.5，构建后端由归档固定；任务镜像与其验证器依赖不变，source worker 的 Python 3.13.7 也不变。
+
+`scripts/diagnose_wheel.py` 比较原件与实际重建件，记录条目数、名称与顺序、每个成员的内容及 ZIP 属性，并核验完整归档的差异字节位置。只有完全相同，或内容等全部相同且归档差异只在中央目录的 `create_system` 时才能继续。不能因为解压后源码相同就忽略其他压缩、时间、权限或附加数据差异。
+
+实际重建 wheel 与 `rebuild-diagnostic.json` 均归档到私有 evidence 的 `rebuild/`，包括已拒绝的差异，不修正或重新打包这些字节。诊断件不被 Agent 安装，预期原件 SHA 也不改变。没有显式 `--wheel` 的旧 `dry` 方式仅保留严格逐字节重建检查；`controls/run` 必须显式提供原件，不自动回退。
+
+已知工件失败通过安全的 `stage / reason` 枚举定位，例如 `artifact_preflight / original_wheel_hash_mismatch` 或 `wheel_rebuild_difference_rejected`；不会将任意模型异常或 HTTP 正文写入控制台。首轮失败目录保留；修复使用新源码 SHA 和新 cohort，不覆盖旧记录。
+
+结果目录、公开源码、源缓存、生产工件和私有 profile 目录相互分离，requirements 不重新导出替代原件。
 
 ### 历史费用的已知缺口
 
 2026-10-22 04:12 UTC 的远端 Chat 探针保留了输入 35／输出 11 tokens；04:16 UTC 的远端 Messages 工具往返探针没有保留用量。这些事实早于预算确认，但不自动意味着它们被排除于 100 元授权范围。模型调用已成功也不能推出费用为零。
 
-现阶段不创建空账本，不补造 Messages 用量，不生成 `coverage_confirmed=true` 声明。
+最初未知状态未被补造成零。后续依据用户明确的新预算起点授权，新范围可采用空账本，早期 Messages 用量仍单列未知，不补造 token 或费用。
 
 `prior-paid-records.receipt.json` 是人工核实的预算范围声明，**不是供应商账单证明**。它必须绑定实际账本 SHA，并列明这两个已知观察：
 
@@ -74,7 +88,7 @@ artifacts/
 }
 ```
 
-这是阻断状态的结构示例，不是可派发模型的结算文件。后续有两种可审阅处理：
+这是最初阻断状态的结构示例，不是可派发模型的结算文件。支持两种可审阅处理：
 
 1. `all_known_paid_activity`：将两次观察都纳入账本，每个 `historical_observation_id` 唯一、连接确为 `remote`，用量完整。任一未知仍停止。
 2. 用户明确授权新的预算起点后，使用 `new_user_authorized_budget`，保存非空 `budget_start` 和 `authorization_reference`；早期两次观察标为 `prebudget_cost_unknown` 并继续单列未知费用。这种明确授权后的新范围可以使用空的新账本。
@@ -91,7 +105,7 @@ artifacts/
 
 该预检会安装锁定依赖、访问构建依赖源并写入独占临时目录，不是完全只读的文件系统操作。账本或声明缺失时，工件检查可以通过，但 `model_dispatch_ready=false`，明确记录 blocker；模型 job 不会启动。
 
-模型密钥只使用私有仓库／环境 Secret `SILICONFLOW_API_KEY`。主任务尚未上传该 Secret，实际上传与托管 runner 使用仍需用户确认。密钥不是 workflow input，不出现在命令行、公开清单或 artifact 上传前缀。控制台不打印模型异常正文。
+模型密钥只使用已授权私有仓库／环境 Secret `SILICONFLOW_API_KEY`。密钥不是 workflow input，不出现在命令行、公开清单或 artifact 上传前缀。控制台不打印模型异常正文。完整正式研究仍需另外确认执行范围，不能由两题授权自动扩展。
 
 ## 真实校准的固定顺序
 

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "phase": "cloud_no_model_preflight_failure",
+  "date": "2026-10-22",
+  "run_id": 39786774621,
+  "public_source_sha": "fa9d9894ad7fe0ae690145b887c8a657b76432a1",
+  "execution_complete": true,
+  "preflight_passed": false,
+  "failure_step": "install dependencies and reconstruct exact production artifact",
+  "reported_error_type": "ValueError",
+  "specific_cloud_failure_reason_exported": false,
+  "cloud_rebuilt_wheel_exported": false,
+  "qutebrowser_model_job": "skipped",
+  "ansible_model_job": "skipped",
+  "model_requests": 0,
+  "paid_model_cost_cny": 0,
+  "formal_result": false,
+  "private_logs_sha256": "3e96d5a2eb2a8ada3de8100c5e28af7dc89e68a7fcd8fa398fbd5796c7bb9018",
+  "private_run_metadata_sha256": "dbded7566a3d535c9345c5c991490c18bd08c3230b9a6ef10a0c780fe8d1c233",
+  "local_linux_packaging_reproduction": {
+    "schema_version": 1,
+    "phase": "local_linux_packaging_diagnostic",
+    "original_wheel_sha256": "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe",
+    "linux_rebuilt_wheel_sha256": "a5e1f7479478cb7fc74663b971bcd93e6bcbf377a5e123f01eebc375531f2565",
+    "files": 90,
+    "file_order_equal": true,
+    "every_file_payload_equal": true,
+    "zip_metadata_differences": {
+      "create_system": 90
+    },
+    "original_create_system": 0,
+    "linux_rebuilt_create_system": 3,
+    "wheel_bytes": 513374,
+    "model_requests": 0,
+    "docker_used": false,
+    "observed_on": "本机Linux纯构建，不是云端失败wheel的直接导出",
+    "cloud_run": 39786774621,
+    "cloud_failure_stage": "preflight",
+    "cloud_model_jobs_started": false,
+    "interpretation": "跨OS ZIP创建平台字节不同；实际Agent必须继续安装原始冻结SHA的wheel，不能默许用其他SHA替代。"
+  },
+  "interpretation": "首轮云端只完成到无模型预检，错误未包含具体原因；本机Linux复现了ZIP创建平台差异，不冒充云端wheel直接比对。原记录保留，下一版必须显式使用原始冻结wheel并导出真实重建诊断。"
+}

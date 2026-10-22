@@ -6,6 +6,8 @@ import argparse
 import copy
 import hashlib
 import json
+import subprocess
+import sys
 import time
 import zipfile
 from pathlib import Path
@@ -282,7 +284,7 @@ def test_original_requirements_required_before_build(tmp_path: Path, monkeypatch
         {"source_archive_sha256": file_sha256(archive), "requirements_sha256": "a" * 64},
     )
     monkeypatch.setattr(cloud.subprocess, "run", lambda *args, **kwargs: pytest.fail("不得构建"))
-    with pytest.raises(FileNotFoundError, match="missing_original"):
+    with pytest.raises(cloud.ArtifactGateError, match="missing_original"):
         cloud.build_baseline(root, tmp_path / "artifacts", tmp_path / "missing")
     wrong = tmp_path / "wrong.txt"
     wrong.write_text("重新导出的替代文件", encoding="utf-8")
@@ -325,6 +327,90 @@ def test_wheel_rebuilt_from_archive_and_exact_bytes_required(
     with pytest.raises(ValueError, match="wheel"):
         cloud.build_baseline(root, artifacts, requirements)
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("changed_payload", [False, True])
+def test_explicit_original_is_selected_and_rebuild_only_diagnoses(
+    tmp_path: Path, monkeypatch: Any, changed_payload: bool
+) -> None:
+    root = tmp_path / "bench"
+    reproduction = root / "reproduction"
+    reproduction.mkdir(parents=True)
+    archive = reproduction / "product-baseline-source.zip"
+    with zipfile.ZipFile(archive, "w") as stream:
+        stream.writestr("pyproject.toml", "[project]\nname='fixture'\n")
+    original = tmp_path / "product-baseline.whl"
+    rebuilt_input = tmp_path / "linux-build.whl"
+    for path, system, payload in (
+        (original, 0, b"frozen payload"),
+        (rebuilt_input, 3, b"changed payload" if changed_payload else b"frozen payload"),
+    ):
+        with zipfile.ZipFile(path, "w") as stream:
+            entry = zipfile.ZipInfo("sayacode/__init__.py", date_time=(2020, 2, 2, 0, 0, 0))
+            entry.create_system = system
+            entry.external_attr = 0o644 << 16
+            stream.writestr(entry, payload)
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_bytes(b"exact dependencies\n")
+    write_json(
+        reproduction / "identity.json",
+        {
+            "source_archive_sha256": file_sha256(archive),
+            "requirements_sha256": file_sha256(requirements),
+            "production_wheel_sha256": file_sha256(original),
+        },
+    )
+
+    def build(command: list[str], **kwargs: Any) -> None:
+        (Path(command[4]) / "sayacode-3.2.4-py3-none-any.whl").write_bytes(
+            rebuilt_input.read_bytes()
+        )
+
+    monkeypatch.setattr(cloud.subprocess, "run", build)
+    artifacts = tmp_path / "artifacts"
+    if changed_payload:
+        with pytest.raises(cloud.ArtifactGateError, match="wheel_rebuild_difference_rejected"):
+            cloud.build_baseline(root, artifacts, requirements, original)
+        assert read_json(artifacts / "rebuild-diagnostic.json")["allowed"] is False
+    else:
+        selected = cloud.build_baseline(root, artifacts, requirements, original)
+        assert selected["wheel_selection"] == "explicit_original"
+        assert Path(selected["wheel"]).name == "sayacode-3.2.4-py3-none-any.whl"
+        assert file_sha256(Path(selected["wheel"])) == file_sha256(original)
+        assert file_sha256(Path(selected["wheel"])) != file_sha256(rebuilt_input)
+    evidence = tmp_path / "evidence"
+    cloud.archive_rebuild_diagnostic(artifacts, evidence)
+    assert file_sha256(evidence / "rebuild/sayacode-3.2.4-py3-none-any.whl") == file_sha256(
+        rebuilt_input
+    )
+    assert (evidence / "rebuild/rebuild-diagnostic.json").is_file()
+
+
+def test_wrong_explicit_original_does_not_trigger_build_or_fallback(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "bench"
+    reproduction = root / "reproduction"
+    reproduction.mkdir(parents=True)
+    archive = reproduction / "product-baseline-source.zip"
+    archive.write_bytes(b"known source")
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_bytes(b"known requirements")
+    original = tmp_path / "product-baseline.whl"
+    original.write_bytes(b"different wheel")
+    write_json(
+        reproduction / "identity.json",
+        {
+            "source_archive_sha256": file_sha256(archive),
+            "requirements_sha256": file_sha256(requirements),
+            "production_wheel_sha256": "a" * 64,
+        },
+    )
+    monkeypatch.setattr(
+        cloud.subprocess, "run", lambda *args, **kwargs: pytest.fail("不得构建替代包")
+    )
+    with pytest.raises(cloud.ArtifactGateError, match="original_wheel_hash_mismatch"):
+        cloud.build_baseline(root, tmp_path / "artifacts", requirements, original)
 
 
 def test_ledger_missing_unconfirmed_hash_changed_and_unknown_usage(experiment: Any) -> None:
@@ -549,6 +635,64 @@ def test_workflow_private_guard_frozen_source_and_safe_defaults() -> None:
         assert all(step["with"]["persist-credentials"] == "false" for step in checkouts)
     assert "d0cc045d04ccac9d8b7881df0226f9e82c39688e" in text
     assert "prior-paid-records.receipt.json" in text
+    assert text.count('--wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl"') == 7
+    assert text.count("python-version: '3.13.12'") == 3
+
+
+def test_direct_script_help_supports_sibling_wheel_helper() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/calibrate_cloud.py"), "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert "--wheel" in result.stdout
+
+
+def test_artifact_entry_error_has_safe_stage_and_reason(
+    experiment: Any, monkeypatch: Any, capsys: Any
+) -> None:
+    e = experiment
+    metadata = e.args.output.parent / "repository.json"
+    write_json(
+        metadata,
+        {"full_name": cloud.EXECUTION_REPOSITORY, "private": True, "visibility": "private"},
+    )
+    monkeypatch.setattr(cloud, "source_identity", lambda *args: e.frozen["source"])
+
+    def rejected(*args: Any) -> Any:
+        raise cloud.ArtifactGateError("original_wheel_hash_mismatch")
+
+    monkeypatch.setattr(cloud, "build_baseline", rejected)
+    output = e.args.output.parent / "artifact-error"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "calibrate_cloud.py",
+            "dry",
+            "--root",
+            str(e.root),
+            "--metadata",
+            str(metadata),
+            "--source-sha",
+            "a" * 40,
+            "--workflow",
+            str(ROOT / ".github/workflows/cloud-calibration.yml"),
+            "--requirements",
+            str(e.args.requirements),
+            "--artifacts",
+            str(e.args.requirements.parent),
+            "--output",
+            str(output),
+        ],
+    )
+    assert cloud.main() == 1
+    report = read_json(output / "entry-error.json")
+    assert report["stage"] == "artifact_preflight"
+    assert report["reason"] == "original_wheel_hash_mismatch"
+    assert report["model_calls_unknown"] is False
+    assert "offline-not-a-real-key" not in capsys.readouterr().out
 
 
 def test_dry_without_ledger_produces_reviewable_identity_without_model(
