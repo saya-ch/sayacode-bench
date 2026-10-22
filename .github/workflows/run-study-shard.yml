@@ -1,0 +1,239 @@
+# 复制到已核实的私有执行仓库；由冻结计划生成的 DAG 调用，不单独派发。
+# 模板 SHA 先写入 runner_policy，再冻结 plan；生成 DAG 不参与自引用。
+# 完整 raw bundle 每片累积；三天保留会占用实际配额，500 MB 免费存储不保证够用。
+# 不自动删除云 artifact。正式阶段仍需另获完整 scope、路由、费用与 Actions 授权。
+# 宿主 cohort 仅匹配 ImageOS/ImageVersion/RUNNER_ARCH，不保证同一 CPU、内核或模型版本。
+name: 冻结单片 source 与 pristine
+on:
+  workflow_call:
+    inputs:
+      contract_json:
+        required: true
+        type: string
+      mode:
+        required: true
+        type: string
+      shard_id:
+        required: true
+        type: string
+      seed_file:
+        default: ''
+        type: string
+      input_artifact:
+        default: ''
+        type: string
+      input_run_id:
+        default: ''
+        type: string
+      input_archive_sha256:
+        required: true
+        type: string
+      previous_receipt_sha256:
+        default: ''
+        type: string
+      previous_ledger_sha256:
+        default: ''
+        type: string
+    secrets:
+      connection_keys_json:
+        required: false
+    outputs:
+      artifact_name:
+        value: ${{ jobs.run.outputs.artifact_name }}
+      archive_sha256:
+        value: ${{ jobs.run.outputs.archive_sha256 }}
+      receipt_sha256:
+        value: ${{ jobs.run.outputs.receipt_sha256 }}
+      ledger_sha256:
+        value: ${{ jobs.run.outputs.ledger_sha256 }}
+      continuation_allowed:
+        value: ${{ jobs.run.outputs.continuation_allowed }}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  run:
+    if: github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    outputs:
+      artifact_name: study-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.shard_id || 'merged' }}
+      archive_sha256: ${{ steps.archive.outputs.archive_sha256 }}
+      receipt_sha256: ${{ steps.archive.outputs.receipt_sha256 }}
+      ledger_sha256: ${{ steps.archive.outputs.ledger_sha256 }}
+      continuation_allowed: ${{ steps.archive.outputs.continuation_allowed }}
+    env:
+      SAYACODE_STUDY_CONTRACT: ${{ inputs.contract_json }}
+      PUBLIC_SOURCE_SHA: ${{ fromJSON(inputs.contract_json).public_source_sha }}
+      BUNDLE_ROOT: ${{ fromJSON(inputs.contract_json).bundle_root }}
+      SHARD_ID: ${{ inputs.shard_id }}
+      MODE: ${{ inputs.mode }}
+    steps:
+      - name: 实时核实私有仓库、固定源码与首次执行
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_REPOSITORY" = saya-ch/sayacode-bench-runs
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$PUBLIC_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$MODE" = shard || test "$MODE" = merge
+          mkdir -p "$RUNNER_TEMP/evidence"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/evidence/repository.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_text(encoding='utf-8'))
+          assert d.get('full_name') == 'saya-ch/sayacode-bench-runs'
+          assert d.get('private') is True and d.get('visibility') == 'private'
+          PY
+          # 330 分钟软截止给原生收尾与完整归档留余量，不缩官方任务时限。
+          echo "JOB_DEADLINE_EPOCH=$(( $(date +%s) + 19800 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ fromJSON(inputs.contract_json).public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - name: 核验私有副本模板与冻结模板逐字节相同
+        working-directory: bench
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          c=json.loads(os.environ['SAYACODE_STUDY_CONTRACT'])
+          for p in [Path('.github/workflows/run-study-shard.yml'),Path(os.environ['GITHUB_WORKSPACE'])/'execution/.github/workflows/run-study-shard.yml']:
+              assert hashlib.sha256(p.read_bytes()).hexdigest() == c['executor_workflow_sha256']
+          PY
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 安装冻结依赖并准备临时宿主磁盘
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - name: 从同一私有仓库下载前序或初始完整 bundle
+        if: inputs.input_artifact != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.input_artifact }}
+          run-id: ${{ inputs.input_run_id }}
+          github-token: ${{ github.token }}
+          repository: saya-ch/sayacode-bench-runs
+          path: ${{ runner.temp }}/incoming
+      - name: 或使用私有执行仓库中的初始 tar
+        if: inputs.seed_file != ''
+        env:
+          SEED_FILE: ${{ inputs.seed_file }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os,shutil
+          from pathlib import Path,PurePosixPath
+          relative=PurePosixPath(os.environ['SEED_FILE'])
+          assert not relative.is_absolute() and '..' not in relative.parts and '\\' not in str(relative)
+          root=(Path(os.environ['GITHUB_WORKSPACE'])/'execution').resolve()
+          source=root.joinpath(*relative.parts).resolve(strict=True)
+          assert source.is_relative_to(root) and source.is_file()
+          target=Path(os.environ['RUNNER_TEMP'])/'incoming'
+          target.mkdir(exist_ok=False)
+          shutil.copyfile(source,target/'bundle.tar.gz')
+          PY
+      - name: 按冻结绝对路径恢复并验证完整 bundle
+        id: restore
+        working-directory: bench
+        env:
+          ARCHIVE_SHA: ${{ inputs.input_archive_sha256 }}
+        shell: bash
+        run: uv run --no-sync python -m scripts.generate_sharded_workflow restore --archive "$RUNNER_TEMP/incoming/bundle.tar.gz" --sha256 "$ARCHIVE_SHA"
+      - name: 当前 runner 真实网络探针及清理验证
+        if: inputs.mode == 'shard'
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 一片一配置，继承累计账本并调用原生研究 CLI
+        if: inputs.mode == 'shard'
+        working-directory: bench
+        env:
+          # 仅此步骤取得显式 key；非秘密参数一律读取冻结 master。
+          SAYACODE_STUDY_CONNECTION_KEYS_JSON: ${{ secrets.connection_keys_json }}
+          PREVIOUS_RECEIPT_SHA: ${{ inputs.previous_receipt_sha256 }}
+          PREVIOUS_LEDGER_SHA: ${{ inputs.previous_ledger_sha256 }}
+        shell: bash
+        run: |
+          uv run --no-sync python -m scripts.generate_sharded_workflow execute \
+            --shard-id "$SHARD_ID" --probe "$RUNNER_TEMP/evidence/network-probe.json" \
+            --runner-preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
+            --deadline-epoch "$JOB_DEADLINE_EPOCH" \
+            --previous-receipt-sha256 "$PREVIOUS_RECEIPT_SHA" \
+            --previous-ledger-sha256 "$PREVIOUS_LEDGER_SHA"
+      - name: 完整阶段严格归并，不改变 master 分母
+        if: inputs.mode == 'merge'
+        working-directory: bench
+        env:
+          PREVIOUS_RECEIPT_SHA: ${{ inputs.previous_receipt_sha256 }}
+          PREVIOUS_LEDGER_SHA: ${{ inputs.previous_ledger_sha256 }}
+        shell: bash
+        run: |
+          uv run --no-sync python -m scripts.generate_sharded_workflow merge \
+            --previous-receipt-sha256 "$PREVIOUS_RECEIPT_SHA" \
+            --previous-ledger-sha256 "$PREVIOUS_LEDGER_SHA"
+      - name: 保留本 runner 准备与失败证据
+        if: always() && steps.restore.outcome == 'success'
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p "$BUNDLE_ROOT/orchestration"
+          cp -a "$RUNNER_TEMP/evidence" "$BUNDLE_ROOT/orchestration/${SHARD_ID:-merged}-host"
+      - name: 完整原始私有证据打包，失败不裁剪
+        id: archive
+        if: always() && steps.restore.outcome == 'success'
+        working-directory: bench
+        shell: bash
+        run: uv run --no-sync python -m scripts.generate_sharded_workflow archive --output "$RUNNER_TEMP/archive" --shard-id "$SHARD_ID"
+      - name: 上传前再次核实仓库仍为私有
+        id: guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'archive-repository.json').read_text(encoding='utf-8'))
+          assert d.get('full_name') == 'saya-ch/sayacode-bench-runs' and d.get('private') is True and d.get('visibility') == 'private'
+          PY
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 私有保留三天；额度与人工下载核验独立管理
+        if: always() && steps.guard.outputs.private == 'true' && steps.archive.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: study-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.shard_id || 'merged' }}
+          path: ${{ runner.temp }}/archive/
+          if-no-files-found: error
+          retention-days: 3
+      - name: 准备或恢复失败仍保存无密钥的本机诊断
+        if: always() && steps.guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: study-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.shard_id || 'merged' }}-host
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: warn
+          retention-days: 3

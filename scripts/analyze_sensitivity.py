@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import random
@@ -16,6 +17,7 @@ import sayacode_bench.analysis as analysis_module
 import sayacode_bench.artifacts as artifacts_module
 import sayacode_bench.budget as budget_module
 import sayacode_bench.resources as resources_module
+import sayacode_bench.shards as shards_module
 import sayacode_bench.study as study_module
 from sayacode_bench.analysis import paired_bootstrap
 from sayacode_bench.artifacts import file_sha256, read_json, report_manifest, write_json
@@ -26,6 +28,8 @@ SEED = 20261022
 
 def protocol_identity() -> dict[str, Any]:
     """在正式模型调用前保存此身份；函数不读取任务正文、答案或成绩。"""
+    root = Path(__file__).resolve().parents[1]
+    implementation = artifacts_module.implementation_identity()
     return {
         "schema_version": 1,
         "script_sha256": file_sha256(Path(__file__)),
@@ -34,6 +38,14 @@ def protocol_identity() -> dict[str, Any]:
         "validation_sha256": file_sha256(Path(study_module.__file__)),
         "budget_sha256": file_sha256(Path(budget_module.__file__)),
         "resource_rules_sha256": file_sha256(Path(resources_module.__file__)),
+        "shard_execution_sha256": file_sha256(Path(shards_module.__file__)),
+        "implementation_sha256": hashlib.sha256(
+            json.dumps(implementation, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "orchestration_sha256": file_sha256(root / "scripts/generate_sharded_workflow.py"),
+        "qualification_sha256": file_sha256(root / "scripts/qualify_fixtures.py"),
+        "cloud_qualification_sha256": file_sha256(root / "scripts/qualify_cloud.py"),
+        "executor_workflow_sha256": file_sha256(root / ".github/workflows/run-study-shard.yml"),
         "samples": SAMPLES,
         "seed": SEED,
         "absolute_unit": "task mean across planned repeats; resample tasks",

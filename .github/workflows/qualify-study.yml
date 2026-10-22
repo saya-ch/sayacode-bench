@@ -1,0 +1,198 @@
+# 仅复制到指定私有执行仓库。每次显式派发一批，不调用模型或自动触发下一批。
+# bundle 保存全部官方 oracle/nop 原始日志，三天私有保留；不自动删云端 artifact。
+# 完整累计 bundle 可能超过免费存储，acknowledge_free_actions 不证明实际额度充足。
+# 首批只读 Actions 历史防止误重启；不声称能发现被人工删除的 workflow run。
+name: 无模型资格检查单批
+run-name: qualification ${{ inputs.study_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      public_source_sha:
+        description: 已审阅的公开源码完整小写 SHA；续批不可更换
+        type: string
+        required: true
+      study_id:
+        description: 固定 Linux bundle 的 study ID；续批不可更换
+        type: string
+        required: true
+      image_os:
+        description: 冻结的 runner ImageOS；续批不可更换
+        type: string
+        required: true
+      image_version:
+        description: 冻结的 runner ImageVersion；续批不可更换
+        type: string
+        required: true
+      max_new_controls:
+        description: 本批最多新增 controls；最多一个任务，不改变三加一规则
+        type: number
+        default: 4
+        required: true
+      resume_run_id:
+        description: 续批原 artifact 所属私有 run ID；首批留空
+        type: string
+        default: ''
+      resume_artifact:
+        description: 续批原完整 bundle artifact 名称；首批留空
+        type: string
+        default: ''
+      resume_sha256:
+        description: 原 bundle.tar.gz 的完整 SHA256；首批留空
+        type: string
+        default: ''
+      acknowledge_free_actions:
+        description: 已核实当前 Actions 免费分钟与存储；仅授权本次无模型批次
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: qualification-${{ inputs.study_id }}
+  cancel-in-progress: false
+jobs:
+  qualify:
+    if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      SOURCE_SHA: ${{ inputs.public_source_sha }}
+      STUDY_ID: ${{ inputs.study_id }}
+      EXPECTED_IMAGE_OS: ${{ inputs.image_os }}
+      EXPECTED_IMAGE_VERSION: ${{ inputs.image_version }}
+      MAX_NEW_CONTROLS: ${{ inputs.max_new_controls }}
+      RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+      RESUME_ARTIFACT: ${{ inputs.resume_artifact }}
+      RESUME_SHA: ${{ inputs.resume_sha256 }}
+    steps:
+      - name: 实时核实私有仓库、首次尝试与显式续批参数
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDY_ID" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}$ ]]
+          mkdir -p "$RUNNER_TEMP/evidence"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/evidence/repository.json"
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_text(encoding='utf-8'))
+          assert d.get('full_name')=='saya-ch/sayacode-bench-runs' and d.get('private') is True and d.get('visibility')=='private'
+          run,artifact,sha=(os.environ[k] for k in ('RESUME_RUN_ID','RESUME_ARTIFACT','RESUME_SHA'))
+          assert not any((run,artifact,sha)) or (run.isdigit() and int(run)>0 and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,150}',artifact) and re.fullmatch(r'[0-9a-f]{64}',sha))
+          assert os.environ['MAX_NEW_CONTROLS'].isdigit() and 1<=int(os.environ['MAX_NEW_CONTROLS'])<=256
+          PY
+          if test -z "$RESUME_ARTIFACT"; then
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/workflows/qualify-study.yml/runs?per_page=100" \
+              > "$RUNNER_TEMP/evidence/actions-history.json"
+          fi
+          echo "JOB_DEADLINE_EPOCH=$(( $(date +%s) + 19800 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 安装固定依赖并准备 fresh runner 磁盘
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - name: 显式下载同一私有仓库的完整前序 bundle
+        if: inputs.resume_artifact != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.resume_artifact }}
+          run-id: ${{ inputs.resume_run_id }}
+          repository: saya-ch/sayacode-bench-runs
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/incoming
+      - name: 当前 runner 实际网络隔离与清理探针，无模型请求
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 有限控制批次；只调用原生 oracle/nop 资格 CLI
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          resume=()
+          if test -n "$RESUME_ARTIFACT"; then
+            resume=(--resume-archive "$RUNNER_TEMP/incoming/bundle.tar.gz" --resume-sha256 "$RESUME_SHA")
+          else
+            resume=(--first-batch-history "$RUNNER_TEMP/evidence/actions-history.json" --run-number "$GITHUB_RUN_NUMBER")
+          fi
+          uv run --no-sync python -m scripts.qualify_cloud run \
+            --study-id "$STUDY_ID" --source-sha "$SOURCE_SHA" \
+            --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/qualify-study.yml" \
+            --image-os "$EXPECTED_IMAGE_OS" --image-version "$EXPECTED_IMAGE_VERSION" \
+            --runner-preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json" \
+            --entry-report "$RUNNER_TEMP/evidence/qualification-entry.json" \
+            --max-new-controls "$MAX_NEW_CONTROLS" --deadline-epoch "$JOB_DEADLINE_EPOCH" \
+            "${resume[@]}" > "$RUNNER_TEMP/evidence/batch-entry.log" 2>&1
+      - name: 正常 partial 与失败均保存完整原始 bundle
+        id: archive
+        if: always()
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          bundle="/tmp/sayacode-studies/$STUDY_ID"
+          if test -f "$bundle/inputs/cloud-plan.json"; then
+            mkdir -p "$bundle/host-evidence"
+            cp -a "$RUNNER_TEMP/evidence" "$bundle/host-evidence/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            uv run --no-sync python -m scripts.qualify_cloud archive --study-id "$STUDY_ID" \
+              --entry-report "$RUNNER_TEMP/evidence/qualification-entry.json" --output "$RUNNER_TEMP/archive"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: 上传前再次实时核实仓库私有性
+        id: guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'archive-repository.json').read_text(encoding='utf-8'))
+          assert d.get('full_name')=='saya-ch/sayacode-bench-runs' and d.get('private') is True and d.get('visibility')=='private'
+          PY
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 私有三天保留原始控制证据，不自动删除
+        if: always() && steps.guard.outputs.private == 'true' && steps.archive.outputs.available == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualification-${{ inputs.study_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archive/
+          if-no-files-found: error
+          retention-days: 3
+      - name: 恢复或准备失败仍保留本 job 诊断
+        if: always() && steps.guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualification-${{ inputs.study_id }}-${{ github.run_id }}-${{ github.run_attempt }}-host
+          path: ${{ runner.temp }}/evidence/
+          if-no-files-found: warn
+          retention-days: 3

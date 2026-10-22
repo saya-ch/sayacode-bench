@@ -1,4 +1,4 @@
-"""固定公开基准的 Git 身份，并从原始 Git blob 构造不受换行配置影响的快照。"""
+"""固定公开基准的 Git 身份，隔离机器换行设置并严格校验归档快照。"""
 
 from __future__ import annotations
 
@@ -130,7 +130,7 @@ def fetch_source(
     *,
     local_repository: Path | None = None,
 ) -> SourceSnapshot:
-    """获取固定提交；本地缓存只提供对象，不信任其磁盘文件和换行设置。"""
+    """获取固定提交；归档固定 LF，本地缓存仍按原始清单逐字节校验。"""
 
     if re.fullmatch(r"[0-9a-f]{40}", spec.revision) is None:
         raise ValueError("源版本必须是完整的 40 位 Git 提交号")
@@ -165,7 +165,19 @@ def fetch_source(
             raise ValueError("Git 返回的提交身份不符")
         archive = temporary_path / "source.tar"
         with archive.open("wb") as stream:
-            _git(repository, "archive", "--format=tar", spec.revision, output=stream)
+            # git archive 也会受 core.autocrlf 影响；只覆盖本次命令，不改用户配置。
+            # 上游属性仍由 Git 处理，输出必须通过原 SHA 清单，不能事后改写换行。
+            _git(
+                repository,
+                "-c",
+                "core.autocrlf=false",
+                "-c",
+                "core.eol=lf",
+                "archive",
+                "--format=tar",
+                spec.revision,
+                output=stream,
+            )
         staging = temporary_path / "snapshot"
         staging.mkdir()
         _extract_archive(archive, staging)
@@ -177,7 +189,7 @@ def fetch_source(
             "archive_sha256": archive_hash,
             "tree_sha256": tree_digest(staging),
             "checksums_verified": verified,
-            "materialization": "git archive from pinned commit; no checkout filters",
+            "materialization": "git archive from pinned commit; core.autocrlf=false; core.eol=lf",
         }
         (staging / identity.name).write_text(
             json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

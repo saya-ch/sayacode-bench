@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "role": "Windows cold source acquisition defect; separate from cloud storage failure",
+  "first_mismatch": {
+    "path": "v2/GATE.md",
+    "expected_sha256": "7c30b8d6aef5ea7413831ac5618220f8c01ff15439bc6732a25ceaeb2c401e71",
+    "archive_sha256": "a3374b9e8d15d0bc235b5de719261057b54f2296560458fbe85c54617982d337",
+    "git_blob_sha256": "7c30b8d6aef5ea7413831ac5618220f8c01ff15439bc6732a25ceaeb2c401e71",
+    "archive_bytes": 1677,
+    "blob_bytes": 1659,
+    "archive_crlf": 18,
+    "blob_crlf": 0,
+    "archive_lf_to_crlf_matches_blob": true,
+    "git_blob_matches_expected": true
+  },
+  "cause": "Git archive inherited the Windows core.autocrlf=true setting and converted LF blobs to CRLF",
+  "default_archive": {
+    "checksum_count": 6436,
+    "mismatches": 6433
+  },
+  "fix": "Per-command core.autocrlf=false and core.eol=lf for archive only",
+  "fixed_fetch": {
+    "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+    "verified_checksums": 6436,
+    "archive_sha256": "f8f16cb9276f6d899aade10fa3db6eaadedd5201c1002703736ac8e8136dabf8",
+    "tree_sha256": "edb81eeb4b17ca6348027bd082fb166e03077ec2e2d241a3ebecdf23f5272c99",
+    "materialization": "git archive from pinned commit; core.autocrlf=false; core.eol=lf",
+    "matches_existing_good_archive": true,
+    "matches_existing_good_tree": true,
+    "calibration_task_checks": [
+      {
+        "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+        "matches_official_calibration_identity": true,
+        "observed": {
+          "instruction_sha256": "29c2d716704de616f08a8631814ff5869fa778d284a61420481e209375c1b016",
+          "config_sha256": "e5d213a440a621fd48af37dfb15a6a11b03ce7e4b174a1aabf4e93e299a813bd",
+          "task_tree_sha256": "14d1c91db6f61f4419e1e9f83299ce4e76ccc5d73927ba830c4b90f2c19a2a0c"
+        }
+      },
+      {
+        "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+        "matches_official_calibration_identity": true,
+        "observed": {
+          "instruction_sha256": "9a6d50a6bebda7c8f76a7006dfcb1377ae20abb3e8907430234b5f8bbcc4cb66",
+          "config_sha256": "6a8ebba00f26592afdab33100a1bd5b687309404fe6d569834b63190a7f7631d",
+          "task_tree_sha256": "31b618d1f7beef08411d5d860817f67db5b87307b8fb21ea0f1a4d29066c1cc7"
+        }
+      }
+    ]
+  },
+  "user_git_configuration_changed": false,
+  "official_revision_or_checksums_changed": false,
+  "old_cache_overwritten": false,
+  "docker_oracle_model_calls": 0,
+  "evidence_sha256": {
+    "fixed-fetch.json": "aa3951ce4341143631d75526a063332b760078e71c1c3e2f45357a211bab6487",
+    "first-mismatch.json": "cba0a68f98cc57bfe5d855cdb25e45758cffa0da1765448330e0baac943141b1",
+    "checksums-audit.json": "814e66fe4d445301d4e1ada898c6bec1115f494a371e2da685caee9cdcac8d85",
+    "lf-checksums-audit.json": "996ce77ef3ab1df1cfe6b4ba71e501287f7d8ec1876a5872819757068c442896"
+  }
+}

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
+from copy import deepcopy
+from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -28,6 +31,92 @@ from .gates import validate_directories
 from .locking import validate_candidate_receipt
 from .resources import resource_status, runtime_record_issues
 from .sources import SOURCES, fetch_source, sha256_file
+
+
+@dataclass(frozen=True)
+class PhaseContinuation:
+    """已由分片层核验的阶段前缀与追加费用；不替换 master 的冻结输入。"""
+
+    sequences: tuple[int, ...]
+    phase_records: tuple[dict[str, Any], ...] = ()
+    paid_records: tuple[dict[str, Any], ...] = ()
+
+
+def _continuation_rows(rows: tuple[dict[str, Any], ...]) -> list[dict[str, Any]]:
+    if not isinstance(rows, tuple) or any(not isinstance(row, dict) for row in rows):
+        raise ValueError("延续记录必须是对象 tuple")
+    copied = deepcopy(list(rows))
+    if any(row.get("record_complete") is not True for row in copied):
+        raise ValueError("延续历史包含未收尾试验，不能继续")
+    if copied:
+        names = {row.get("endpoint") for row in copied}
+        if any(not isinstance(name, str) or not name for name in names):
+            raise ValueError("延续历史必须保留真实连接别名")
+        aliases = tuple(sorted(str(name) for name in names))
+        # 这里只复用用量覆盖与身份冲突检查；实际费用仍按 master 的付费连接计算。
+        if not estimate_paid_usage(copied, paid_endpoints=aliases)["usage_complete"]:
+            raise ValueError("延续历史存在未知用量，不能继续")
+    return copied
+
+
+def _phase_prefix(
+    manifest: dict[str, Any], schedule: list[dict[str, Any]], rows: list[dict[str, Any]]
+) -> None:
+    if len(rows) > len(schedule):
+        raise ValueError("阶段历史超过原计划")
+    connections = manifest.get("connections", ["local"])
+    if not isinstance(connections, list) or not connections:
+        raise ValueError("延续必须保留 master 的非空连接顺序")
+    for item, row in zip(schedule, rows):
+        if any(row.get(key) != item[key] for key in ("task_id", "configuration", "repeat")):
+            raise ValueError("阶段历史不是全局 schedule 的严格前缀")
+        if row.get("endpoint") != connections[(item["repeat"] - 1) % len(connections)]:
+            raise ValueError("阶段历史连接与 master 的 repeat 路由不同")
+        for field in ("sequence", "global_sequence"):
+            if field in row and (type(row[field]) is not int or row[field] != item["sequence"]):
+                raise ValueError("阶段历史的全局序号不一致")
+    if fatal_stop_reason(rows):
+        raise ValueError("阶段历史已触发外部故障止损，不能继续")
+    issues = analyze_experiment(manifest, rows)["validity_issues"]
+    if set(issues) - {"missing_trials"}:
+        raise ValueError("阶段历史含未知、无效或不可比较的执行事实")
+
+
+def _continue_phase(
+    manifest: dict[str, Any],
+    schedule: list[dict[str, Any]],
+    local: list[dict[str, Any]],
+    continuation: PhaseContinuation,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    history = _continuation_rows(continuation.phase_records)
+    paid = _continuation_rows(continuation.paid_records)
+    sequences = continuation.sequences
+    if (
+        not isinstance(sequences, tuple)
+        or not sequences
+        or any(type(value) is not int for value in sequences)
+        or sequences != tuple(range(len(history) + 1, len(history) + len(sequences) + 1))
+        or sequences[-1] > len(schedule)
+    ):
+        raise ValueError("延续只接受阶段前缀之后紧接的全局序号")
+    _phase_prefix(manifest, schedule, history)
+    _continuation_rows(tuple(local))
+    _phase_prefix(manifest, schedule, local)
+    if len(local) > len(history) + len(sequences) or any(a != b for a, b in zip(local, history)):
+        raise ValueError("本片已有记录与传入阶段历史冲突或超出授权序号")
+    records = local if len(local) >= len(history) else history
+
+    def encoded(value: Any) -> str:
+        return hashlib.sha256(
+            json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    identity = {
+        "sequences": list(sequences),
+        "phase_records_sha256": encoded(history),
+        "paid_records_sha256": encoded(paid),
+    }
+    return deepcopy(records), paid, identity
 
 
 def _records(path: Path) -> list[dict[str, Any]]:
@@ -348,6 +437,8 @@ async def run_phase(
     variants: dict[str, Path],
     connections: dict[str, Path],
     private_home: Path,
+    *,
+    continuation: PhaseContinuation | None = None,
 ) -> dict[str, Any]:
     """一任务块内固定接口；跨块互备由冻结清单声明，失败记录不覆盖。"""
     validate_directories(output, cache, wheel, requirements, private_home)
@@ -370,7 +461,19 @@ async def run_phase(
     ):
         raise ValueError("本阶段活动记录不能同时作为冻结的历史费用记录")
     schedule = paired_order(manifest)
+    continuation_identity = None
+    if continuation is not None:
+        if not isinstance(continuation, PhaseContinuation):
+            raise ValueError("continuation 必须使用冻结的 PhaseContinuation")
+        records, additional_paid, continuation_identity = _continue_phase(
+            manifest, schedule, records, continuation
+        )
+        if additional_paid and policy is None:
+            raise ValueError("追加跨阶段费用必须有 master 冻结的 paid_budget")
+        prior_records = [*prior_records, *additional_paid]
     remaining = remaining_order(manifest, records)
+    if continuation is not None:
+        remaining = [item for item in remaining if item["sequence"] in continuation.sequences]
     connection_order = manifest.get("connections", ["local"])
     if set(connection_order) - connections.keys():
         raise ValueError("缺少预注册接口的私有配置")
@@ -385,12 +488,16 @@ async def run_phase(
             for label, path in connections.items()
         },
     }
+    if continuation_identity is not None:
+        request_identity["continuation"] = continuation_identity
     identity_file = output / "identity.json"
     if identity_file.exists():
         if read_json(identity_file) != request_identity:
             raise ValueError("恢复输入身份已变化，不能混用旧结果")
     else:
         write_json(identity_file, request_identity, exclusive=True)
+    if continuation is not None:
+        _save_records(records_path, records)
     variants_dir = private_home / "runs" / output.name
     variants_dir.mkdir(parents=True, exist_ok=True)
     require_replay = manifest["benchmark"] == "swe-bench-pro-v2"

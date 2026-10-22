@@ -48,6 +48,8 @@ src/sayacode_bench/
   execution.py     官方执行与逐次独立重判
   locking.py       开发候选签收与最终任务泄漏检查
   study.py         冻结阶段的薄调度
+  shards.py        全局顺序、累计账本、单片执行与严格归并
+  resources.py     官方声明、Docker 与 cgroup 资源核验
   analysis.py      任务块统计、完整性检查与开发选择
   gates.py         数据、实现、真实探针与评分门禁
   connections.py   私有连接与规范模型身份
@@ -93,14 +95,18 @@ uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolatio
 
 1. `prepare` 固定公开源，依据预声明资源与语言范围抽样。
 2. `sanity` 运行初始参考解与空解；正式任务使用 `scripts/qualify_fixtures.py` 的固定资格门禁，不调用模型。
-3. 用独立校准题测量时间、接口稳定性与用量，再决定正式规模。
+3. 用独立校准题测量时间、接口稳定性与用量，核实路由和预算；固定规模不足以完成时保留 incomplete，不缩小计划。
 4. `freeze --phase dev` 绑定任务、模型参数、生产 wheel、依赖、候选及评测实现身份。
-5. `run` 执行开发比较，保留原始和独立重判结果。
+5. `plan-shards` 冻结全局顺序；`run-shard`／`merge-shards` 在 fresh Linux runner 延续原阶段与账本。`run` 保留完整阶段入口。
 6. `lock-candidate` 签收完整开发结果与唯一选择。
 7. 新候选使用 `holdout`，保留基线时使用单组 `validation`；拒绝开发与最终任务或同修复组重叠。
 8. `report` 继承中止／失效状态，只读汇总，不改原分。
 
-完整参数使用各子命令的 `--help` 查看。正式题数、重复数和整批阈值依据实际校准后一次冻结，不把示例数量包装成已启动计划。
+完整参数使用各子命令的 `--help` 查看。已确定主要开发 48 次、候选胜出时最终 96 次、保留基线时独立 validation 48 次；任务资格、完整清单、执行实现与预算在正式派发前固定。代码入口存在不表示这些试验已经完成。
+
+跨 runner 使用完整 bundle、原始绝对路径、哈希绑定的前序 receipt 和累计账本，不复制聊天状态或重建评分器。真实网络、官方资源、宿主镜像 cohort、剩余时间和磁盘均在本 runner 核验。固定三加一资格支持按 control 分批，未知基础设施状态不会被当成 fixture 失败而机械排除。详见 [分片执行与恢复](docs/sharded-execution.md)。
+
+私有工作流默认不执行模型。两题校准 Secret 与正式研究 Secret 分开授权；完整 raw artifact 的增长、免费分钟与存储额度分别管理，不把 100 元 API 预算当成 Actions 费用授权。
 
 ## 连接、证据与结果
 

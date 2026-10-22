@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ from .execution import run_official_trial
 from .gates import TASK_IDENTITIES, validate_preflight
 from .locking import lock_candidate, validate_candidate_receipt
 from .selection import select_tasks, write_manifest
+from .shards import freeze_execution_plan, merge_shards, run_shard
 from .sources import SOURCES, build_catalog, fetch_source
 from .study import freeze_paid_budget, phase_summary, run_phase
 
@@ -235,11 +237,30 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--private-home", type=Path, default=Path.home() / ".config" / "sayacode-bench"
     )
-    for sub in (frozen, run):
+    shard_plan = commands.add_parser("plan-shards", help="冻结完整研究的顺序、分片与授权身份")
+    shard_plan.add_argument("--manifest", type=Path, required=True)
+    shard_plan.add_argument("--runner-policy", type=Path, required=True)
+    shard_plan.add_argument("--authorization", type=Path, required=True)
+    shard_plan.add_argument("--bundle-root", type=Path, required=True)
+    shard_plan.add_argument("--paid-records", type=Path, action="append", default=[])
+    shard_plan.add_argument("--output", type=Path, required=True)
+    shard_run = commands.add_parser("run-shard", help="延续账本并执行下一个固定分片")
+    shard_run.add_argument("--plan", type=Path, required=True)
+    shard_run.add_argument("--shard-id", required=True)
+    shard_run.add_argument("--previous-receipt", type=Path)
+    shard_run.add_argument("--deadline-epoch", type=float)
+    shard_run.add_argument("--cache", type=Path, required=True)
+    shard_run.add_argument("--output", type=Path, required=True)
+    shard_run.add_argument("--private-home", type=Path, required=True)
+    for sub in (frozen, run, shard_run):
         sub.add_argument("--variant", action="append", required=True, metavar="名称=文件")
         sub.add_argument("--connection", action="append", required=True, metavar="别名=私有文件")
         sub.add_argument("--wheel", type=Path, required=True)
         sub.add_argument("--requirements", type=Path, required=True)
+    shard_merge = commands.add_parser("merge-shards", help="校验来源与账本链，严格归并完整分母")
+    shard_merge.add_argument("--plan", type=Path, required=True)
+    shard_merge.add_argument("--receipt", type=Path, action="append", required=True)
+    shard_merge.add_argument("--output", type=Path, required=True)
     report = commands.add_parser("report", help="从原始结果只读汇总或开发选型")
     report.add_argument("--manifest", type=Path, required=True)
     report.add_argument("--records", type=Path, required=True)
@@ -254,6 +275,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     args = build_parser().parse_args()
     try:
         if args.command == "doctor":
@@ -308,6 +331,33 @@ def main() -> int:
                     args.private_home,
                 )
             )
+        elif args.command == "plan-shards":
+            value = freeze_execution_plan(
+                args.manifest,
+                args.runner_policy,
+                args.authorization,
+                args.output,
+                bundle_root=args.bundle_root,
+                paid_record_paths=args.paid_records,
+            )
+        elif args.command == "run-shard":
+            value = asyncio.run(
+                run_shard(
+                    args.plan,
+                    args.shard_id,
+                    args.previous_receipt,
+                    output=args.output,
+                    cache=args.cache,
+                    wheel=args.wheel,
+                    requirements=args.requirements,
+                    variants=_mapping(args.variant),
+                    connections=_mapping(args.connection),
+                    private_home=args.private_home,
+                    deadline_epoch=args.deadline_epoch,
+                )
+            )
+        elif args.command == "merge-shards":
+            value = merge_shards(args.plan, args.receipt, args.output)
         elif args.command == "lock-candidate":
             value = lock_candidate(args.manifest, args.records, _mapping(args.variant), args.output)
         else:
@@ -327,6 +377,8 @@ def main() -> int:
         if args.command == "sanity" and (not value.get("passed") or not value.get("complete")):
             return 1
         if args.command == "run" and (value.get("missing_trials") or value.get("validity_issues")):
+            return 1
+        if args.command in {"run-shard", "merge-shards"} and value.get("complete") is not True:
             return 1
         return 0
     except KeyboardInterrupt:

@@ -9,6 +9,7 @@ import subprocess
 import tarfile
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -69,6 +70,79 @@ def test_fetch_uses_git_blobs_not_crlf_checkout(tmp_path: Path) -> None:
     assert (snapshot.tasks_path / "sample" / "instruction.md").read_bytes().endswith(b".\n")
     assert b"\r\n" not in (snapshot.tasks_path / "sample" / "instruction.md").read_bytes()
     assert fetch_source(spec, tmp_path / "cache").archive_sha256 == snapshot.archive_sha256
+
+
+@pytest.mark.parametrize("cold_fetch", [False, True])
+def test_fresh_snapshot_ignores_global_crlf_without_mutating_config_or_cache(
+    tmp_path: Path,
+    monkeypatch: Any,
+    cold_fetch: bool,
+) -> None:
+    repository, spec = _repository(tmp_path)
+    expected = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "show",
+            f"{spec.revision}:tasks/sample/instruction.md",
+        ]
+    )
+    global_config = tmp_path / "global-gitconfig"
+    global_config.write_text("", encoding="utf-8")
+    attributes = tmp_path / "global-attributes"
+    attributes.write_text("", encoding="utf-8")
+    for key, value in (
+        ("core.autocrlf", "true"),
+        ("core.eol", "crlf"),
+        ("core.attributesFile", str(attributes)),
+        (f"url.{repository.as_uri()}.insteadOf", spec.url),
+        ("protocol.file.allow", "always"),
+    ):
+        subprocess.run(
+            ["git", "config", "--file", str(global_config), key, value],
+            check=True,
+            capture_output=True,
+        )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    # 仓库本地默认原本为 false，移除后真实继承这份隔离的 global=true。
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "--unset", "core.autocrlf"],
+        check=True,
+        capture_output=True,
+    )
+    before_global = global_config.read_bytes()
+    before_local = (repository / ".git" / "config").read_bytes()
+
+    # 先证明未经修复的真实 Git 归档会转换字节，而不是 mock archive 的返回值。
+    archive = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "archive",
+            "--format=tar",
+            spec.revision,
+        ]
+    )
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
+        stream = bundle.extractfile("tasks/sample/instruction.md")
+        assert stream is not None
+        assert stream.read() == expected.replace(b"\n", b"\r\n") != expected
+
+    cache = tmp_path / "cache"
+    snapshot = fetch_source(spec, cache, **({} if cold_fetch else {"local_repository": repository}))
+    assert snapshot.checksums_verified == 1
+    assert (snapshot.tasks_path / "sample" / "instruction.md").read_bytes() == expected
+    assert global_config.read_bytes() == before_global
+    assert (repository / ".git" / "config").read_bytes() == before_local
+
+    identity = snapshot.path / ".sayacode-source.json"
+    before_identity = identity.read_bytes()
+    restored = fetch_source(spec, cache)
+    assert restored.archive_sha256 == snapshot.archive_sha256
+    assert identity.read_bytes() == before_identity
 
 
 def test_cache_edit_is_rejected(tmp_path: Path) -> None:

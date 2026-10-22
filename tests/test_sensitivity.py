@@ -24,16 +24,27 @@ def sensitivity() -> ModuleType:
     return module
 
 
-def test_protocol_identity_changes_with_resource_validation_rules(
-    sensitivity: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "module_name,field",
+    [
+        ("resources_module", "resource_rules_sha256"),
+        ("shards_module", "shard_execution_sha256"),
+    ],
+)
+def test_protocol_identity_changes_with_validation_rules(
+    sensitivity: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    module_name: str,
+    field: str,
 ) -> None:
     resource = tmp_path / "resources.py"
     resource.write_text("first validation rules\n", encoding="utf-8")
-    monkeypatch.setattr(sensitivity.resources_module, "__file__", str(resource))
+    monkeypatch.setattr(getattr(sensitivity, module_name), "__file__", str(resource))
     first = sensitivity.protocol_identity()
     resource.write_text("revised validation rules\n", encoding="utf-8")
     second = sensitivity.protocol_identity()
-    assert first["resource_rules_sha256"] != second["resource_rules_sha256"]
+    assert first[field] != second[field]
     assert first["analysis_sha256"] == second["analysis_sha256"]
     assert first["samples"] == second["samples"] == 10_000
     assert first["seed"] == second["seed"] == 20261022
