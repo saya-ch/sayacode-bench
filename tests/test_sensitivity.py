@@ -301,6 +301,9 @@ def test_protocol_freeze_does_not_require_or_read_results(
     frozen = json.loads(output.read_text(encoding="utf-8"))
     assert len(frozen["script_sha256"]) == 64
     assert len(frozen["analysis_sha256"]) == 64
+    assert frozen["validity_rules_sha256"] == sensitivity.file_sha256(
+        Path(sensitivity.artifacts_module.__file__)
+    )
     assert frozen["samples"] == 10_000 and frozen["seed"] == 20261022
     assert "records" not in frozen
     with pytest.raises(FileExistsError):

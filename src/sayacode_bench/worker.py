@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import signal
+import stat
 import subprocess
 import tempfile
 import time
@@ -57,12 +58,132 @@ def redact_secret(value: Any, secret: str | None) -> Any:
 
 
 def export_checkpoints(state: Path, logs: Path) -> None:
-    """仅导出图检查点；既不复制私有 Store，也不覆盖实时完整审计。"""
+    """应用正常关闭后导出图检查点；强制停止不补采数据库，也不复制 Store 或审计。"""
     source = state / "checkpoints.sqlite3"
     if source.is_file() and not source.is_symlink():
         target = logs / source.name
         shutil.copyfile(source, target)
         target.chmod(0o600)
+
+
+def export_tool_outputs(state: Path, logs: Path) -> dict[str, Any]:
+    """保存各线程共用的完整工具输出，只复制普通文件，清单记录实际复制的字节。"""
+    source = state / "outputs"
+    target = logs / "outputs"
+    if logs.resolve().is_relative_to(source.resolve()) or source.resolve().is_relative_to(
+        logs.resolve()
+    ):
+        raise ValueError("完整工具输出源与私有日志目录必须隔离")
+    logs.mkdir(parents=True, exist_ok=True, mode=0o700)
+    manifest: dict[str, Any] = {
+        "schema_version": 1,
+        "source_directory": "outputs",
+        "status": "absent",
+        "files": [],
+        "skipped": [],
+        "errors": [],
+    }
+
+    def linked(path: Path) -> bool:
+        return path.is_symlink() or path.is_junction()
+
+    def walk_error(error: OSError) -> None:
+        path = Path(error.filename) if isinstance(error.filename, str) else source
+        manifest["errors"].append(
+            {
+                "path": path.relative_to(state).as_posix(),
+                "error_type": type(error).__name__,
+            }
+        )
+
+    if source.exists() or linked(source):
+        if linked(source) or not source.is_dir():
+            manifest["skipped"].append({"path": "outputs", "reason": "not_regular_directory"})
+        else:
+            if linked(target):
+                raise ValueError("私有工具输出的目标目录不能是链接")
+            target.mkdir(parents=True, exist_ok=True, mode=0o700)
+            manifest["status"] = "complete"
+            for directory, directories, names in os.walk(
+                source, followlinks=False, onerror=walk_error
+            ):
+                parent = Path(directory)
+                for name in sorted(directories):
+                    path = parent / name
+                    if linked(path):
+                        manifest["skipped"].append(
+                            {
+                                "path": path.relative_to(state).as_posix(),
+                                "reason": "linked_directory",
+                            }
+                        )
+                directories[:] = sorted(name for name in directories if not linked(parent / name))
+                for name in sorted(names):
+                    path = parent / name
+                    relative = path.relative_to(state).as_posix()
+                    try:
+                        if linked(path) or not stat.S_ISREG(path.lstat().st_mode):
+                            manifest["skipped"].append(
+                                {"path": relative, "reason": "not_regular_file"}
+                            )
+                            continue
+                        destination = logs / relative
+                        for parent_directory in destination.parents:
+                            if parent_directory == logs:
+                                break
+                            if linked(parent_directory):
+                                raise ValueError("私有工具输出的目标目录不能是链接")
+                        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                        if linked(destination):
+                            raise ValueError("私有工具输出的目标不能是链接")
+                        # 原子替换避免中断留下看似完整的文件；摘要与复制共享同一流。
+                        descriptor, temporary = tempfile.mkstemp(
+                            prefix=".output-", dir=destination.parent
+                        )
+                        temporary_path = Path(temporary)
+                        digest, copied = hashlib.sha256(), 0
+                        try:
+                            with os.fdopen(descriptor, "wb") as writer:
+                                with path.open("rb") as reader:
+                                    while block := reader.read(1024 * 1024):
+                                        writer.write(block)
+                                        digest.update(block)
+                                        copied += len(block)
+                            temporary_path.chmod(0o600)
+                            temporary_path.replace(destination)
+                        finally:
+                            temporary_path.unlink(missing_ok=True)
+                        manifest["files"].append(
+                            {"path": relative, "bytes": copied, "sha256": digest.hexdigest()}
+                        )
+                    except (OSError, ValueError) as exc:
+                        manifest["errors"].append(
+                            {"path": relative, "error_type": type(exc).__name__}
+                        )
+    if manifest["skipped"] or manifest["errors"]:
+        manifest["status"] = "partial"
+    manifest["file_count"] = len(manifest["files"])
+    manifest["total_bytes"] = sum(item["bytes"] for item in manifest["files"])
+    write_json(logs / "outputs-manifest.json", manifest)
+    (logs / "outputs-manifest.json").chmod(0o600)
+    return manifest
+
+
+def record_tool_output_coverage(state: Path, logs: Path, *, stage: str) -> dict[str, Any]:
+    """采集失败单独留证；文件复制完整不代表生成它的工具已成功执行。"""
+    try:
+        exported = export_tool_outputs(state, logs)
+        coverage = {key: exported[key] for key in ("status", "file_count", "total_bytes")}
+    except Exception as exc:
+        coverage = {"status": "failed", "error_type": type(exc).__name__}
+    coverage["stage"] = stage
+    try:
+        write_json(logs / "outputs-coverage.json", coverage)
+        (logs / "outputs-coverage.json").chmod(0o600)
+    except OSError as exc:
+        # 日志盘也不可写时，仍不能把工件采集错误冒充进程未停止。
+        coverage = {"status": "failed", "stage": stage, "error_type": type(exc).__name__}
+    return coverage
 
 
 def git_baseline(workspace: Path, output: Path) -> dict[str, Any]:
@@ -496,7 +617,11 @@ async def run(args: argparse.Namespace) -> int:
             await app.aclose()
         except Exception as exc:
             result.update(status="failed", cleanup_error=type(exc).__name__)
-        export_checkpoints(paths.home, logs)
+        else:
+            try:
+                export_checkpoints(paths.home, logs)
+            except Exception as exc:
+                result["checkpoint_export_error"] = type(exc).__name__
     result.update(audit_metrics(logs / "audit.jsonl"))
     result.update(
         duration_seconds=round(time.perf_counter() - start, 3),
@@ -512,6 +637,7 @@ async def run(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--stop", type=Path)
+    parser.add_argument("--export-outputs", action="store_true")
     parser.add_argument("--capture-base", type=Path)
     parser.add_argument("--capture-final", type=Path)
     parser.add_argument("--base-file", type=Path)
@@ -519,11 +645,18 @@ def main() -> int:
     parser.add_argument("--variant", type=Path)
     parser.add_argument("--instruction", type=Path)
     parser.add_argument("--state", type=Path)
+    parser.add_argument("--state-home", type=Path, help="完整输出采集使用的产品状态根目录")
     parser.add_argument("--logs", type=Path)
     parser.add_argument("--workspace", type=Path)
     args = parser.parse_args()
     if args.stop:
         return stop_worker(args.stop)
+    if args.export_outputs:
+        if args.state_home is None or args.logs is None:
+            parser.error("完整输出采集需要 state-home 和 logs")
+        coverage = record_tool_output_coverage(args.state_home, args.logs, stage="export_command")
+        print(json.dumps({"tool_outputs_export": coverage}))
+        return 0 if coverage["status"] in {"complete", "absent"} else 1
     if args.capture_base:
         git_baseline(args.workspace or Path.cwd(), args.capture_base)
         return 0

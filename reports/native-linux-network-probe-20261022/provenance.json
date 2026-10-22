@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "workflow_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39740819102",
+  "commit": "e5fc85859a93879d5550c40ccdadfddff9d288a1",
+  "artifact": "network-probe-39740819102-1",
+  "raw_artifact_file_sha256": "6085a70c5baab96cbba11f9dfab5fd4ba50d0d0e6653034d916c1900af1d915c",
+  "paid_model_requests": 0,
+  "scope": "原生 Linux 分阶段网络与资源清理证据；不是模型效果试验"
+}

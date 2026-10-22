@@ -296,7 +296,7 @@ async def qualify(
         versions = [output / "selections" / "selection-000.json"]
     environment = EnvironmentConfig(
         import_path="sayacode_bench.network:IsolatedDockerEnvironment",
-        kwargs={"messages_upstream": "http://host.docker.internal:8787/v1/messages"},
+        kwargs={"messages_upstream": "http://127.0.0.1:9/v1/messages"},
     )
     while True:
         tasks = [*current["dev"], *current["holdout"]]

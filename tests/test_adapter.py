@@ -199,7 +199,10 @@ async def test_run_uploads_private_files_and_always_stops_before_return(tmp_path
     assert "original official task" not in commands
     assert "chmod 600" in commands
     assert "chown agent" in commands
-    assert "--stop /logs/agent/sayacode/worker.pid.json" in environment.commands[-2]
+    assert "--stop /logs/agent/sayacode/worker.pid.json" in environment.commands[-3]
+    assert "--export-outputs" in environment.commands[-2]
+    assert "--state-home /installed-agent/sayacode-private/state/app" in environment.commands[-2]
+    assert "--logs /logs/agent/sayacode" in environment.commands[-2]
     assert "--capture-final /logs/agent/model.patch" in environment.commands[-1]
     assert "--workspace" not in commands  # 保留任务镜像定义的工作目录。
     assert all("/installed-agent/" in target for _, target in environment.uploads)
@@ -210,7 +213,8 @@ async def test_nonzero_does_not_classify_tool_text_and_still_stops(tmp_path: Pat
     environment = Environment(return_code=3)
     with pytest.raises(RuntimeError, match="exit=3"):
         await agent.run("task", environment, AgentContext())
-    assert "--stop" in environment.commands[-2]
+    assert "--stop" in environment.commands[-3]
+    assert "--export-outputs" in environment.commands[-2]
     assert "--capture-final" in environment.commands[-1]
 
 
@@ -271,6 +275,95 @@ async def test_cancellation_waits_for_exact_worker_cleanup(tmp_path: Path) -> No
     with pytest.raises(asyncio.CancelledError):
         await task
     assert cleaned.is_set()
+    assert sum("--stop " in command for command in environment.commands) == 1
+    assert sum("--export-outputs" in command for command in environment.commands) == 1
+    assert sum("--capture-final" in command for command in environment.commands) == 1
+
+
+@pytest.mark.parametrize("failure", ["nonzero", "timeout"])
+async def test_output_export_failure_preserves_native_task_facts_and_patch_capture(
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    agent = make_agent(tmp_path)
+    original = {"status": "completed", "task_count": 2, "original_reward": 0}
+    result_path = agent.logs_dir / "sayacode" / "result.json"
+    result_path.parent.mkdir(parents=True)
+    result_path.write_text(json.dumps(original), encoding="utf-8")
+
+    class ExportFailure(Environment):
+        async def exec(self, command: str, **kwargs: Any) -> SimpleNamespace:
+            if "--export-outputs" in command:
+                assert kwargs["timeout_sec"] == 320
+                self.commands.append(command)
+                if failure == "timeout":
+                    raise TimeoutError("DO-NOT-LOG-PRIVATE-DETAILS")
+                return SimpleNamespace(return_code=1, stdout="private failure body", stderr="")
+            if "--stop " in command:
+                assert kwargs["timeout_sec"] == 25
+            return await super().exec(command, **kwargs)
+
+    environment = ExportFailure()
+    await agent.run("task", environment, AgentContext())
+    assert "--capture-final" in environment.commands[-1]
+    assert json.loads(result_path.read_text(encoding="utf-8")) == original
+    coverage = json.loads((agent.logs_dir / "tool-output-export.json").read_text(encoding="utf-8"))
+    assert coverage["command_status"] == "failed"
+    assert coverage["error_type"] == (
+        "TimeoutError" if failure == "timeout" else "OutputExportNonZeroExit"
+    )
+    assert "private" not in json.dumps(coverage).lower()
+
+
+@pytest.mark.parametrize("failure", ["nonzero", "timeout"])
+async def test_unconfirmed_stop_never_exports_outputs_or_captures_patch(
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    agent = make_agent(tmp_path)
+
+    class StopFailure(Environment):
+        async def exec(self, command: str, **kwargs: Any) -> SimpleNamespace:
+            if "--stop " in command:
+                self.commands.append(command)
+                if failure == "timeout":
+                    raise TimeoutError("stop not confirmed")
+                return SimpleNamespace(return_code=1, stdout="", stderr="")
+            return await super().exec(command, **kwargs)
+
+    environment = StopFailure()
+    with pytest.raises((RuntimeError, TimeoutError)):
+        await agent.run("task", environment, AgentContext())
+    assert not any("--export-outputs" in command for command in environment.commands)
+    assert not any("--capture-final" in command for command in environment.commands)
+
+
+async def test_cancel_during_output_export_waits_for_same_finalizer_once(tmp_path: Path) -> None:
+    agent = make_agent(tmp_path)
+    exporting = asyncio.Event()
+    release = asyncio.Event()
+
+    class SlowExport(Environment):
+        async def exec(self, command: str, **kwargs: Any) -> SimpleNamespace:
+            if "--export-outputs" in command:
+                self.commands.append(command)
+                exporting.set()
+                await release.wait()
+                return SimpleNamespace(return_code=0, stdout="", stderr="")
+            return await super().exec(command, **kwargs)
+
+    environment = SlowExport()
+    task = asyncio.create_task(agent.run("task", environment, AgentContext()))
+    await exporting.wait()
+    task.cancel()
+    await asyncio.sleep(0)
+    assert not task.done()
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert sum("--stop " in command for command in environment.commands) == 1
+    assert sum("--export-outputs" in command for command in environment.commands) == 1
+    assert sum("--capture-final" in command for command in environment.commands) == 1
 
 
 async def test_install_preserves_task_python_and_never_uploads_private_profile(

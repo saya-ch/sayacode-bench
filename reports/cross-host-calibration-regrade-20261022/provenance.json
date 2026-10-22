@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "workflow_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39740758231",
+  "commit": "7f152eb4973d01fffb8801f333987b4d9cbbec08",
+  "artifact": "calibration-regrade-39740758231-1",
+  "raw_summary_sha256": "f2779081d7bf2c8dbadf9da9b2597af2c7fbfa7adda3440aa4c6b4353516ce1e",
+  "raw_records_sha256": "9852ad0ba7b3defbf878b70d4730f684c13821c80e43c74e23c46583cf27d94d",
+  "model_requests": 0,
+  "formal_comparison_eligible": false,
+  "scope": "既有真实交付补丁的固定跨宿主诊断；不覆盖本地原分、不计入正式效果分母"
+}

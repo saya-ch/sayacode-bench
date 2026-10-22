@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from sayacode_bench.artifacts import check_budget, read_json, record_stop, write_json
+from sayacode_bench.artifacts import (
+    check_budget,
+    fatal_stop_reason,
+    read_json,
+    record_stop,
+    write_json,
+)
 from sayacode_bench.connections import messages_endpoint, read_connection
 
 
@@ -36,6 +42,37 @@ def test_two_recent_connection_failures_stop_batch() -> None:
         {"failure_category": "model_connection"},
     ]
     assert check_budget(records, reported_token_limit=100) == "unstable_model_connection"
+
+
+def test_past_unstable_window_cannot_disappear_after_later_successes() -> None:
+    records = [{"failure_category": "model_connection"}, *({} for _ in range(3))]
+    assert fatal_stop_reason(records) is None
+    records.append({"failure_category": "model_connection"})
+    assert fatal_stop_reason(records) == "unstable_model_connection"
+    records.extend({} for _ in range(6))
+    assert fatal_stop_reason(records) == "unstable_model_connection"
+
+
+def test_connection_failures_more_than_five_attempts_apart_do_not_stop() -> None:
+    records = [
+        {"failure_category": "model_connection"},
+        *({} for _ in range(4)),
+        {"failure_category": "model_connection"},
+    ]
+    assert fatal_stop_reason(records) is None
+
+
+@pytest.mark.parametrize("status", [401, 402, 403, 429])
+@pytest.mark.parametrize("field", ["terminal_http_status", "terminal_http_statuses"])
+def test_terminal_service_failure_is_fatal_even_at_end(status: int, field: str) -> None:
+    value = [status] if field.endswith("statuses") else status
+    assert fatal_stop_reason([{}, {field: value}]) == "model_service_limit"
+
+
+def test_ordinary_agent_failure_and_resource_threshold_are_not_fatal() -> None:
+    records = [{"status": "failed", "success": False, "input_tokens": 100}]
+    assert fatal_stop_reason(records) is None
+    assert check_budget(records, reported_token_limit=100) == "reported_token_threshold"
 
 
 def test_connection_export_excludes_secret(tmp_path: Path) -> None:

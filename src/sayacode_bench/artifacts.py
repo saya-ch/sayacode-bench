@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -65,10 +66,12 @@ def record_stop(output: Path, reason: str, *, details: dict[str, Any] | None = N
     )
 
 
-def check_budget(records: list[dict[str, Any]], *, reported_token_limit: int) -> str | None:
-    """按已报告用量停止新派发，不能把这个阈值说成完整计费上限。"""
+def fatal_stop_reason(records: Sequence[Mapping[str, Any]]) -> str | None:
+    """重查已声明的外部故障止损；末项和历史窗口也不能在离线报告时消失。"""
+    recent_connection_failures: list[bool] = []
     for record in records:
         codes = record.get("terminal_http_statuses", [])
+        codes = codes if isinstance(codes, (list, tuple)) else []
         if record.get("terminal_http_status") in {401, 402, 403, 429} or any(
             type(code) is int and code in {401, 402, 403, 429} for code in codes
         ):
@@ -77,9 +80,18 @@ def check_budget(records: list[dict[str, Any]], *, reported_token_limit: int) ->
             return "trial_infrastructure_failure"
         if record.get("status") == "completed" and record.get("success") is None:
             return "verification_unconfirmed"
-    recent = records[-5:]
-    if sum(row.get("failure_category") == "model_connection" for row in recent) >= 2:
-        return "unstable_model_connection"
+        recent_connection_failures.append(record.get("failure_category") == "model_connection")
+        recent_connection_failures = recent_connection_failures[-5:]
+        if sum(recent_connection_failures) >= 2:
+            return "unstable_model_connection"
+    return None
+
+
+def check_budget(records: list[dict[str, Any]], *, reported_token_limit: int) -> str | None:
+    """按已报告用量停止新派发，不能把这个阈值说成完整计费上限。"""
+    fatal = fatal_stop_reason(records)
+    if fatal:
+        return fatal
     tokens = sum(
         sum(
             value

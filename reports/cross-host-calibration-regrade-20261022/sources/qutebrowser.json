@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "phase": "calibration_patch_evidence",
+  "source_kind": "actual_captured_model_patch",
+  "benchmark": "swe-bench-pro-v2",
+  "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+  "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+  "canonical_model": "DeepSeek-V4.1-Flash",
+  "endpoint": "local",
+  "patch_sha256": "d905b09f498fa5ff4edbecc185d88f16200db2967acae28d5c2e5b185efc6592",
+  "patch_bytes": 17309,
+  "base_commit": "6d9c28ce10832aa727de1a326d9459a035ff3aba",
+  "original_source_status": "completed",
+  "original_reward": 0.0,
+  "local_pristine_reward": 0.0,
+  "original_raw_trial_result_sha256": "a0ea39ba19a320c27f3d40e6879b49bd8978dc63a40890aee49105ff1ed6d7ba",
+  "original_worker_result_sha256": "14ee2365594787a774850025e4ec5527d8c56b6f32b57ed8c703b2022926eabf",
+  "original_records_sha256": "299346a0da9890728857c0c21f723d74fb4c1c111b52b5c9bf61db8ab8911c60",
+  "immutable_image_digest": "sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+  "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+  "source_json_sha256": "b86463e52f36842c1f4829bb6a8f0ff560393c717ab09225da660096b8a49bfd"
+}

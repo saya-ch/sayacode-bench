@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import sayacode_bench.analysis as analysis_module
+import sayacode_bench.artifacts as artifacts_module
 import sayacode_bench.budget as budget_module
 import sayacode_bench.study as study_module
 from sayacode_bench.analysis import paired_bootstrap
@@ -28,6 +29,7 @@ def protocol_identity() -> dict[str, Any]:
         "schema_version": 1,
         "script_sha256": file_sha256(Path(__file__)),
         "analysis_sha256": file_sha256(Path(analysis_module.__file__)),
+        "validity_rules_sha256": file_sha256(Path(artifacts_module.__file__)),
         "validation_sha256": file_sha256(Path(study_module.__file__)),
         "budget_sha256": file_sha256(Path(budget_module.__file__)),
         "samples": SAMPLES,

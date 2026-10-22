@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "phase": "cross_host_calibration_patch_diagnostic",
+  "benchmark": "swe-bench-pro-v2",
+  "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+  "harbor_version": "0.24.0",
+  "model_agent_used": false,
+  "model_requests": 0,
+  "replay_agent": "sayacode_bench.artifact_replay:ArtifactReplayAgent",
+  "upstream_tooling_sha256": "5c8b344de37164e9723f1724c2573013957fb644c3913a64c12c1718c737d876",
+  "replay_adaptation": "portable artifact locator subclass; only _find_patch is overridden; upstream setup/run/apply/verifier unchanged",
+  "prior_qutebrowser_controls": {
+    "workflow_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39736698121",
+    "report_directory": "reports/cross-host-fixture-diagnostic-20261022",
+    "files_sha256": {
+      "summary.json": "d78527ef2c5ea6bfa76e099875e3cd5846cf7bab6ee319731eacf9cfb8e1ce69",
+      "records.json": "38bcdc11bc232471277b5f9aa6fe0277de969a9ab1084927c467758c1932d8ae",
+      "image-preparation.json": "986ddf4c76e8c707aafaf9c841626654ca11b39e6b65389e52e49fe185dc791c",
+      "provenance.json": "f3a7cdb18639208220ce5e3e91761e3ac6fcd63718aa36cde64afb6b6feffcb1"
+    },
+    "oracle_rewards": [
+      1,
+      1,
+      1
+    ],
+    "nop_rewards": [
+      0
+    ],
+    "same_vm_as_current_patch_trials": false
+  },
+  "fixtures": [
+    {
+      "name": "qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "digest": "sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+      "patch_sha256": "d905b09f498fa5ff4edbecc185d88f16200db2967acae28d5c2e5b185efc6592",
+      "immutable_image": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+      "original_image_reference": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367"
+    },
+    {
+      "name": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "digest": "sha256:31ebe11c8cb1c5e3f74b15e0345fce7f9adc7eb406209131828f8b49bf4b7f61",
+      "patch_sha256": "6f63f697720842b83c3013403f5a98df424e236173344c76b98c7d647a2fa6e6",
+      "immutable_image": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:31ebe11c8cb1c5e3f74b15e0345fce7f9adc7eb406209131828f8b49bf4b7f61",
+      "original_image_reference": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86"
+    }
+  ],
+  "schedule": [
+    {
+      "fixture": "qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "portable-patch-replay",
+      "repeat": 1,
+      "job_name": "calibration-1-portable-patch-replay-1"
+    },
+    {
+      "fixture": "qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "portable-patch-replay",
+      "repeat": 2,
+      "job_name": "calibration-1-portable-patch-replay-2"
+    },
+    {
+      "fixture": "qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "agent": "portable-patch-replay",
+      "repeat": 3,
+      "job_name": "calibration-1-portable-patch-replay-3"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "oracle",
+      "repeat": 1,
+      "job_name": "calibration-2-oracle-1"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "oracle",
+      "repeat": 2,
+      "job_name": "calibration-2-oracle-2"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "oracle",
+      "repeat": 3,
+      "job_name": "calibration-2-oracle-3"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "nop",
+      "repeat": 1,
+      "job_name": "calibration-2-nop-1"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "portable-patch-replay",
+      "repeat": 1,
+      "job_name": "calibration-2-portable-patch-replay-1"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "portable-patch-replay",
+      "repeat": 2,
+      "job_name": "calibration-2-portable-patch-replay-2"
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "agent": "portable-patch-replay",
+      "repeat": 3,
+      "job_name": "calibration-2-portable-patch-replay-3"
+    }
+  ],
+  "formal_comparison_eligible": false,
+  "affects_local_scores": false,
+  "interpretation": "固定六次独立 pristine 重判及 Ansible 三参考一空解；qutebrowser 引用既有云端控制，不按成绩挑选；原本地评分保留，不构成正式模型比较。"
+}

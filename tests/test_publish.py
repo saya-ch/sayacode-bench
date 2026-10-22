@@ -283,6 +283,25 @@ def test_derived_budget_invalidity_remains_invalid_when_public_data_is_reanalyze
     assert analyze_experiment(published, rows)["final_result_eligible"] is False
 
 
+@pytest.mark.parametrize("field", ["terminal_http_status", "terminal_http_statuses"])
+def test_old_service_failure_without_marker_stays_invalid_after_public_sanitization(
+    tmp_path, field
+):
+    manifest, records = source_files(tmp_path)
+    row = record()
+    row.update(status="failed", success=False, verified=False)
+    row[field] = [429] if field.endswith("statuses") else 429
+    records.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    output = tmp_path / "public"
+    result = export_results(manifest, records, output)
+    assert result["final_result_eligible"] is False
+    assert "fatal_stop_condition:model_service_limit" in result["validity_issues"]
+    published = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    public_rows = [json.loads(line) for line in (output / "records.jsonl").read_text().splitlines()]
+    assert public_rows[0][field] == row[field]
+    assert analyze_experiment(published, public_rows)["final_result_eligible"] is False
+
+
 def test_report_is_recursively_validated_before_creating_public_directory(tmp_path, monkeypatch):
     manifest, records = source_files(tmp_path)
     original = publish.phase_summary

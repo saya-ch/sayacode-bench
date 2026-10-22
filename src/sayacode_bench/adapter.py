@@ -14,7 +14,7 @@ from harbor.agents.installed.base import BaseInstalledAgent, NonZeroAgentExitCod
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
-from .worker import audit_metrics, read_object, variant_profile
+from .worker import audit_metrics, read_object, variant_profile, write_json
 
 ROOT = PurePosixPath("/installed-agent/sayacode")
 PRIVATE = PurePosixPath("/installed-agent/sayacode-private")
@@ -133,30 +133,48 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             if result.return_code:
                 raise NonZeroAgentExitCodeError(f"SAYACODE worker exit={result.return_code}")
         finally:
-            # Harbor 取消 exec 不一定取消容器内进程；此步完成前不能进入验证器。
-            stopper = asyncio.create_task(
-                environment.exec(
-                    command=f"{ROOT}/venv/bin/python {ROOT}/worker.py --stop {logs}/worker.pid.json",
-                    timeout_sec=25,
-                )
-            )
+            # 正常、失败和取消共用一次收尾；取消不能让验证器越过仍在运行的进程。
+            finalizer = asyncio.create_task(self._finalize_worker(environment, logs))
             try:
-                stopped = await asyncio.shield(stopper)
+                await asyncio.shield(finalizer)
             except asyncio.CancelledError:
-                stopped = await stopper
-                if stopped.return_code:
-                    raise RuntimeError("SAYACODE worker 停止未确认") from None
+                await finalizer
                 raise
-            if stopped.return_code:
-                raise RuntimeError("SAYACODE worker 停止未确认")
-            # 必须早于 Harbor verifier；官方 fresh-sandbox replay 只接收此文件。
-            captured = await environment.exec(
-                command=f"{ROOT}/venv/bin/python {ROOT}/worker.py --capture-final "
-                f"{self.environment_logs_dir}/model.patch --base-file {logs}/git-base.json",
+
+    async def _finalize_worker(self, environment: BaseEnvironment, logs: PurePosixPath) -> None:
+        """先确认停止，再独立导出私有输出并采集补丁；导出错误不冒充运行失败。"""
+        stopped = await environment.exec(
+            command=f"{ROOT}/venv/bin/python {ROOT}/worker.py --stop {logs}/worker.pid.json",
+            timeout_sec=25,
+        )
+        if stopped.return_code:
+            raise RuntimeError("SAYACODE worker 停止未确认")
+        try:
+            exported = await environment.exec(
+                command=f"{ROOT}/venv/bin/python {ROOT}/worker.py --export-outputs "
+                f"--state-home {PRIVATE}/state/app --logs {logs}",
                 timeout_sec=320,
             )
-            if captured.return_code:
-                raise RuntimeError("SAYACODE 最终补丁采集失败")
+            export_status = {
+                "command_status": "completed" if exported.return_code == 0 else "failed",
+                "exit_code": exported.return_code,
+                "error_type": None if exported.return_code == 0 else "OutputExportNonZeroExit",
+            }
+        except Exception as exc:
+            export_status = {"command_status": "failed", "error_type": type(exc).__name__}
+        try:
+            # 命令状态不代替文件覆盖；覆盖详情见 sayacode/outputs-coverage.json 和清单。
+            write_json(self.logs_dir / "tool-output-export.json", export_status)
+        except OSError as exc:
+            self.logger.warning("私有输出采集记录未保存：%s", type(exc).__name__)
+        # 必须早于 Harbor verifier；官方 fresh-sandbox replay 只接收此文件。
+        captured = await environment.exec(
+            command=f"{ROOT}/venv/bin/python {ROOT}/worker.py --capture-final "
+            f"{self.environment_logs_dir}/model.patch --base-file {logs}/git-base.json",
+            timeout_sec=320,
+        )
+        if captured.return_code:
+            raise RuntimeError("SAYACODE 最终补丁采集失败")
 
     def populate_context_post_run(self, context: AgentContext) -> None:
         path = self.logs_dir / "sayacode"

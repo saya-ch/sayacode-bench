@@ -13,6 +13,7 @@ from harbor.models.trial.config import AgentConfig, EnvironmentConfig
 from .analysis import analyze_experiment
 from .artifacts import (
     check_budget,
+    fatal_stop_reason,
     file_sha256,
     implementation_identity,
     read_json,
@@ -496,6 +497,11 @@ async def run_phase(
                 qualified=manifest.get("qualified_runtime_identities", {}).get(task_id),
             ):
                 record_stop(output, "runtime_evidence_unconfirmed")
+                break
+            # 外部故障使本批次失效，最后一项也要留证；资源阈值只阻止新派发。
+            fatal = fatal_stop_reason(records)
+            if fatal:
+                record_stop(output, fatal)
                 break
             reason = _paid_stop_reason(policy, records, prior_records)
             if reason and item != remaining[-1]:

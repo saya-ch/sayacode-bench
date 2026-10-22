@@ -1,0 +1,40 @@
+{
+  "test-stdout.txt": {
+    "bytes": 1609,
+    "sha256": "0c244c832ef372c116fb12c18d64c24a90da4434f4333df2792e163cdb7de130",
+    "exception_types": {},
+    "pytest_counts": {},
+    "required_tests": 58,
+    "passed_required_tests": 49,
+    "segmentation_fault": false,
+    "pytest_internal_error": false,
+    "fatal_python_error": false
+  },
+  "run-script-stdout.txt": {
+    "bytes": 30906,
+    "sha256": "ec4440245fa5462a071d1d1b007474b1b5aac8ab7357f2e7a77dff85ab64c402",
+    "exception_types": {
+      "AssertionError": 3
+    },
+    "pytest_counts": {
+      "failed": 10,
+      "passed": 49
+    },
+    "required_tests": null,
+    "passed_required_tests": null,
+    "segmentation_fault": false,
+    "pytest_internal_error": false,
+    "fatal_python_error": false
+  },
+  "run-script-stderr.txt": {
+    "bytes": 492,
+    "sha256": "8bda976e934cd2c30e4390bba34400f4e2706d280ae41af97a556aae1a5a9251",
+    "exception_types": {},
+    "pytest_counts": {},
+    "required_tests": null,
+    "passed_required_tests": null,
+    "segmentation_fault": false,
+    "pytest_internal_error": false,
+    "fatal_python_error": false
+  }
+}

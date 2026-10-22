@@ -1,0 +1,8 @@
+{
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "host_python": "3.13.15 (main, Aug 14 2026, 15:34:59) [Clang 22.1.3 ]",
+  "harbor_version": "0.24.0",
+  "script_sha256": "34db7e668316295b7bfb746bae701e3ce3410b7501286982caffb3ee45c76c3e",
+  "uv_lock_sha256": "cff2a63be4366dd037a0b7f8649da0124c427acedf0ec183260aeb605a3f73b9"
+}

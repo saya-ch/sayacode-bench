@@ -49,7 +49,7 @@ async def sanity(manifest_path: Path, cache: Path, output: Path) -> dict[str, An
     results = []
     environment = EnvironmentConfig(
         import_path="sayacode_bench.network:IsolatedDockerEnvironment",
-        kwargs={"messages_upstream": "http://host.docker.internal:8787/v1/messages"},
+        kwargs={"messages_upstream": "http://127.0.0.1:9/v1/messages"},
     )
     for index, task in enumerate(tasks, 1):
         results_for_task = {}

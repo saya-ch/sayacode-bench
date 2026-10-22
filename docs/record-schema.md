@@ -17,6 +17,12 @@
 
 执行确实失败仍计入端到端分母。运行完成但缺 verifier reward、worker 证据损坏或独立重判未确认时，保持未知。原始 Harbor 日志可能包含第三方输出，分享前仍须独立脱敏。
 
+## 私有完整工具输出
+
+主线程与子线程的超限文件结果、Shell stdout／stderr 等共用产品状态下的 `outputs/`。从新增导出功能的实现版本起，正常收尾与停止确认后均保存普通文件到 trial 的私有 `sayacode/outputs/`，`outputs-manifest.json` 记录实际复制字节、SHA、跳过项与错误，覆盖记录标明采集阶段。导出不读取链接目标，不复制 Store 或模型配置，也不进入公开 artifact 白名单。
+
+工具输出复制完整只证明保存了当时可读的文件，不表示生成它的工具执行成功。导出失败单独留证，不能改写原始 reward。图检查点只在应用正常关闭后导出；强制 kill 后不补采 SQLite，也不声称保存了全部在途状态。旧校准没有这些新增文件时不补造，原生消息预览与审计仍按原记录保留。
+
 ## SWE 独立重判
 
 `replay_official_trial` 动态加载固定上游目录的 `patch_replay:PatchReplayAgent`，创建新 Harbor job 与新环境。它要求源 job 恰好一个 `instance_*` trial，避免上游按任务名寻找首个补丁时串用其他重复的交付。

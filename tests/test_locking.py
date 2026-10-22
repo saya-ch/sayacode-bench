@@ -139,6 +139,28 @@ def test_invalid_development_batch_cannot_be_locked(experiment, marker):
         lock(experiment)
 
 
+@pytest.mark.parametrize("code", [401, 402, 403, 429])
+def test_old_complete_development_with_terminal_service_error_cannot_be_locked(experiment, code):
+    experiment["records"][-1].update(
+        status="failed", success=False, verified=False, terminal_http_statuses=[code]
+    )
+    save_records(experiment)
+    assert not (experiment["records_path"].parent / "abort.json").exists()
+    with pytest.raises(ValueError, match="缺失、未知或不可比较"):
+        lock(experiment)
+
+
+def test_receipt_created_before_fatal_gate_is_rechecked_against_source_facts(experiment):
+    receipt = lock(experiment)
+    # 保持原选择与所有成功率不变，构造旧版可签收但缺少止损标记的开发记录。
+    experiment["records"][0].update(status="failed", verified=False, terminal_http_statuses=[401])
+    save_records(experiment)
+    receipt["dev_records"]["sha256"] = file_sha256(experiment["records_path"])
+    write_json(experiment["receipt_path"], receipt)
+    with pytest.raises(ValueError, match="候选选择与冻结开发结果不一致"):
+        validate_candidate_receipt(experiment["receipt_path"], final_manifest(experiment))
+
+
 def test_unfrozen_development_is_rejected(experiment):
     experiment["manifest"]["frozen"] = False
     write_json(experiment["manifest_path"], experiment["manifest"])

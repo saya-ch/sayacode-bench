@@ -1,0 +1,25 @@
+{
+  "workflow_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39736698121",
+  "report_directory": "reports/cross-host-fixture-diagnostic-20261022",
+  "files_sha256": {
+    "summary.json": "d78527ef2c5ea6bfa76e099875e3cd5846cf7bab6ee319731eacf9cfb8e1ce69",
+    "records.json": "38bcdc11bc232471277b5f9aa6fe0277de969a9ab1084927c467758c1932d8ae",
+    "image-preparation.json": "986ddf4c76e8c707aafaf9c841626654ca11b39e6b65389e52e49fe185dc791c",
+    "provenance.json": "f3a7cdb18639208220ce5e3e91761e3ac6fcd63718aa36cde64afb6b6feffcb1"
+  },
+  "oracle_rewards": [
+    1,
+    1,
+    1
+  ],
+  "nop_rewards": [
+    0
+  ],
+  "same_vm_as_current_patch_trials": false,
+  "runtime_files_sha256": {
+    "cross-host-1-oracle-1": "238afb42074738e3546194f3ab909fef812fd06c6559a18daf947fa7c1ff8ec2",
+    "cross-host-1-oracle-2": "473cce44f8acf9c6586915ed0d3e16a89a4df4d34861f85c2c807468f3583e48",
+    "cross-host-1-oracle-3": "32441635319744ea80c8740cfc9ac4408a5495b82b0003f2ef30bf06a7eeed30",
+    "cross-host-1-nop-1": "f5c5cce8fe25a55f5eb4e230a06bc3c375f8657c5cee336320cd449acb35d457"
+  }
+}

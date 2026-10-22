@@ -122,7 +122,7 @@ def install_jobs(monkeypatch: Any) -> list[Any]:
             task_id = config.tasks[0].path.name
             name = task_id + "__offline"
             path = config.jobs_dir / config.job_name / name
-            write_json(path / "result.json", {"task_name": task_id})
+            write_json(path / "result.json", {"task_name": task_id, "job_name": config.job_name})
             write_json(
                 path / "runtime.json",
                 {
@@ -130,6 +130,7 @@ def install_jobs(monkeypatch: Any) -> list[Any]:
                     "image_id": "sha256:" + "a" * 64,
                     "architecture": "amd64",
                     "os": "linux",
+                    "requested": {"memory_mb": 4096},
                     "docker_limits": {"Memory": 4096},
                 },
             )
@@ -276,12 +277,28 @@ async def test_user_sequence_sanity_freeze_run_pristine_replay_and_cli_report(
         },
     )
     args = freeze_arguments(experiment, sanity_output / "sanity.json", probe)
+    with pytest.raises(ValueError, match="固定三次"):
+        cli.freeze(args)
+    oracle = [gate["tasks"][0]["oracle"]]
+    for repeat in (2, 3):
+        oracle.append(
+            await execution.run_official_trial(
+                experiment.task,
+                sanity_output / "jobs",
+                f"qualification-oracle-{repeat}",
+                {"name": "oracle"},
+                configuration="oracle",
+                repeat=repeat,
+            )
+        )
+    gate["tasks"][0].update(oracle_repeats=3, oracle_trials=oracle)
+    write_json(args.sanity, gate)
     frozen = cli.freeze(args)
     assert "private-never-publish" not in json.dumps(frozen)
     experiment.manifest_path = args.output
     experiment.output = experiment.root / "dev-results"
     result = await run_phase(experiment)
-    assert len(calls) == 6
+    assert len(calls) == 8
     assert result["groups"]["baseline"]["successes"] == 1
     report = experiment.root / "dev-report.json"
     monkeypatch.setattr(
@@ -511,6 +528,30 @@ def prior_usage(index: int, input_tokens: int) -> dict[str, Any]:
 
 def gate_and_probe(bundle: Any) -> tuple[Path, Path]:
     gate, probe = bundle.root / "gate.json", bundle.root / "probe.json"
+    trials = [
+        {
+            "task_id": bundle.task.name,
+            "configuration": "oracle" if index < 3 else "nop",
+            "repeat": index + 1 if index < 3 else 1,
+            "record_complete": True,
+            "status": "completed",
+            "verified": True,
+            "success": index < 3,
+            "original_reward": int(index < 3),
+            "request_sha256": f"{index + 1:064x}",
+            "raw_trial_result": {"sha256": f"{index + 11:064x}"},
+            "runtime": {"sha256": f"{index + 21:064x}"},
+            "runtime_identity": {
+                "available": True,
+                "image_id": "sha256:" + "a" * 64,
+                "architecture": "amd64",
+                "os": "linux",
+                "requested": {"memory_mb": 4096},
+                "docker_limits": {"Memory": 4096},
+            },
+        }
+        for index in range(4)
+    ]
     write_json(
         gate,
         {
@@ -522,14 +563,10 @@ def gate_and_probe(bundle: Any) -> tuple[Path, Path]:
                 {
                     **bundle.manifest["tasks"][0],
                     "passed": True,
-                    "oracle": {
-                        "runtime_identity": {
-                            "available": True,
-                            "image_id": "sha256:" + "a" * 64,
-                            "architecture": "amd64",
-                            "os": "linux",
-                        }
-                    },
+                    "oracle_repeats": 3,
+                    "oracle_trials": trials[:3],
+                    "oracle": trials[0],
+                    "nop": trials[3],
                 }
             ],
         },
@@ -938,3 +975,85 @@ def test_invalid_budget_evidence_removes_main_formal_interval(experiment: Any) -
     invalid = study.phase_summary(manifest, rows)
     assert invalid["formal_comparison_eligible"] is False
     assert invalid["comparison"]["bootstrap"] is None
+
+
+def install_observed_model_failures(
+    monkeypatch: Any, indices: set[int], *, http_code: int | None = None
+) -> None:
+    """在真实离线 Job/重判链中注入已规范化的服务终态，绝不请求模型。"""
+    original = study.run_official_trial
+    observed = 0
+
+    async def run(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        nonlocal observed
+        record = await original(*args, **kwargs)
+        observed += 1
+        if observed in indices:
+            record.update(status="failed", worker_status="failed", success=False, verified=False)
+            if http_code is not None:
+                record["terminal_http_statuses"] = [http_code]
+            else:
+                record["failure_category"] = "model_connection"
+            write_json(Path(record["job_dir"]) / "normalized.json", record)
+        return record
+
+    monkeypatch.setattr(study, "run_official_trial", run)
+
+
+@pytest.mark.parametrize("code", [401, 402, 403, 429])
+async def test_last_service_failure_marks_full_batch_invalid_after_preserving_replay(
+    experiment: Any, monkeypatch: Any, code: int
+) -> None:
+    calls = install_jobs(monkeypatch)
+    install_observed_model_failures(monkeypatch, {2}, http_code=code)
+    result = await run_phase(experiment)
+    rows = study._records(experiment.output / "records.jsonl")
+    assert len(calls) == 4 and len(rows) == 2
+    assert rows[-1]["status"] == "failed" and rows[-1]["terminal_http_statuses"] == [code]
+    assert rows[-1]["replay_status"] == "completed" and rows[-1]["verified"] is True
+    assert not result["missing_trials"]
+    assert read_json(experiment.output / "abort.json")["reason"] == "model_service_limit"
+    assert "fatal_stop_condition:model_service_limit" in result["validity_issues"]
+    assert "experiment_aborted" in result["validity_issues"]
+
+
+async def test_second_connection_failure_at_last_trial_checks_five_attempt_window(
+    experiment: Any, monkeypatch: Any
+) -> None:
+    calls = install_jobs(monkeypatch)
+    experiment.manifest["repeats"] = 3
+    write_json(experiment.manifest_path, experiment.manifest)
+    install_observed_model_failures(monkeypatch, {2, 6})
+    result = await run_phase(experiment)
+    rows = study._records(experiment.output / "records.jsonl")
+    assert len(calls) == 12 and len(rows) == 6
+    assert read_json(experiment.output / "abort.json")["reason"] == "unstable_model_connection"
+    assert "fatal_stop_condition:unstable_model_connection" in result["validity_issues"]
+
+
+async def test_normal_model_failure_and_last_resource_threshold_keep_complete_results(
+    experiment: Any, monkeypatch: Any
+) -> None:
+    install_jobs(monkeypatch)
+    original = study.run_official_trial
+    observed = 0
+
+    async def run(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        nonlocal observed
+        record = await original(*args, **kwargs)
+        observed += 1
+        if observed == 2:
+            record.update(status="failed", success=False, verified=False)
+            write_json(Path(record["job_dir"]) / "normalized.json", record)
+        return record
+
+    monkeypatch.setattr(study, "run_official_trial", run)
+    experiment.manifest["reported_token_limit"] = 220
+    write_json(experiment.manifest_path, experiment.manifest)
+    result = await run_phase(experiment)
+    assert not (experiment.output / "abort.json").exists()
+    assert result["validity_issues"] == []
+    final = {**experiment.manifest, "phase": "holdout", "candidate": "candidate"}
+    report = study.phase_summary(final, study._records(experiment.output / "records.jsonl"))
+    assert report["formal_comparison_eligible"] is True
+    assert sum(group["failures"] for group in report["groups"].values()) == 1

@@ -6,6 +6,8 @@ Harbor 管理任务环境、资源、执行和官方验证器；SAYACODE 继续�
 
 **当前处于基础设施门禁与资源校准，尚无公开基准成绩或已证实的调优收益。** 已执行和待完成项目见 [验证状态](docs/STATUS.md)。研究方法见 [预注册协议](docs/protocol.md)，执行顺序见 [工作计划](docs/WORK_PLAN.md)。
 
+固定的跨宿主诊断已识别本机误判：同一份 qutebrowser 交付在独立 Linux 三次通过，Ansible 交付三次未通过且参考解稳定通过。原分与全部诊断保留，未混入正式效果统计。[校准证据](docs/calibration.md) · [Linux 执行手册](docs/linux-execution.md)
+
 ## 研究目标
 
 在相同模型、任务、工具和资源预算下，检验经开发集选择的一项改进是否改变编程任务完成率和资源消耗。

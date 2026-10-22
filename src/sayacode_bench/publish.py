@@ -82,7 +82,9 @@ _RECORD_STRINGS = frozenset(
         "official_tooling_sha256",
     }
 )
-_RECORD_INTEGERS = frozenset({"repeat", "apply_rc", "input_tokens", "output_tokens", "task_count"})
+_RECORD_INTEGERS = frozenset(
+    {"repeat", "apply_rc", "input_tokens", "output_tokens", "task_count", "terminal_http_status"}
+)
 _RECORD_BOOLEANS = frozenset({"success", "verified", "usage_complete", "record_complete"})
 _RECORD_NUMBERS = frozenset(
     {

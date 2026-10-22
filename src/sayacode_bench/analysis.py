@@ -12,6 +12,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .artifacts import fatal_stop_reason
+
 
 def _integer(value: Any, name: str, *, minimum: int = 0) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
@@ -134,14 +136,18 @@ def analyze_experiment(
             raise ValueError(f"任务重复：{task_id}")
         task_repositories[task_id] = _text(task.get("repository"), "repository")
 
+    rows = list(records)
     indexed: dict[tuple[str, str, int], Mapping[str, Any]] = {}
     outcomes: dict[tuple[str, str, int], bool | None] = {}
     raw_issues = manifest.get("validity_issues", [])
     if not isinstance(raw_issues, list) or any(not isinstance(issue, str) for issue in raw_issues):
         raise ValueError("validity_issues 必须是字符串列表")
     issues = list(raw_issues)
+    fatal = fatal_stop_reason(rows)
+    if fatal:
+        issues.append(f"fatal_stop_condition:{fatal}")
     endpoints: Counter[str] = Counter()
-    for row in records:
+    for row in rows:
         task_id = _text(row.get("task_id"), "task_id")
         label = _text(row.get("configuration"), "configuration")
         repeat = _integer(row.get("repeat"), "repeat", minimum=1)

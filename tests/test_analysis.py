@@ -119,6 +119,38 @@ def test_runtime_failure_stays_in_end_to_end_denominator():
     assert result["formal_comparison_eligible"] is True
 
 
+@pytest.mark.parametrize("code", [401, 402, 403, 429])
+@pytest.mark.parametrize("phase", ["holdout", "validation", "dev"])
+def test_terminal_service_failure_without_abort_marker_cannot_be_formal_or_selected(code, phase):
+    plan, rows = manifest(phase=phase), records()
+    if phase == "validation":
+        plan.update(configurations=["reference"], candidate=None)
+        rows = [row for row in rows if row["configuration"] == "reference"]
+    rows[-1].update(status="failed", success=False, verified=False, terminal_http_statuses=[code])
+    result = analyze_experiment(plan, iter(rows), bootstrap_samples=100)
+    assert result["formal_comparison_eligible"] is False
+    assert result["formal_validation_eligible"] is False
+    assert result["final_result_eligible"] is False
+    assert "fatal_stop_condition:model_service_limit" in result["validity_issues"]
+    if result["comparison"] is not None:
+        assert result["comparison"]["bootstrap"] is None
+    if phase == "dev":
+        assert select_development_candidate(plan, rows)["status"] == "incomplete"
+
+
+def test_historical_connection_failure_window_invalidates_complete_offline_report():
+    rows = records()
+    for index in (0, 2):
+        rows[index].update(
+            status="failed", success=False, verified=False, failure_category="model_connection"
+        )
+    assert all(row.get("failure_category") is None for row in rows[-5:])
+    result = analyze_experiment(manifest(), rows, bootstrap_samples=100)
+    assert result["formal_comparison_eligible"] is False
+    assert result["comparison"]["bootstrap"] is None
+    assert "fatal_stop_condition:unstable_model_connection" in result["validity_issues"]
+
+
 def test_authorized_endpoint_switch_between_blocks_is_recorded():
     rows = records()
     for row in rows:
