@@ -71,6 +71,8 @@ jobs:
         run: |
           set -eu
           uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py \
+            --output "$RUNNER_TEMP/evidence/runner-preparation.json"
           uv run --no-sync python scripts/calibrate_cloud.py dry \
             --root "$PWD" --source-sha "$SOURCE_SHA" \
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
@@ -154,6 +156,8 @@ jobs:
         run: |
           set -eu
           uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py \
+            --output "$RUNNER_TEMP/evidence/runner-preparation.json"
           uv run --no-sync python scripts/calibrate_cloud.py dry \
             --root "$PWD" --source-sha "$SOURCE_SHA" \
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \
@@ -277,6 +281,8 @@ jobs:
         run: |
           set -eu
           uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py \
+            --output "$RUNNER_TEMP/evidence/runner-preparation.json"
           uv run --no-sync python scripts/calibrate_cloud.py dry \
             --root "$PWD" --source-sha "$SOURCE_SHA" \
             --workflow "$GITHUB_WORKSPACE/execution/.github/workflows/cloud-calibration.yml" \

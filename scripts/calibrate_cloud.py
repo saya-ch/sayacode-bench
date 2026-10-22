@@ -321,7 +321,10 @@ async def prepare_inputs(
                 stage="image_pin",
             )
             write_json(record_path, observation)
-            if shutil.disk_usage(output.resolve().anchor).free < MIN_DISK_BYTES:
+            item["disk_before_image_bytes"] = shutil.disk_usage(output.resolve().anchor).free
+            item["required_headroom_bytes"] = MIN_DISK_BYTES
+            write_json(record_path, observation)
+            if item["disk_before_image_bytes"] < MIN_DISK_BYTES:
                 raise ArtifactGateError("insufficient_disk_headroom")
 
             async def observe_docker(*arguments: str, **kwargs: Any) -> str:
@@ -353,7 +356,12 @@ async def prepare_inputs(
                 or pinned.get("expected_repo_digest") != immutable
             ):
                 raise ArtifactGateError("image_pin_result_unconfirmed")
-            item.update(image=pinned, passed=True, stage="complete")
+            item.update(
+                image=pinned,
+                passed=True,
+                stage="complete",
+                disk_after_image_bytes=shutil.disk_usage(output.resolve().anchor).free,
+            )
             bindings[fixture] = row, task, pinned
             write_json(record_path, observation)
         except Exception as exc:

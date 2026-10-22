@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "phase": "cloud_cold_input_diagnostic_no_models",
+  "run_id": 39797160282,
+  "public_source_sha": "b373c287b62f9ea2bc188698dfe0290173228167",
+  "private_execution_sha": "b226e27c8cb8ba03b4d2dce15838519d8f1eb4f8",
+  "execute_models": false,
+  "workflow_finished": true,
+  "passed": false,
+  "reason": "insufficient_disk_headroom",
+  "stage": "input_preflight",
+  "error_type": "ArtifactGateError",
+  "traceback_frames": [
+    {
+      "file": "scripts/calibrate_cloud.py",
+      "line": 824,
+      "function": "main"
+    },
+    {
+      "file": "scripts/calibrate_cloud.py",
+      "line": 325,
+      "function": "prepare_inputs"
+    }
+  ],
+  "control_jobs": 0,
+  "model_calls": 0,
+  "new_budget_scope_api_spend_cny": 0,
+  "observed_disk_free_bytes": null,
+  "disk_boundary": "The old diagnostic records threshold rejection, not a numeric free-space observation. Do not invent the missing quantity.",
+  "required_disk_headroom_bytes": 12884901888,
+  "fixtures": [
+    {
+      "fixture": "qutebrowser",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "task_metadata_confirmed": true,
+      "hashes": {
+        "instruction_sha256": "9a6d50a6bebda7c8f76a7006dfcb1377ae20abb3e8907430234b5f8bbcc4cb66",
+        "config_sha256": "6a8ebba00f26592afdab33100a1bd5b687309404fe6d569834b63190a7f7631d",
+        "task_tree_sha256": "31b618d1f7beef08411d5d860817f67db5b87307b8fb21ea0f1a4d29066c1cc7"
+      },
+      "immutable_image": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+      "stage": "complete",
+      "passed": true,
+      "inspect": {
+        "Id": "sha256:34599ac46ea43b247b2228d4ebf4ccd58b88651b604f0408d726f967c70adbb3",
+        "RepoDigests": [
+          "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3"
+        ],
+        "Architecture": "amd64",
+        "Os": "linux"
+      },
+      "image": {
+        "expected_image_id": "sha256:34599ac46ea43b247b2228d4ebf4ccd58b88651b604f0408d726f967c70adbb3",
+        "expected_repo_digest": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:cc0e0f503659eac82afb4f304e853c5a94ddd2aba834e62d3fd757fa6fba13e3",
+        "architecture": "amd64",
+        "os": "linux"
+      }
+    },
+    {
+      "fixture": "ansible",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "task_metadata_confirmed": true,
+      "hashes": {
+        "instruction_sha256": "29c2d716704de616f08a8631814ff5869fa778d284a61420481e209375c1b016",
+        "config_sha256": "e5d213a440a621fd48af37dfb15a6a11b03ce7e4b174a1aabf4e93e299a813bd",
+        "task_tree_sha256": "14d1c91db6f61f4419e1e9f83299ce4e76ccc5d73927ba830c4b90f2c19a2a0c"
+      },
+      "immutable_image": "ghcr.io/scaleapi/swe-bench_pro-v2@sha256:31ebe11c8cb1c5e3f74b15e0345fce7f9adc7eb406209131828f8b49bf4b7f61",
+      "stage": "image_pin",
+      "passed": false,
+      "reason": "insufficient_disk_headroom"
+    }
+  ],
+  "source_evidence": {
+    "image_preparation_sha256": "4982a1bbb5cacc7a63b784efa682d7577363ff0df8721c501c44192fd292a67d",
+    "entry_error_sha256": "fc2e522c84a3a480e323b48a02b53853d7d5c9e6347060dd5ec35fad7c1dd9c9"
+  },
+  "interpretation": [
+    "Both fixed task metadata checks passed on the actual cloud host.",
+    "The qutebrowser immutable image was pulled, tagged and inspected successfully.",
+    "The second image was not pulled because the remaining root filesystem space was below the unchanged threshold.",
+    "No oracle, Agent or model request was executed.",
+    "This does not prove the cause of the earlier V2 controls error.",
+    "A separate Windows cold-fetch newline-conversion defect was reproduced; it did not occur in this Linux diagnostic."
+  ]
+}
