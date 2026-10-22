@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import struct
+import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
@@ -181,6 +182,8 @@ def compare_wheels(original: Path, rebuilt: Path) -> dict[str, Any]:
 
 
 def main() -> int:
+    if reconfigure := getattr(sys.stdout, "reconfigure", None):
+        reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--original", type=Path, required=True)
     parser.add_argument("--rebuilt", type=Path, required=True)

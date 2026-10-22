@@ -12,6 +12,7 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 import time
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -664,6 +665,9 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    # 英文 Windows 的重定向输出可能使用 cp1252，中文帮助固定写为 UTF-8。
+    if reconfigure := getattr(sys.stdout, "reconfigure", None):
+        reconfigure(encoding="utf-8")
     args = parser().parse_args()
     stage = "repository_guard"
     try:

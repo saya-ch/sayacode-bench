@@ -6,6 +6,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -639,15 +640,22 @@ def test_workflow_private_guard_frozen_source_and_safe_defaults() -> None:
     assert text.count("python-version: '3.13.12'") == 3
 
 
-def test_direct_script_help_supports_sibling_wheel_helper() -> None:
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252"])
+@pytest.mark.parametrize(
+    "script,argument", [("calibrate_cloud.py", "--wheel"), ("diagnose_wheel.py", "--original")]
+)
+def test_direct_script_help_supports_sibling_wheel_helper(
+    encoding: str, script: str, argument: str
+) -> None:
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts/calibrate_cloud.py"), "--help"],
+        [sys.executable, str(ROOT / "scripts" / script), "--help"],
+        env={**os.environ, "PYTHONIOENCODING": encoding},
         check=True,
         capture_output=True,
         text=True,
         encoding="utf-8",
     )
-    assert "--wheel" in result.stdout
+    assert argument in result.stdout
 
 
 def test_artifact_entry_error_has_safe_stage_and_reason(
