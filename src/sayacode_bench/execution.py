@@ -9,6 +9,7 @@ import json
 import random
 import re
 import sys
+import tomllib
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,8 @@ from harbor.job import Job
 from harbor.models.job.config import JobConfig, RetryConfig
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
 from harbor.models.trial.result import TrialResult
+
+from .resources import compare_runtimes
 
 CANONICAL_MODEL = "DeepSeek-V4.1-Flash"
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}\Z")
@@ -86,6 +89,7 @@ def _runtime_identity(path: Path) -> dict[str, Any]:
                 "os",
                 "requested",
                 "docker_limits",
+                "cgroup_v2",
                 "storage_hard_limit_supported",
             )
         },
@@ -539,7 +543,11 @@ async def replay_official_trial(
         original_duration_seconds=source.get("duration_seconds"),
         replay_duration_seconds=replay_record.get("duration_seconds"),
     )
-    runtime_comparison: dict[str, bool | None] = {"same_image": None, "same_platform": None}
+    runtime_comparison: dict[str, bool | None] = {
+        "same_image": None,
+        "same_platform": None,
+        "same_resources": None,
+    }
     runtime_values = []
     for identity in (source.get("runtime"), replay_record.get("runtime")):
         if not isinstance(identity, dict) or not isinstance(identity.get("path"), str):
@@ -556,14 +564,10 @@ async def replay_official_trial(
         runtime_values.append(observed)
     if len(runtime_values) == 2:
         source_runtime, target_runtime = runtime_values
-        if source_runtime.get("image_id") and target_runtime.get("image_id"):
-            runtime_comparison["same_image"] = (
-                source_runtime["image_id"] == target_runtime["image_id"]
-            )
-        if all(runtime.get(key) for runtime in runtime_values for key in ("architecture", "os")):
-            runtime_comparison["same_platform"] = all(
-                source_runtime[key] == target_runtime[key] for key in ("architecture", "os")
-            )
+        declared = tomllib.loads((task_path / "task.toml").read_text(encoding="utf-8")).get(
+            "environment", {}
+        )
+        runtime_comparison = compare_runtimes(source_runtime, target_runtime, declared)
     replay["runtime_comparison"] = runtime_comparison
     replay_json = (
         Path(replay_record["job_dir"])
@@ -592,6 +596,9 @@ async def replay_official_trial(
         return replay
     if any(value is False for value in runtime_comparison.values()):
         replay["replay_status"] = "runtime_identity_mismatch"
+        return replay
+    if any(value is None for value in runtime_comparison.values()):
+        replay["replay_status"] = "runtime_evidence_unconfirmed"
         return replay
     if replay["apply_rc"] != 0 and not empty_application_confirmed:
         replay["replay_status"] = "patch_apply_failed_or_unconfirmed"

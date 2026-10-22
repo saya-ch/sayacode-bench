@@ -26,6 +26,7 @@ from .connections import CANONICAL_MODEL, messages_endpoint, read_connection
 from .execution import paired_order, remaining_order, replay_official_trial, run_official_trial
 from .gates import validate_directories
 from .locking import validate_candidate_receipt
+from .resources import resource_status, runtime_record_issues
 from .sources import SOURCES, fetch_source, sha256_file
 
 
@@ -249,26 +250,16 @@ def _save_records(path: Path, records: list[dict[str, Any]]) -> None:
 
 
 def _runtime_confirmed(
-    record: dict[str, Any], *, replay: bool, qualified: dict[str, Any] | None = None
+    record: dict[str, Any],
+    *,
+    replay: bool,
+    qualified: dict[str, Any] | None = None,
+    task_environment: dict[str, Any] | None = None,
 ) -> bool:
-    """正式试验逐次核实实际镜像身份，不用同名 tag 替代证据。"""
-    identity = record.get("runtime_identity")
-    if not isinstance(identity, dict) or identity.get("available") is not True:
-        return False
-    if not identity.get("image_id") or not identity.get("architecture") or not identity.get("os"):
-        return False
-    if qualified is not None and any(
-        identity.get(key) != qualified.get(key) for key in ("image_id", "architecture", "os")
-    ):
-        return False
-    if replay:
-        comparison = record.get("runtime_comparison", {})
-        return (
-            isinstance(comparison, dict)
-            and comparison.get("same_image") is True
-            and comparison.get("same_platform") is True
-        )
-    return True
+    """源、重判都必须符合任务声明，并与冻结资格的实际资源一致。"""
+    return not runtime_record_issues(
+        record, {"environment": task_environment or {}}, qualified, replay=replay
+    )
 
 
 def _prepare(
@@ -310,6 +301,13 @@ def _prepare(
             )
         ):
             raise ValueError("正式研究必须冻结每道任务的资格镜像与平台身份")
+        if any(
+            resource_status(qualified[task["task_id"]], task.get("environment", {})) is not True
+            for task in manifest["tasks"]
+        ):
+            raise ValueError("正式研究的资格资源、Docker 或 cgroup 限制未确认")
+        if manifest.get("runtime_evidence_required") is not True:
+            raise ValueError("正式研究必须启用逐次资源核验，不能关闭冻结资格比对")
         if manifest.get("phase") in {"holdout", "validation"}:
             receipt = manifest.get("candidate_receipt")
             if (
@@ -495,6 +493,7 @@ async def run_phase(
                 record,
                 replay=require_replay,
                 qualified=manifest.get("qualified_runtime_identities", {}).get(task_id),
+                task_environment=task_definition.get("environment", {}),
             ):
                 record_stop(output, "runtime_evidence_unconfirmed")
                 break

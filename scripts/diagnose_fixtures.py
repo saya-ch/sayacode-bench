@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 import tomllib
+from collections.abc import Awaitable, Callable
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -85,12 +86,17 @@ def fixed_plan() -> dict[str, Any]:
     }
 
 
-async def pin_image(fixture: dict[str, Any]) -> dict[str, Any]:
+async def pin_image(
+    fixture: dict[str, Any],
+    *,
+    docker_call: Callable[..., Awaitable[str]] | None = None,
+) -> dict[str, Any]:
     """拉取不可变 digest，再给原 task.toml 引用赋同一 tag，不改任务文件。"""
     immutable = fixture["immutable_image"]
-    await docker("pull", immutable, timeout=600)
-    await docker("tag", immutable, fixture["original_image_reference"])
-    image = json.loads(await docker("image", "inspect", fixture["original_image_reference"]))[0]
+    execute = docker_call or docker
+    await execute("pull", immutable, timeout=600)
+    await execute("tag", immutable, fixture["original_image_reference"])
+    image = json.loads(await execute("image", "inspect", fixture["original_image_reference"]))[0]
     if immutable not in image.get("RepoDigests", []):
         raise ValueError("实际镜像未保留预定仓库 digest")
     return {

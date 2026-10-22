@@ -78,6 +78,7 @@ jobs:
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
             --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
+            --cache "$RUNNER_TEMP/cloud-source" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
       - name: 缺失或未知历史费用时仅完成预检
@@ -160,6 +161,7 @@ jobs:
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
             --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
+            --cache "$RUNNER_TEMP/cloud-source" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
       - name: 在本次 runner 实际验证网络与独立清理
@@ -282,6 +284,7 @@ jobs:
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
             --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
             --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/dry" \
+            --cache "$RUNNER_TEMP/cloud-source" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json"
       - name: 继承第一题原始记录和费用，不重新执行

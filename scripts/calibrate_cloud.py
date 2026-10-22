@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import time
+import traceback
 import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -30,12 +31,15 @@ from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.execution import run_official_trial
 from sayacode_bench.gates import TASK_IDENTITIES, validate_preflight
 from sayacode_bench.network import docker
+from sayacode_bench.resources import runtime_record_issues
 from sayacode_bench.sources import SOURCES, fetch_source, tree_digest
 from sayacode_bench.study import freeze_paid_budget, run_phase
 
 if __package__:
+    from .diagnose_fixtures import pin_image
     from .diagnose_wheel import compare_wheels
 else:
+    from diagnose_fixtures import pin_image
     from diagnose_wheel import compare_wheels
 
 EXECUTION_REPOSITORY = "saya-ch/sayacode-bench-runs"
@@ -78,8 +82,8 @@ PROFILE = {
 class ArtifactGateError(ValueError):
     """只携带可公开的工件门禁原因枚举，不附带命令或 HTTP 正文。"""
 
-    def __init__(self, reason: str) -> None:
-        super().__init__(reason)
+    def __init__(self, reason: str, description: str | None = None) -> None:
+        super().__init__(description or reason)
         self.reason = reason
 
 
@@ -136,6 +140,7 @@ def source_identity(root: Path, source_sha: str, workflow: Path) -> dict[str, An
         "public_source_sha": source_sha,
         "script_sha256": file_sha256(Path(__file__)),
         "wheel_diagnostic_sha256": file_sha256(Path(__file__).with_name("diagnose_wheel.py")),
+        "image_preparation_sha256": file_sha256(Path(__file__).with_name("diagnose_fixtures.py")),
         "workflow_sha256": file_sha256(workflow),
         "implementation": implementation_identity(),
     }
@@ -232,6 +237,8 @@ def archive_rebuild_diagnostic(artifacts: Path, output: Path) -> None:
 
 
 def task_row(root: Path, fixture: str, cache: Path) -> tuple[dict[str, Any], Path]:
+    if fixture not in FIXTURES:
+        raise ArtifactGateError("calibration_fixture_unknown")
     template = read_json(root / "studies" / "calibration.json")
     expected = {task_id for task_id, _ in FIXTURES.values()}
     if (
@@ -239,7 +246,7 @@ def task_row(root: Path, fixture: str, cache: Path) -> tuple[dict[str, Any], Pat
         or template.get("revision") != REVISION
         or {row["task_id"] for row in template["tasks"]} != expected
     ):
-        raise ValueError("只能使用既有两道校准题，不接受开发或最终任务替代")
+        raise ArtifactGateError("calibration_task_set_mismatch")
     row = next(row for row in template["tasks"] if row["task_id"] == FIXTURES[fixture][0])
     snapshot = fetch_source(SOURCES["swe-bench-pro-v2"], cache)
     path = snapshot.tasks_path / row["task_id"]
@@ -248,9 +255,120 @@ def task_row(root: Path, fixture: str, cache: Path) -> tuple[dict[str, Any], Pat
         file_sha256(path / "task.toml"),
         tree_digest(path),
     )
-    if snapshot.spec.revision != REVISION or actual != tuple(row[key] for key in TASK_IDENTITIES):
-        raise ValueError("官方校准任务身份发生变化")
+    if snapshot.spec.revision != REVISION:
+        raise ArtifactGateError("calibration_source_revision_mismatch")
+    for key, observed in zip(TASK_IDENTITIES, actual, strict=True):
+        if observed != row[key]:
+            raise ArtifactGateError(f"calibration_{key}_mismatch")
     return row, path
+
+
+def repo_traceback_frames(exc: BaseException, root: Path) -> list[dict[str, Any]]:
+    """只导出仓库相对位置，不导出源代码、异常正文、locals 或外部绝对路径。"""
+    frames, visited, seen = [], set(), set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        for frame in traceback.extract_tb(current.__traceback__):
+            if frame.filename.startswith("<"):
+                continue
+            try:
+                relative = Path(frame.filename).resolve().relative_to(root.resolve()).as_posix()
+            except ValueError:
+                continue
+            key = (relative, frame.lineno, frame.name)
+            if key not in seen:
+                frames.append({"file": relative, "line": frame.lineno, "function": frame.name})
+                seen.add(key)
+        current = current.__cause__ or current.__context__
+    return frames
+
+
+async def prepare_inputs(
+    root: Path, cache: Path, output: Path, fixtures: tuple[str, ...] = tuple(FIXTURES)
+) -> dict[str, tuple[dict[str, Any], Path, dict[str, Any]]]:
+    """只核对固定题目元数据与镜像；逐步留证，不调用模型或参考解。"""
+    observation: dict[str, Any] = {
+        "revision": REVISION,
+        "complete": False,
+        "passed": False,
+        "model_calls": 0,
+        "control_jobs": 0,
+        "fixtures": [],
+        "role": "input_preparation_only_not_fixture_qualification",
+    }
+    record_path = output / "image-preparation.json"
+    write_json(record_path, observation)
+    bindings = {}
+    for fixture in fixtures:
+        item: dict[str, Any] = {"fixture": fixture, "passed": False, "stage": "task_metadata"}
+        observation["fixtures"].append(item)
+        write_json(record_path, observation)
+        try:
+            row, task = task_row(root, fixture, cache)
+            immutable = f"{IMAGE_REPOSITORY}@{FIXTURES[fixture][1]}"
+            descriptor = {
+                "immutable_image": immutable,
+                "original_image_reference": row["environment"]["docker_image"],
+            }
+            item.update(
+                task_id=row["task_id"],
+                task_metadata_confirmed=True,
+                hashes={key: row[key] for key in TASK_IDENTITIES},
+                immutable_image=immutable,
+                original_image_reference=descriptor["original_image_reference"],
+                official_resources=row["environment"],
+                stage="image_pin",
+            )
+            write_json(record_path, observation)
+            if shutil.disk_usage(output.resolve().anchor).free < MIN_DISK_BYTES:
+                raise ArtifactGateError("insufficient_disk_headroom")
+
+            async def observe_docker(*arguments: str, **kwargs: Any) -> str:
+                stdout = await docker(*arguments, **kwargs)
+                if arguments[:2] == ("image", "inspect"):
+                    try:
+                        inspected = json.loads(stdout)
+                        item["inspect"] = {
+                            key: inspected[0].get(key)
+                            for key in ("Id", "RepoDigests", "Architecture", "Os")
+                        }
+                    except (ValueError, TypeError, IndexError, AttributeError):
+                        item["inspection_shape_confirmed"] = False
+                        item["inspection_stdout_sha256"] = hashlib.sha256(
+                            stdout.encode()
+                        ).hexdigest()
+                    write_json(record_path, observation)
+                return stdout
+
+            try:
+                pinned = await pin_image(descriptor, docker_call=observe_docker)
+            except json.JSONDecodeError as exc:
+                raise ArtifactGateError("image_inspection_invalid_json") from exc
+            except ValueError as exc:
+                raise ArtifactGateError("image_pin_validation_failed") from exc
+            if (
+                not isinstance(pinned.get("expected_image_id"), str)
+                or not pinned["expected_image_id"]
+                or pinned.get("expected_repo_digest") != immutable
+            ):
+                raise ArtifactGateError("image_pin_result_unconfirmed")
+            item.update(image=pinned, passed=True, stage="complete")
+            bindings[fixture] = row, task, pinned
+            write_json(record_path, observation)
+        except Exception as exc:
+            item.update(
+                error_type=type(exc).__name__,
+                reason=exc.reason
+                if isinstance(exc, ArtifactGateError)
+                else "input_preparation_failed",
+                traceback_frames=repo_traceback_frames(exc, root),
+            )
+            write_json(record_path, observation)
+            raise
+    observation.update(complete=True, passed=True)
+    write_json(record_path, observation)
+    return bindings
 
 
 async def resources() -> dict[str, list[str]]:
@@ -274,24 +392,20 @@ async def cleanup_evidence(before: dict[str, list[str]], output: Path) -> bool:
 
 async def controls(root: Path, fixture: str, cache: Path, probe: Path, output: Path) -> bool:
     observed_probe = read_json(probe)
+    if observed_probe.get("passed") is not True:
+        raise ArtifactGateError("network_probe_not_passed", "当前网络探针尚未通过")
+    if observed_probe.get("cleanup_confirmed") is not True:
+        raise ArtifactGateError("network_probe_cleanup_unconfirmed", "网络探针清理尚未确认")
     if (
-        observed_probe.get("passed") is not True
-        or observed_probe.get("cleanup_confirmed") is not True
-        or observed_probe.get("source_sha256", {}).get("network.py")
+        observed_probe.get("source_sha256", {}).get("network.py")
         != implementation_identity()["network.py"]
     ):
-        raise ValueError("当前网络实现的真实探针尚未通过")
-    row, task = task_row(root, fixture, cache)
+        raise ArtifactGateError("network_probe_implementation_mismatch", "网络探针实现身份不一致")
     output.mkdir(parents=True, exist_ok=False)
     if shutil.disk_usage(output.anchor).free < MIN_DISK_BYTES:
-        raise ValueError("insufficient_disk_headroom")
+        raise ArtifactGateError("insufficient_disk_headroom")
     before = await resources()
-    image = f"{IMAGE_REPOSITORY}@{FIXTURES[fixture][1]}"
-    await docker("pull", image, timeout=600)
-    await docker("tag", image, row["environment"]["docker_image"])
-    inspected = json.loads(await docker("image", "inspect", image))[0]
-    if image not in inspected.get("RepoDigests", []):
-        raise ValueError("不可变镜像 digest 未确认")
+    row, task, pinned = (await prepare_inputs(root, cache, output, (fixture,)))[fixture]
     records = []
     reason = None
     try:
@@ -346,10 +460,16 @@ async def controls(root: Path, fixture: str, cache: Path, probe: Path, output: P
             gate, read_json(probe), benchmark="swe-bench-pro-v2", revision=REVISION, tasks=[row]
         )
         runtime = records[0]["runtime_identity"]
-        if runtime["image_id"] != inspected["Id"]:
-            raise ValueError("参考解实际镜像与不可变镜像不同")
-    except (ValueError, KeyError, TypeError):
+        if runtime["image_id"] != pinned["expected_image_id"]:
+            raise ArtifactGateError("control_runtime_image_mismatch")
+    except (ValueError, KeyError, TypeError) as exc:
         gate["passed"] = gate["tasks"][0]["passed"] = False
+        gate["reason"] = (
+            exc.reason
+            if isinstance(exc, ArtifactGateError)
+            else "control_qualification_unconfirmed"
+        )
+        gate["traceback_frames"] = repo_traceback_frames(exc, root)
     write_json(output / "sanity.json", gate)
     return gate["passed"] is True
 
@@ -439,17 +559,6 @@ def not_started(output: Path, reason: str) -> dict[str, Any]:
     }
     write_json(output / "calibration.json", report)
     return report
-
-
-def runtime_matches(record: dict[str, Any], qualified: dict[str, Any]) -> bool:
-    return all(
-        isinstance(record.get(field), dict)
-        and all(
-            record[field].get(key) == qualified[key]
-            for key in ("image_id", "architecture", "os", "requested", "docker_limits")
-        )
-        for field in ("runtime_identity", "replay_runtime_identity")
-    )
 
 
 async def calibrate(args: argparse.Namespace, frozen: dict[str, Any]) -> dict[str, Any]:
@@ -603,8 +712,12 @@ async def calibrate(args: argparse.Namespace, frozen: dict[str, Any]) -> dict[st
         and record.get("verified") is True
         and record.get("usage_complete") is True
         and record.get("replay_reward") in (0, 1)
-        and record.get("runtime_comparison") == {"same_image": True, "same_platform": True}
-        and runtime_matches(record, runtime)
+        and isinstance(record.get("runtime_comparison"), dict)
+        and all(
+            record["runtime_comparison"].get(key) is True
+            for key in ("same_image", "same_platform", "same_resources")
+        )
+        and not runtime_record_issues(record, row, runtime, replay=True)
         for record in rows
     )
     confirmed = bool(
@@ -693,20 +806,31 @@ def main() -> int:
         if args.command == "dry":
             args.output.mkdir(parents=True, exist_ok=False)
             ledger_reason = prior_ledger_reason(args.prior_records, args.prior_ledger_receipt)
-            write_json(
-                args.output / "preflight.json",
-                {
-                    **frozen,
+            preflight = {
+                **frozen,
+                "passed": False,
+                "model_calls": 0,
+                "fixed_fixtures": list(FIXTURES),
+                "global_limit_cny": GLOBAL_LIMIT_CNY,
+                "cloud_limit_cny": CLOUD_LIMIT_CNY,
+                "provider_enforced_currency_cap": False,
+                "model_dispatch_ready": False,
+                "ledger_blocker": ledger_reason,
+                "input_preparation": {"requested": args.cache is not None, "passed": None},
+            }
+            write_json(args.output / "preflight.json", preflight)
+            if args.cache is not None:
+                stage = "input_preflight"
+                asyncio.run(prepare_inputs(args.root, args.cache, args.output))
+                preflight["input_preparation"] = {
+                    "requested": True,
                     "passed": True,
-                    "model_calls": 0,
-                    "fixed_fixtures": list(FIXTURES),
-                    "global_limit_cny": GLOBAL_LIMIT_CNY,
-                    "cloud_limit_cny": CLOUD_LIMIT_CNY,
-                    "provider_enforced_currency_cap": False,
-                    "model_dispatch_ready": ledger_reason is None,
-                    "ledger_blocker": ledger_reason,
-                },
+                    "sha256": file_sha256(args.output / "image-preparation.json"),
+                }
+            preflight.update(
+                passed=True, model_dispatch_ready=ledger_reason is None and args.cache is not None
             )
+            write_json(args.output / "preflight.json", preflight)
             passed = True
         else:
             if not args.fixture or args.cache is None or args.probe is None:
@@ -734,6 +858,7 @@ def main() -> int:
             "stage": stage,
             "reason": reason,
             "model_calls_unknown": args.command == "run" and stage == "run",
+            "traceback_frames": repo_traceback_frames(exc, args.root),
         }
         try:
             archive_rebuild_diagnostic(args.artifacts, args.output)

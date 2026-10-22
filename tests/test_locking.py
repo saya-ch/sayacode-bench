@@ -4,6 +4,7 @@ import json
 from copy import deepcopy
 
 import pytest
+from resource_samples import complete_resource_fixture
 
 from sayacode_bench.artifacts import file_sha256, write_json
 from sayacode_bench.locking import lock_candidate, validate_candidate_receipt
@@ -54,6 +55,7 @@ def experiment(tmp_path):
         for repeat in (1, 2)
     ]
     manifest_path = tmp_path / "dev.json"
+    complete_resource_fixture(plan, rows)
     records_path = tmp_path / "results" / "records.jsonl"
     write_json(manifest_path, plan)
     records_path.parent.mkdir()

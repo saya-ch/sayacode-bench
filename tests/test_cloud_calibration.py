@@ -92,6 +92,8 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
                 "agent": {"timeout_sec": 3000},
                 "verifier": {"timeout_sec": 3000},
                 "environment": {
+                    "cpus": 1,
+                    "memory_mb": 4096,
                     "build_timeout_sec": 1800,
                     "docker_image": f"{cloud.IMAGE_REPOSITORY}:{task_id}",
                 },
@@ -115,8 +117,20 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
         "image_id": "sha256:" + "a" * 64,
         "architecture": "amd64",
         "os": "linux",
-        "requested": {"cpus": 1},
-        "docker_limits": {"Memory": 4 * 1024**3},
+        "requested": {"cpus": 1, "memory_mb": 4096},
+        "docker_limits": {
+            "Memory": 4 * 1024**3,
+            "MemorySwap": 8 * 1024**3,
+            "NanoCpus": 1000000000,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+        },
+        "cgroup_v2": {
+            "cpu.max": "100000 100000",
+            "memory.max": "4294967296",
+            "memory.swap.max": "4294967296",
+        },
+        "storage_hard_limit_supported": False,
     }
     probe = tmp_path / "probe.json"
     write_json(
@@ -185,7 +199,11 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
             verified=True,
             replay_reward=0,
             success=False,
-            runtime_comparison={"same_image": True, "same_platform": True},
+            runtime_comparison={
+                "same_image": True,
+                "same_platform": True,
+                "same_resources": True,
+            },
             runtime_identity=copy.deepcopy(runtime),
             replay_runtime_identity=copy.deepcopy(runtime),
         )
@@ -572,6 +590,26 @@ async def test_generated_gateway_credential_is_removed(experiment: Any, monkeypa
     report = await cloud.calibrate(e.args, e.frozen)
     assert report["execution_confirmed"] is True
     assert not gateway.exists() and not (e.args.private_home / "remote.json").exists()
+
+
+async def test_saved_resource_flags_cannot_hide_missing_native_limits(
+    experiment: Any, monkeypatch: Any
+) -> None:
+    e = experiment
+
+    async def missing_limit(*args: Any) -> dict[str, Any]:
+        await e.fake_run(*args)
+        path = args[1] / "records.jsonl"
+        record = cloud.read_records([path])[0]
+        record["replay_runtime_identity"]["cgroup_v2"].pop("memory.max")
+        assert record["runtime_comparison"]["same_resources"] is True
+        save_records(path, [record])
+        return {}
+
+    monkeypatch.setattr(cloud, "run_phase", missing_limit)
+    report = await cloud.calibrate(e.args, e.frozen)
+    assert report["continue_allowed"] is False
+    assert report["cloud_paid_usage"]["paid_model_calls"] == 1
 
 
 async def test_controls_run_fixed_four_even_after_first_bad_score(

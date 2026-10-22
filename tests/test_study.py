@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from harbor.models.agent.context import AgentContext
 from harbor.models.verifier.result import VerifierResult
+from resource_samples import complete_resource_fixture, runtime_evidence
 
 from sayacode_bench import cli, execution, study
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
@@ -26,7 +27,9 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
     spec = SOURCES["swe-bench-pro-v2"]
     task = source / spec.tasks_path / "instance_demo"
     task.mkdir(parents=True)
-    (task / "task.toml").write_text('version="1.0"\n', encoding="utf-8")
+    (task / "task.toml").write_text(
+        'version="1.0"\n[environment]\ncpus=1\nmemory_mb=4096\n', encoding="utf-8"
+    )
     (task / "instruction.md").write_text("Fix the specified behavior.\n", encoding="utf-8")
     tooling = source / "v2" / "tooling"
     tooling.mkdir(exist_ok=True)
@@ -68,6 +71,7 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
         "instruction_sha256": file_sha256(task / "instruction.md"),
         "config_sha256": file_sha256(task / "task.toml"),
         "task_tree_sha256": tree_digest(task),
+        "environment": {"cpus": 1, "memory_mb": 4096},
     }
     manifest = {
         "phase": "calibration",
@@ -87,6 +91,8 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
         },
         "reported_token_limit": 100000,
         "validity_issues": [],
+        "runtime_evidence_required": True,
+        "qualified_runtime_identities": {task.name: runtime_evidence()},
     }
     manifest_path = tmp_path / "manifest.json"
     write_json(manifest_path, manifest)
@@ -125,14 +131,7 @@ def install_jobs(monkeypatch: Any) -> list[Any]:
             write_json(path / "result.json", {"task_name": task_id, "job_name": config.job_name})
             write_json(
                 path / "runtime.json",
-                {
-                    "available": True,
-                    "image_id": "sha256:" + "a" * 64,
-                    "architecture": "amd64",
-                    "os": "linux",
-                    "requested": {"memory_mb": 4096},
-                    "docker_limits": {"Memory": 4096},
-                },
+                runtime_evidence(),
             )
             write_json(
                 config.jobs_dir / config.job_name / "result.json", {"job_name": config.job_name}
@@ -541,14 +540,7 @@ def gate_and_probe(bundle: Any) -> tuple[Path, Path]:
             "request_sha256": f"{index + 1:064x}",
             "raw_trial_result": {"sha256": f"{index + 11:064x}"},
             "runtime": {"sha256": f"{index + 21:064x}"},
-            "runtime_identity": {
-                "available": True,
-                "image_id": "sha256:" + "a" * 64,
-                "architecture": "amd64",
-                "os": "linux",
-                "requested": {"memory_mb": 4096},
-                "docker_limits": {"Memory": 4096},
-            },
+            "runtime_identity": runtime_evidence(),
         }
         for index in range(4)
     ]
@@ -843,6 +835,7 @@ def test_invalid_fee_evidence_cancels_final_validation_eligibility(experiment: A
         "verified": True,
         "success": True,
     }
+    complete_resource_fixture(manifest, [row])
     valid = study.phase_summary(manifest, [row])
     assert valid["formal_validation_eligible"] is True
     assert valid["final_result_eligible"] is True
@@ -937,10 +930,99 @@ async def test_formal_manifest_cannot_omit_qualified_images(
             "variants": {name: file_sha256(path) for name, path in experiment.variants.items()},
         },
     )
+    experiment.manifest.pop("qualified_runtime_identities")
     write_json(experiment.manifest_path, experiment.manifest)
     with pytest.raises(ValueError, match="资格镜像"):
         await run_phase(experiment)
     assert calls == []
+
+
+async def test_formal_qualification_with_unlimited_resources_is_rejected_before_dispatch(
+    experiment: Any, monkeypatch: Any
+) -> None:
+    calls = install_jobs(monkeypatch)
+    qualification = runtime_evidence()
+    qualification["docker_limits"]["Memory"] = 0
+    qualification["cgroup_v2"]["memory.max"] = "max"
+    experiment.manifest.update(
+        phase="dev",
+        preflight_passed=True,
+        implementation=study.implementation_identity(),
+        qualified_runtime_identities={experiment.task.name: qualification},
+        artifacts={
+            "product_wheel": file_sha256(experiment.wheel),
+            "requirements": file_sha256(experiment.requirements),
+            "variants": {name: file_sha256(path) for name, path in experiment.variants.items()},
+        },
+    )
+    write_json(experiment.manifest_path, experiment.manifest)
+    with pytest.raises(ValueError, match="资格资源"):
+        await run_phase(experiment)
+    assert calls == []
+
+
+@pytest.mark.parametrize("required", [None, False])
+async def test_formal_resource_guard_cannot_be_omitted_or_disabled(
+    experiment: Any, monkeypatch: Any, required: bool | None
+) -> None:
+    calls = install_jobs(monkeypatch)
+    experiment.manifest.update(
+        phase="dev",
+        preflight_passed=True,
+        implementation=study.implementation_identity(),
+        runtime_evidence_required=required,
+        qualified_runtime_identities={experiment.task.name: runtime_evidence()},
+        artifacts={
+            "product_wheel": file_sha256(experiment.wheel),
+            "requirements": file_sha256(experiment.requirements),
+            "variants": {name: file_sha256(path) for name, path in experiment.variants.items()},
+        },
+    )
+    write_json(experiment.manifest_path, experiment.manifest)
+    with pytest.raises(ValueError, match="必须启用逐次资源核验"):
+        await run_phase(experiment)
+    assert calls == []
+
+
+@pytest.mark.parametrize("side", ["source", "pristine"])
+async def test_real_offline_chain_stops_after_resource_drift_without_erasing_paid_usage(
+    experiment: Any, monkeypatch: Any, side: str
+) -> None:
+    calls = install_jobs(monkeypatch)
+    original_create = execution.Job.create
+
+    async def create(config: Any) -> Any:
+        job = await original_create(config)
+        original_run = job.run
+
+        async def run() -> Any:
+            result = await original_run()
+            replay = config.agents[0].import_path == "patch_replay:PatchReplayAgent"
+            if replay == (side == "pristine"):
+                path = next((config.jobs_dir / config.job_name).glob("instance_*/runtime.json"))
+                value = read_json(path)
+                value["docker_limits"]["MemorySwap"] = 4 * 1024**3
+                value["cgroup_v2"]["memory.swap.max"] = "0"
+                write_json(path, value)
+            return result
+
+        job.run = run
+        return job
+
+    monkeypatch.setattr(execution.Job, "create", create)
+    experiment.manifest.update(
+        runtime_evidence_required=True,
+        qualified_runtime_identities={experiment.task.name: runtime_evidence()},
+    )
+    write_json(experiment.manifest_path, experiment.manifest)
+    report = await run_phase(experiment)
+    rows = study._records(experiment.output / "records.jsonl")
+    assert len(calls) == 2 and len(rows) == 1
+    assert rows[0]["input_tokens"] == 100 and rows[0]["output_tokens"] == 10
+    assert rows[0]["original_reward"] == 0 and rows[0]["replay_reward"] == 1
+    assert rows[0]["runtime_comparison"]["same_resources"] is False
+    assert read_json(experiment.output / "abort.json")["reason"] == "runtime_evidence_unconfirmed"
+    assert any(issue.startswith("runtime_evidence:") for issue in report["validity_issues"])
 
 
 def test_invalid_budget_evidence_removes_main_formal_interval(experiment: Any) -> None:
@@ -967,6 +1049,7 @@ def test_invalid_budget_evidence_removes_main_formal_interval(experiment: Any) -
             (task, label) for task in ("first", "second") for label in ("baseline", "candidate")
         )
     ]
+    complete_resource_fixture(manifest, rows)
     valid = study.phase_summary(manifest, rows)
     assert valid["formal_comparison_eligible"] is True
     assert valid["comparison"]["bootstrap"] is not None

@@ -215,6 +215,10 @@ def _runtime(value: Any) -> dict[str, Any]:
                 None if storage is None else _fields(_object(storage), ("size",), str)
             )
         result["docker_limits"] = selected
+    if source.get("cgroup_v2") is not None:
+        result["cgroup_v2"] = _fields(
+            _object(source["cgroup_v2"]), ("cpu.max", "memory.max", "memory.swap.max"), str
+        )
     return result
 
 
@@ -265,7 +269,7 @@ def public_record(record: dict[str, Any]) -> dict[str, Any]:
     if "runtime_comparison" in record:
         result["runtime_comparison"] = _fields(
             _object(record["runtime_comparison"]),
-            ("same_image", "same_platform"),
+            ("same_image", "same_platform", "same_resources"),
             bool,
         )
     # usage 的字段也显式限定，防止提供商原始响应混入。
@@ -365,9 +369,16 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
             task_id: _runtime(identity)
             for task_id, identity in _object(manifest["qualified_runtime_identities"]).items()
         }
-    public_manifest["tasks"] = [
-        _fields(_object(row), _TASK_FIELDS, str) for row in manifest["tasks"]
-    ]
+    public_manifest["tasks"] = []
+    for row in manifest["tasks"]:
+        task = _fields(_object(row), _TASK_FIELDS, str)
+        if row.get("environment") is not None:
+            environment = _object(row["environment"])
+            task["environment"] = {
+                **_fields(environment, ("cpus", "memory_mb", "storage_mb"), int),
+                **_fields(environment, ("docker_image",), str),
+            }
+        public_manifest["tasks"].append(task)
     public_manifest["connection_profiles"] = {
         alias: _profile(profile)
         for alias, profile in manifest.get("connection_profiles", {}).items()

@@ -4,6 +4,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from resource_samples import runtime_evidence
 
 from sayacode_bench.artifacts import file_sha256
 from sayacode_bench.gates import validate_preflight
@@ -15,6 +16,7 @@ def evidence():
         "instruction_sha256": "a" * 64,
         "config_sha256": "b" * 64,
         "task_tree_sha256": "c" * 64,
+        "environment": {"cpus": 1, "memory_mb": 4096},
     }
     trials = []
     for index in range(4):
@@ -32,14 +34,7 @@ def evidence():
                 "request_sha256": f"{index + 1:064x}",
                 "raw_trial_result": {"sha256": f"{index + 11:064x}"},
                 "runtime": {"sha256": f"{index + 21:064x}"},
-                "runtime_identity": {
-                    "available": True,
-                    "image_id": "sha256:" + "a" * 64,
-                    "architecture": "amd64",
-                    "os": "linux",
-                    "requested": {"cpus": 1, "memory_mb": 4096},
-                    "docker_limits": {"NanoCpus": 1_000_000_000, "Memory": 4 * 1024**3},
-                },
+                "runtime_identity": runtime_evidence(),
             }
         )
     gate = {
@@ -151,4 +146,26 @@ def test_qualified_first_oracle_used_for_freeze_must_match_fixed_trials():
     task, gate, probe = evidence()
     gate["tasks"][0]["oracle"]["runtime_identity"]["image_id"] = "other-image"
     with pytest.raises(ValueError, match="固定三次"):
+        validate(task, gate, probe)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["unlimited_cpu", "unlimited_memory", "wrong_requested", "missing_cgroup"]
+)
+def test_four_identical_bad_resource_observations_do_not_qualify(mutation):
+    task, gate, probe = evidence()
+    row = gate["tasks"][0]
+    for trial in [row["oracle"], *row["oracle_trials"], row["nop"]]:
+        runtime = trial["runtime_identity"]
+        if mutation == "unlimited_cpu":
+            runtime["docker_limits"]["NanoCpus"] = 0
+            runtime["cgroup_v2"]["cpu.max"] = "max 100000"
+        elif mutation == "unlimited_memory":
+            runtime["docker_limits"]["Memory"] = 0
+            runtime["cgroup_v2"]["memory.max"] = "max"
+        elif mutation == "wrong_requested":
+            runtime["requested"]["memory_mb"] = 2048
+        else:
+            runtime.pop("cgroup_v2")
+    with pytest.raises(ValueError, match="限制未确认或资源不一致"):
         validate(task, gate, probe)

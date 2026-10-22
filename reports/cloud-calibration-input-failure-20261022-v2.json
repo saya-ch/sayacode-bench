@@ -1,0 +1,1396 @@
+{
+  "schema_version": 1,
+  "phase": "cloud_input_gate_failure_before_reference_and_model",
+  "date": "2026-10-22",
+  "run_id": 39791019726,
+  "public_source_sha": "9978c2f883b786cce9066a4360f3ee14832a8b4a",
+  "private_execution_sha": "1190b4477b8bc0e18f29f54303503128a3a9bc99",
+  "workflow_finished": true,
+  "calibration_complete": false,
+  "artifact_preflight_passed": true,
+  "actual_cloud_rebuilt_comparison": {
+    "allowed": true,
+    "original_sha256": "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe",
+    "rebuilt_sha256": "a5e1f7479478cb7fc74663b971bcd93e6bcbf377a5e123f01eebc375531f2565",
+    "entry_count": 90,
+    "rebuilt_entry_count": 90,
+    "names_equal": true,
+    "order_equal": true,
+    "payload_equal": true,
+    "payload_members": [
+      {
+        "entry": "sayacode/__init__.py",
+        "index": 0,
+        "original_sha256": "7d4d45621aac84179a041ab745bacde4b50ca8be6afd5f7c4bda8bab234481e1",
+        "rebuilt_sha256": "7d4d45621aac84179a041ab745bacde4b50ca8be6afd5f7c4bda8bab234481e1",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/__main__.py",
+        "index": 1,
+        "original_sha256": "6e8da7cd9af2769302fcbe184763c41769637c58f90b9485ac17362f879014d2",
+        "rebuilt_sha256": "6e8da7cd9af2769302fcbe184763c41769637c58f90b9485ac17362f879014d2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/application.py",
+        "index": 2,
+        "original_sha256": "66d2ba2dc3199b319a7c2188e8b50a46f7b6db7948ef2fe448a066bdecde3fa4",
+        "rebuilt_sha256": "66d2ba2dc3199b319a7c2188e8b50a46f7b6db7948ef2fe448a066bdecde3fa4",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/audit.py",
+        "index": 3,
+        "original_sha256": "a9aad8b6fa06a3afa18e7830fddc57749885df6564f6ca49049fa239ef4d1043",
+        "rebuilt_sha256": "a9aad8b6fa06a3afa18e7830fddc57749885df6564f6ca49049fa239ef4d1043",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/config.py",
+        "index": 4,
+        "original_sha256": "4670855766ac108ac0b6329598bc81ec51c762bf63888b148a611905d8e42113",
+        "rebuilt_sha256": "4670855766ac108ac0b6329598bc81ec51c762bf63888b148a611905d8e42113",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/diagnostics.py",
+        "index": 5,
+        "original_sha256": "7cea7ed0ee62931b045d91110c65d99b2f5bb6c193d61671e8e5652ed8e874b3",
+        "rebuilt_sha256": "7cea7ed0ee62931b045d91110c65d99b2f5bb6c193d61671e8e5652ed8e874b3",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/paths.py",
+        "index": 6,
+        "original_sha256": "e9f026987051e6b6b2828dd84aff8dc5d0488763d7389c72bbd095c10f8eaa17",
+        "rebuilt_sha256": "e9f026987051e6b6b2828dd84aff8dc5d0488763d7389c72bbd095c10f8eaa17",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/process.py",
+        "index": 7,
+        "original_sha256": "c4ed86c826876b38a74fa934eeb239032e91f8ae441334cd45c5b6bfeab17b30",
+        "rebuilt_sha256": "c4ed86c826876b38a74fa934eeb239032e91f8ae441334cd45c5b6bfeab17b30",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/profiles.py",
+        "index": 8,
+        "original_sha256": "0d03e05f661b2a14351824a03bcfd9ed3165dcd1c846a6ec8f36124b9f7e4c77",
+        "rebuilt_sha256": "0d03e05f661b2a14351824a03bcfd9ed3165dcd1c846a6ec8f36124b9f7e4c77",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/prompts.py",
+        "index": 9,
+        "original_sha256": "7dd432d790e8a2c06b1de58e3b238ea3368a111d61b4064fed8f795c0a8f12c0",
+        "rebuilt_sha256": "7dd432d790e8a2c06b1de58e3b238ea3368a111d61b4064fed8f795c0a8f12c0",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/sessions.py",
+        "index": 10,
+        "original_sha256": "b221448dd5acf891b131aa2e103e39f9e75b1da63d49d4b1dc4f6a67ce7d7075",
+        "rebuilt_sha256": "b221448dd5acf891b131aa2e103e39f9e75b1da63d49d4b1dc4f6a67ce7d7075",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/agent/__init__.py",
+        "index": 11,
+        "original_sha256": "b513df0342103571ad795ef0be12f62d0727cc9967ae181721b25097bc867c0a",
+        "rebuilt_sha256": "b513df0342103571ad795ef0be12f62d0727cc9967ae181721b25097bc867c0a",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/agent/context.py",
+        "index": 12,
+        "original_sha256": "a30e70f2db32c2235ecbba7b2ddef09d9c4ea181cca03b6c66df40bdf8cac7e2",
+        "rebuilt_sha256": "a30e70f2db32c2235ecbba7b2ddef09d9c4ea181cca03b6c66df40bdf8cac7e2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/agent/events.py",
+        "index": 13,
+        "original_sha256": "89a9f97cc0c1be4bf8ee5433783ca1ed13b25b7050a67130a1f6f7d256cbf942",
+        "rebuilt_sha256": "89a9f97cc0c1be4bf8ee5433783ca1ed13b25b7050a67130a1f6f7d256cbf942",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/agent/graph.py",
+        "index": 14,
+        "original_sha256": "a94e77971134bd41160271ccf51db64776719397859e854ded8a586f2506a707",
+        "rebuilt_sha256": "a94e77971134bd41160271ccf51db64776719397859e854ded8a586f2506a707",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/agent/models.py",
+        "index": 15,
+        "original_sha256": "11a849c3a5b312e5e3964b35f9db621b1d5ec6f5c7a6689348315c22ffdd02ac",
+        "rebuilt_sha256": "11a849c3a5b312e5e3964b35f9db621b1d5ec6f5c7a6689348315c22ffdd02ac",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/agent/runtime.py",
+        "index": 16,
+        "original_sha256": "a0ad1eecb03a202bdb14468805e534cdf30801e09d439907840307b4b9095fc8",
+        "rebuilt_sha256": "a0ad1eecb03a202bdb14468805e534cdf30801e09d439907840307b4b9095fc8",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/approvals/__init__.py",
+        "index": 17,
+        "original_sha256": "c322f0d067254c776a9f7905d9445ad0f6cc9afb1e39e38d75170966658ee1b4",
+        "rebuilt_sha256": "c322f0d067254c776a9f7905d9445ad0f6cc9afb1e39e38d75170966658ee1b4",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/approvals/middleware.py",
+        "index": 18,
+        "original_sha256": "689af52d7d0aa735150f2e32fe66b0caa8ef0da770d7694e5b485b18963d15bd",
+        "rebuilt_sha256": "689af52d7d0aa735150f2e32fe66b0caa8ef0da770d7694e5b485b18963d15bd",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/approvals/policy.py",
+        "index": 19,
+        "original_sha256": "b5c9c488b145a9d4ec8c6618bea75461d2de33265341d86d44c2d92e7de828ee",
+        "rebuilt_sha256": "b5c9c488b145a9d4ec8c6618bea75461d2de33265341d86d44c2d92e7de828ee",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/cli/__init__.py",
+        "index": 20,
+        "original_sha256": "467edbd7bd4d88492a16c8dc4486c96e298ebd5d514408ac55533c8148d45e62",
+        "rebuilt_sha256": "467edbd7bd4d88492a16c8dc4486c96e298ebd5d514408ac55533c8148d45e62",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/cli/events.py",
+        "index": 21,
+        "original_sha256": "2016e515035dbeeaa48264016285e6e53222b84ac7886abbc9b2d913d4d6a0a2",
+        "rebuilt_sha256": "2016e515035dbeeaa48264016285e6e53222b84ac7886abbc9b2d913d4d6a0a2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/cli/headless.py",
+        "index": 22,
+        "original_sha256": "e73ce75c0ba3ba2f54ae1bb5c640d376c2610ad34ffa5fa82986fd37514ded79",
+        "rebuilt_sha256": "e73ce75c0ba3ba2f54ae1bb5c640d376c2610ad34ffa5fa82986fd37514ded79",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/cli/main.py",
+        "index": 23,
+        "original_sha256": "5c37071b9a2ae30f20bf81b7669e7566f8c0e07e860cc1c255fdf1d9ea338bb2",
+        "rebuilt_sha256": "5c37071b9a2ae30f20bf81b7669e7566f8c0e07e860cc1c255fdf1d9ea338bb2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/cli/preferences.py",
+        "index": 24,
+        "original_sha256": "37d0d642a09ea11e69b4e274b726a37a13ae6f8b5afc39876fbcaf426bd5341c",
+        "rebuilt_sha256": "37d0d642a09ea11e69b4e274b726a37a13ae6f8b5afc39876fbcaf426bd5341c",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/cli/web.py",
+        "index": 25,
+        "original_sha256": "7944ff4dfb5a09ba93bac3cd1318164332f33b1bc3b3a4be75efe1b640cc6ea9",
+        "rebuilt_sha256": "7944ff4dfb5a09ba93bac3cd1318164332f33b1bc3b3a4be75efe1b640cc6ea9",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/extensions/__init__.py",
+        "index": 26,
+        "original_sha256": "08978d3eb66bcb364f76fc3cfb08cd6b0a3273062c994a3d4590e5f7f3c4cd76",
+        "rebuilt_sha256": "08978d3eb66bcb364f76fc3cfb08cd6b0a3273062c994a3d4590e5f7f3c4cd76",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/extensions/hooks.py",
+        "index": 27,
+        "original_sha256": "5550342db4317260ad3179638e22f4851e1eca76630e3eb2b9b00b24e791edac",
+        "rebuilt_sha256": "5550342db4317260ad3179638e22f4851e1eca76630e3eb2b9b00b24e791edac",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/extensions/instructions.py",
+        "index": 28,
+        "original_sha256": "6fcc255380320bfa1e0b8913ec428dd3a5eeaced2a653802b0a195edf31b98e6",
+        "rebuilt_sha256": "6fcc255380320bfa1e0b8913ec428dd3a5eeaced2a653802b0a195edf31b98e6",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/extensions/mcp.py",
+        "index": 29,
+        "original_sha256": "8139a4b5b0d407f7fca750ab74d67927540b38b8432cebad8bb92954af9824f0",
+        "rebuilt_sha256": "8139a4b5b0d407f7fca750ab74d67927540b38b8432cebad8bb92954af9824f0",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/extensions/skills.py",
+        "index": 30,
+        "original_sha256": "c96f5a0ae59cd1f7d5ee2969dbb7836ce649cc81c1ca85b1e55e479af247e669",
+        "rebuilt_sha256": "c96f5a0ae59cd1f7d5ee2969dbb7836ce649cc81c1ca85b1e55e479af247e669",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/__init__.py",
+        "index": 31,
+        "original_sha256": "1e99c9b66789527449988fc4cf91790dd3dbc96f3cd73da89db919fb52120b37",
+        "rebuilt_sha256": "1e99c9b66789527449988fc4cf91790dd3dbc96f3cd73da89db919fb52120b37",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/application.py",
+        "index": 32,
+        "original_sha256": "cfa23bf94570318c434ceefc9ea78d875e0b56fd0f3ff0d2b6e74ee45180f1c0",
+        "rebuilt_sha256": "cfa23bf94570318c434ceefc9ea78d875e0b56fd0f3ff0d2b6e74ee45180f1c0",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/attachments.py",
+        "index": 33,
+        "original_sha256": "67e95a9f9103d169e57f07067cbf8228bbd03384791f401548714c55d18b0c6f",
+        "rebuilt_sha256": "67e95a9f9103d169e57f07067cbf8228bbd03384791f401548714c55d18b0c6f",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/events.py",
+        "index": 34,
+        "original_sha256": "6e36097f95b6244989126f23f25684a02abb82174de9a4a3302e8db9a54515ff",
+        "rebuilt_sha256": "6e36097f95b6244989126f23f25684a02abb82174de9a4a3302e8db9a54515ff",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/products.py",
+        "index": 35,
+        "original_sha256": "b041959345fe6caaf9229069fd1578d99bc782fc0a829be6ef253f6516d6c9ae",
+        "rebuilt_sha256": "b041959345fe6caaf9229069fd1578d99bc782fc0a829be6ef253f6516d6c9ae",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/run_actions.py",
+        "index": 36,
+        "original_sha256": "a8e06d7d0633e5c80a5177d397c251391ad01fc1be2cb3afb2e8a51393fea4be",
+        "rebuilt_sha256": "a8e06d7d0633e5c80a5177d397c251391ad01fc1be2cb3afb2e8a51393fea4be",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/session_operations.py",
+        "index": 37,
+        "original_sha256": "bd7cc971fd20b4c40abdde25ce33c88af586cc6092a2e980b9a3ae5e474054df",
+        "rebuilt_sha256": "bd7cc971fd20b4c40abdde25ce33c88af586cc6092a2e980b9a3ae5e474054df",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/views.py",
+        "index": 38,
+        "original_sha256": "7e1b6475ae50bedfba047e0d19a25f3b11d8045b1c4b352a4edd2d4431a8c80c",
+        "rebuilt_sha256": "7e1b6475ae50bedfba047e0d19a25f3b11d8045b1c4b352a4edd2d4431a8c80c",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/host/workspaces.py",
+        "index": 39,
+        "original_sha256": "f94c35a6450e8f8d4f2fae85aa24f6ba660aeaf5f2d4c28b5646c432154db010",
+        "rebuilt_sha256": "f94c35a6450e8f8d4f2fae85aa24f6ba660aeaf5f2d4c28b5646c432154db010",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/__init__.py",
+        "index": 40,
+        "original_sha256": "d9c062b269864fa96301778d69eb8cf4befc5f740244c4bdb41276a4066d2787",
+        "rebuilt_sha256": "d9c062b269864fa96301778d69eb8cf4befc5f740244c4bdb41276a4066d2787",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/evidence.py",
+        "index": 41,
+        "original_sha256": "6ec2ef1542ec55dbfa7643def62fd6b39ef2fa1770c33202d3395cad413a078f",
+        "rebuilt_sha256": "6ec2ef1542ec55dbfa7643def62fd6b39ef2fa1770c33202d3395cad413a078f",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/learning.py",
+        "index": 42,
+        "original_sha256": "6fe2e1a4789a6ce3cc4be5385346a15b8311ee858f66375b4097bc99574dc734",
+        "rebuilt_sha256": "6fe2e1a4789a6ce3cc4be5385346a15b8311ee858f66375b4097bc99574dc734",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/middleware.py",
+        "index": 43,
+        "original_sha256": "3fcc5c9b28bd6c9becee66577f3f6cf795a22d256b3ca8842a08de16490b2b8d",
+        "rebuilt_sha256": "3fcc5c9b28bd6c9becee66577f3f6cf795a22d256b3ca8842a08de16490b2b8d",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/privacy.py",
+        "index": 44,
+        "original_sha256": "61a18a93f40e5da13267e2539b362d70dfab0d4617bd336e06471535777129d7",
+        "rebuilt_sha256": "61a18a93f40e5da13267e2539b362d70dfab0d4617bd336e06471535777129d7",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/processing.py",
+        "index": 45,
+        "original_sha256": "35069c690b83a728c45fe4da7063230dc3fb1d225ffc43e246846a5f52c5a9b4",
+        "rebuilt_sha256": "35069c690b83a728c45fe4da7063230dc3fb1d225ffc43e246846a5f52c5a9b4",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/records.py",
+        "index": 46,
+        "original_sha256": "4c9e2785339f88b4c3b0002834e669b73c965b65a880c068554c7440e3a12bf2",
+        "rebuilt_sha256": "4c9e2785339f88b4c3b0002834e669b73c965b65a880c068554c7440e3a12bf2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/repository.py",
+        "index": 47,
+        "original_sha256": "b5c9fd6939cc5efa1a95768f4a311a6165fa299a74451d477e60d54aff2df626",
+        "rebuilt_sha256": "b5c9fd6939cc5efa1a95768f4a311a6165fa299a74451d477e60d54aff2df626",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/retrieval.py",
+        "index": 48,
+        "original_sha256": "00ed60d838380f125eb3951ae9d4f526717f6751ddec2ff5459b6cbc74be50a7",
+        "rebuilt_sha256": "00ed60d838380f125eb3951ae9d4f526717f6751ddec2ff5459b6cbc74be50a7",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/service.py",
+        "index": 49,
+        "original_sha256": "1c388f118f40fa1fd2c30b313697e236d16c77b62e2503443acc514b9fedf80a",
+        "rebuilt_sha256": "1c388f118f40fa1fd2c30b313697e236d16c77b62e2503443acc514b9fedf80a",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/tools.py",
+        "index": 50,
+        "original_sha256": "0504b9150f9e3da495672d57916be284798c12f0b4fc055ff9c85241d6df5803",
+        "rebuilt_sha256": "0504b9150f9e3da495672d57916be284798c12f0b4fc055ff9c85241d6df5803",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/memory/turns.py",
+        "index": 51,
+        "original_sha256": "ceabd8d23edae2bc03e519f2f641ddaa2783f5295efa1e0c53af5a47afba39db",
+        "rebuilt_sha256": "ceabd8d23edae2bc03e519f2f641ddaa2783f5295efa1e0c53af5a47afba39db",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/__init__.py",
+        "index": 52,
+        "original_sha256": "6fb8182be0b3ec5d166aeeda3d265abf3178c22c8bd975ec37599c014babb27e",
+        "rebuilt_sha256": "6fb8182be0b3ec5d166aeeda3d265abf3178c22c8bd975ec37599c014babb27e",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/inbox.py",
+        "index": 53,
+        "original_sha256": "04ac8ac56f38012d237562159bfdacb1ebc1c89b1450c611904bc54ce0a259d9",
+        "rebuilt_sha256": "04ac8ac56f38012d237562159bfdacb1ebc1c89b1450c611904bc54ce0a259d9",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/manager.py",
+        "index": 54,
+        "original_sha256": "4c84118c4759e8c81dfaaed0400f35468f5224f0a6221c31b20c7bbbeea4dab5",
+        "rebuilt_sha256": "4c84118c4759e8c81dfaaed0400f35468f5224f0a6221c31b20c7bbbeea4dab5",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/middleware.py",
+        "index": 55,
+        "original_sha256": "acd783db7f7f3179249f1c63b9d1434ed44cb85c187de4319dec53dcdfe8a7bc",
+        "rebuilt_sha256": "acd783db7f7f3179249f1c63b9d1434ed44cb85c187de4319dec53dcdfe8a7bc",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/records.py",
+        "index": 56,
+        "original_sha256": "2578f315c0a00f66c4d0298188af837cd3d2ddd6aefe7d8167cfee10463800ad",
+        "rebuilt_sha256": "2578f315c0a00f66c4d0298188af837cd3d2ddd6aefe7d8167cfee10463800ad",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/tools.py",
+        "index": 57,
+        "original_sha256": "68d9c5a02a4c06c5b06adc41b5c8407720e300ba16b56fa95b9666663ce597cf",
+        "rebuilt_sha256": "68d9c5a02a4c06c5b06adc41b5c8407720e300ba16b56fa95b9666663ce597cf",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tasks/worktree.py",
+        "index": 58,
+        "original_sha256": "3f22cc4fba1d2363f772b97fcc6ded3d7cc1fb828027b6ab4f03e29c52f80cc8",
+        "rebuilt_sha256": "3f22cc4fba1d2363f772b97fcc6ded3d7cc1fb828027b6ab4f03e29c52f80cc8",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/__init__.py",
+        "index": 59,
+        "original_sha256": "69c3c544eb6cb9a890830d83c6a62542a485cafcc6a2c74d828db6a73190796b",
+        "rebuilt_sha256": "69c3c544eb6cb9a890830d83c6a62542a485cafcc6a2c74d828db6a73190796b",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/analysis.py",
+        "index": 60,
+        "original_sha256": "b656f0dfde60753c05ec0fa69ed19b4c7a8a6fa5d9eba9e1de96918af86c81da",
+        "rebuilt_sha256": "b656f0dfde60753c05ec0fa69ed19b4c7a8a6fa5d9eba9e1de96918af86c81da",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/catalog.py",
+        "index": 61,
+        "original_sha256": "2dfb633c97f63b39198d15623c71543b4a57939d73e084714f58013d9a9380d1",
+        "rebuilt_sha256": "2dfb633c97f63b39198d15623c71543b4a57939d73e084714f58013d9a9380d1",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/files.py",
+        "index": 62,
+        "original_sha256": "c1396680835aac45924caf15f02212bfaf60223672f70eb446cb659832859b58",
+        "rebuilt_sha256": "c1396680835aac45924caf15f02212bfaf60223672f70eb446cb659832859b58",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/git.py",
+        "index": 63,
+        "original_sha256": "c6177021e5f1996649d8d01bf0d28e862e74a854debe5e5b09487c5aa9b83ef9",
+        "rebuilt_sha256": "c6177021e5f1996649d8d01bf0d28e862e74a854debe5e5b09487c5aa9b83ef9",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/shell.py",
+        "index": 64,
+        "original_sha256": "7c95ebcaf1694840fac8ee90a303dc2362756292b97854ca8cbf3f8d7244cb1c",
+        "rebuilt_sha256": "7c95ebcaf1694840fac8ee90a303dc2362756292b97854ca8cbf3f8d7244cb1c",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/tools/web.py",
+        "index": 65,
+        "original_sha256": "4a4352179b76a9c312a088b5a99587f70ed176f6a75a8bbab09a8697314ec5a0",
+        "rebuilt_sha256": "4a4352179b76a9c312a088b5a99587f70ed176f6a75a8bbab09a8697314ec5a0",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/__init__.py",
+        "index": 66,
+        "original_sha256": "f71247789ed16e8fb3a8e82391772aeb449d6c5da51e0dffd9fa1903e9ab0b04",
+        "rebuilt_sha256": "f71247789ed16e8fb3a8e82391772aeb449d6c5da51e0dffd9fa1903e9ab0b04",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/app.py",
+        "index": 67,
+        "original_sha256": "95adc98ff7e622eae21f43bb1d4a34d892520ad8d0ec3ba202a6d50188e9e18c",
+        "rebuilt_sha256": "95adc98ff7e622eae21f43bb1d4a34d892520ad8d0ec3ba202a6d50188e9e18c",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/attachments.py",
+        "index": 68,
+        "original_sha256": "59ad6d0c1ca2ff3027770f0c407b1e0c3b7dafa686678bb18758819417e3bb58",
+        "rebuilt_sha256": "59ad6d0c1ca2ff3027770f0c407b1e0c3b7dafa686678bb18758819417e3bb58",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/contracts.py",
+        "index": 69,
+        "original_sha256": "70a0ab30f32f26e9694caabeba6309cc0160122e05e563b303b9e68422333637",
+        "rebuilt_sha256": "70a0ab30f32f26e9694caabeba6309cc0160122e05e563b303b9e68422333637",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/products.py",
+        "index": 70,
+        "original_sha256": "dd89f116e8fec55c3dd4a8a335d2c7eecd0b0f2c7e61121671533a6388ba0d7c",
+        "rebuilt_sha256": "dd89f116e8fec55c3dd4a8a335d2c7eecd0b0f2c7e61121671533a6388ba0d7c",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/responses.py",
+        "index": 71,
+        "original_sha256": "847d6633208244da4bd9167bb4558453f7a3812a2c634dd8b9ce7c0019a080e5",
+        "rebuilt_sha256": "847d6633208244da4bd9167bb4558453f7a3812a2c634dd8b9ce7c0019a080e5",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/security.py",
+        "index": 72,
+        "original_sha256": "a803c6603c89da661b867088aeec9c8eeefee59ce42df89dbd8842b66f8e4934",
+        "rebuilt_sha256": "a803c6603c89da661b867088aeec9c8eeefee59ce42df89dbd8842b66f8e4934",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/session_operations.py",
+        "index": 73,
+        "original_sha256": "d4f1a323b5852aed82ae81b8fa49d5f5e87407d86dc7ad64774f68e6c0c0d94d",
+        "rebuilt_sha256": "d4f1a323b5852aed82ae81b8fa49d5f5e87407d86dc7ad64774f68e6c0c0d94d",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/index.html",
+        "index": 74,
+        "original_sha256": "b64521925f615047c35df7f0e9b8c623868adc1dfedf090943315085115413a0",
+        "rebuilt_sha256": "b64521925f615047c35df7f0e9b8c623868adc1dfedf090943315085115413a0",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/AgentGraph-CEriGMSJ.css",
+        "index": 75,
+        "original_sha256": "26aafadccd85187940b487079cc824b8cec7723395b0b1b732a066ad6825213a",
+        "rebuilt_sha256": "26aafadccd85187940b487079cc824b8cec7723395b0b1b732a066ad6825213a",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/AgentGraph-vNaTvUDd.js",
+        "index": 76,
+        "original_sha256": "a38e0218e74d8cd828f60a60987d92aacf39929ed21feb40d27f051bee113ceb",
+        "rebuilt_sha256": "a38e0218e74d8cd828f60a60987d92aacf39929ed21feb40d27f051bee113ceb",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/MarkdownContent-DmcbXhCl.js",
+        "index": 77,
+        "original_sha256": "0ad0dced93d0cd024cb08f5a4687cbe6cdfd6a30e184ac15acfe6d51c584b759",
+        "rebuilt_sha256": "0ad0dced93d0cd024cb08f5a4687cbe6cdfd6a30e184ac15acfe6d51c584b759",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/ProductDialog-DEpb2aiZ.css",
+        "index": 78,
+        "original_sha256": "5b05bbaf7460ed7016467510c1f3eb95ca8bdb13afe96e6910faaf6638c1d619",
+        "rebuilt_sha256": "5b05bbaf7460ed7016467510c1f3eb95ca8bdb13afe96e6910faaf6638c1d619",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/ProductDialog-D_EDPe_g.js",
+        "index": 79,
+        "original_sha256": "354047d364c594f1846910d90d58bbf4335ad1acce811dcde54ffae5e8f6ba2d",
+        "rebuilt_sha256": "354047d364c594f1846910d90d58bbf4335ad1acce811dcde54ffae5e8f6ba2d",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/Trajectory-DriTIJt5.js",
+        "index": 80,
+        "original_sha256": "af79f39e748d921a62ed41b7dabd2ab6a3305139e819007372cee5f3c3662eb2",
+        "rebuilt_sha256": "af79f39e748d921a62ed41b7dabd2ab6a3305139e819007372cee5f3c3662eb2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/Trajectory-yaV4MOoU.css",
+        "index": 81,
+        "original_sha256": "2c4b8f1e0584cf854db7095d6a40b4271a8de8149015a014fa84fd916b091b5d",
+        "rebuilt_sha256": "2c4b8f1e0584cf854db7095d6a40b4271a8de8149015a014fa84fd916b091b5d",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/index-C367z04x.js",
+        "index": 82,
+        "original_sha256": "96bba3d42e6596fcfead0209a371094dba89f2fd79f5eb6a89e58286c700f605",
+        "rebuilt_sha256": "96bba3d42e6596fcfead0209a371094dba89f2fd79f5eb6a89e58286c700f605",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/index-Cs7p28ks.css",
+        "index": 83,
+        "original_sha256": "6ec01c0103869ec610b430edabde0effbd8735d7fa6c96067a5714b1e765b9b7",
+        "rebuilt_sha256": "6ec01c0103869ec610b430edabde0effbd8735d7fa6c96067a5714b1e765b9b7",
+        "equal": true
+      },
+      {
+        "entry": "sayacode/web/static/assets/jsx-runtime-D3jfb0Ew.js",
+        "index": 84,
+        "original_sha256": "a2c68294426b0ded53fa2d6c97bb39c4a51f99e5e4b23e7953a2c69298e361f8",
+        "rebuilt_sha256": "a2c68294426b0ded53fa2d6c97bb39c4a51f99e5e4b23e7953a2c69298e361f8",
+        "equal": true
+      },
+      {
+        "entry": "sayacode-3.2.4.dist-info/METADATA",
+        "index": 85,
+        "original_sha256": "c4a5fcd918433a2542256fbadff10eeeb179df828c64abba7393e4b1f9f043b2",
+        "rebuilt_sha256": "c4a5fcd918433a2542256fbadff10eeeb179df828c64abba7393e4b1f9f043b2",
+        "equal": true
+      },
+      {
+        "entry": "sayacode-3.2.4.dist-info/WHEEL",
+        "index": 86,
+        "original_sha256": "5b77e4a649bbfb07fdbc123967eeecd1e5a478cfaca6eefc23c35e6fdf037848",
+        "rebuilt_sha256": "5b77e4a649bbfb07fdbc123967eeecd1e5a478cfaca6eefc23c35e6fdf037848",
+        "equal": true
+      },
+      {
+        "entry": "sayacode-3.2.4.dist-info/entry_points.txt",
+        "index": 87,
+        "original_sha256": "300f88d5cb941423e7fa3ee4948b6d9d12a58d13b1098f1df7276e0b771ff241",
+        "rebuilt_sha256": "300f88d5cb941423e7fa3ee4948b6d9d12a58d13b1098f1df7276e0b771ff241",
+        "equal": true
+      },
+      {
+        "entry": "sayacode-3.2.4.dist-info/licenses/LICENSE",
+        "index": 88,
+        "original_sha256": "d561becda2c26d7b231aed18400b13f300ac6841919968c29b83039b2d640b96",
+        "rebuilt_sha256": "d561becda2c26d7b231aed18400b13f300ac6841919968c29b83039b2d640b96",
+        "equal": true
+      },
+      {
+        "entry": "sayacode-3.2.4.dist-info/RECORD",
+        "index": 89,
+        "original_sha256": "d91cd311853801ffae196a2038944f6a24cc6f4a15e2b2d0ec7c240642f32c06",
+        "rebuilt_sha256": "d91cd311853801ffae196a2038944f6a24cc6f4a15e2b2d0ec7c240642f32c06",
+        "equal": true
+      }
+    ],
+    "metadata_differences": [
+      {
+        "index": 0,
+        "entry": "sayacode/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 1,
+        "entry": "sayacode/__main__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 2,
+        "entry": "sayacode/application.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 3,
+        "entry": "sayacode/audit.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 4,
+        "entry": "sayacode/config.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 5,
+        "entry": "sayacode/diagnostics.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 6,
+        "entry": "sayacode/paths.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 7,
+        "entry": "sayacode/process.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 8,
+        "entry": "sayacode/profiles.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 9,
+        "entry": "sayacode/prompts.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 10,
+        "entry": "sayacode/sessions.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 11,
+        "entry": "sayacode/agent/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 12,
+        "entry": "sayacode/agent/context.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 13,
+        "entry": "sayacode/agent/events.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 14,
+        "entry": "sayacode/agent/graph.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 15,
+        "entry": "sayacode/agent/models.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 16,
+        "entry": "sayacode/agent/runtime.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 17,
+        "entry": "sayacode/approvals/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 18,
+        "entry": "sayacode/approvals/middleware.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 19,
+        "entry": "sayacode/approvals/policy.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 20,
+        "entry": "sayacode/cli/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 21,
+        "entry": "sayacode/cli/events.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 22,
+        "entry": "sayacode/cli/headless.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 23,
+        "entry": "sayacode/cli/main.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 24,
+        "entry": "sayacode/cli/preferences.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 25,
+        "entry": "sayacode/cli/web.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 26,
+        "entry": "sayacode/extensions/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 27,
+        "entry": "sayacode/extensions/hooks.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 28,
+        "entry": "sayacode/extensions/instructions.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 29,
+        "entry": "sayacode/extensions/mcp.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 30,
+        "entry": "sayacode/extensions/skills.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 31,
+        "entry": "sayacode/host/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 32,
+        "entry": "sayacode/host/application.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 33,
+        "entry": "sayacode/host/attachments.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 34,
+        "entry": "sayacode/host/events.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 35,
+        "entry": "sayacode/host/products.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 36,
+        "entry": "sayacode/host/run_actions.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 37,
+        "entry": "sayacode/host/session_operations.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 38,
+        "entry": "sayacode/host/views.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 39,
+        "entry": "sayacode/host/workspaces.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 40,
+        "entry": "sayacode/memory/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 41,
+        "entry": "sayacode/memory/evidence.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 42,
+        "entry": "sayacode/memory/learning.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 43,
+        "entry": "sayacode/memory/middleware.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 44,
+        "entry": "sayacode/memory/privacy.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 45,
+        "entry": "sayacode/memory/processing.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 46,
+        "entry": "sayacode/memory/records.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 47,
+        "entry": "sayacode/memory/repository.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 48,
+        "entry": "sayacode/memory/retrieval.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 49,
+        "entry": "sayacode/memory/service.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 50,
+        "entry": "sayacode/memory/tools.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 51,
+        "entry": "sayacode/memory/turns.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 52,
+        "entry": "sayacode/tasks/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 53,
+        "entry": "sayacode/tasks/inbox.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 54,
+        "entry": "sayacode/tasks/manager.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 55,
+        "entry": "sayacode/tasks/middleware.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 56,
+        "entry": "sayacode/tasks/records.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 57,
+        "entry": "sayacode/tasks/tools.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 58,
+        "entry": "sayacode/tasks/worktree.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 59,
+        "entry": "sayacode/tools/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 60,
+        "entry": "sayacode/tools/analysis.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 61,
+        "entry": "sayacode/tools/catalog.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 62,
+        "entry": "sayacode/tools/files.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 63,
+        "entry": "sayacode/tools/git.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 64,
+        "entry": "sayacode/tools/shell.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 65,
+        "entry": "sayacode/tools/web.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 66,
+        "entry": "sayacode/web/__init__.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 67,
+        "entry": "sayacode/web/app.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 68,
+        "entry": "sayacode/web/attachments.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 69,
+        "entry": "sayacode/web/contracts.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 70,
+        "entry": "sayacode/web/products.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 71,
+        "entry": "sayacode/web/responses.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 72,
+        "entry": "sayacode/web/security.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 73,
+        "entry": "sayacode/web/session_operations.py",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 74,
+        "entry": "sayacode/web/static/index.html",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 75,
+        "entry": "sayacode/web/static/assets/AgentGraph-CEriGMSJ.css",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 76,
+        "entry": "sayacode/web/static/assets/AgentGraph-vNaTvUDd.js",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 77,
+        "entry": "sayacode/web/static/assets/MarkdownContent-DmcbXhCl.js",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 78,
+        "entry": "sayacode/web/static/assets/ProductDialog-DEpb2aiZ.css",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 79,
+        "entry": "sayacode/web/static/assets/ProductDialog-D_EDPe_g.js",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 80,
+        "entry": "sayacode/web/static/assets/Trajectory-DriTIJt5.js",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 81,
+        "entry": "sayacode/web/static/assets/Trajectory-yaV4MOoU.css",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 82,
+        "entry": "sayacode/web/static/assets/index-C367z04x.js",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 83,
+        "entry": "sayacode/web/static/assets/index-Cs7p28ks.css",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 84,
+        "entry": "sayacode/web/static/assets/jsx-runtime-D3jfb0Ew.js",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 85,
+        "entry": "sayacode-3.2.4.dist-info/METADATA",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 86,
+        "entry": "sayacode-3.2.4.dist-info/WHEEL",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 87,
+        "entry": "sayacode-3.2.4.dist-info/entry_points.txt",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 88,
+        "entry": "sayacode-3.2.4.dist-info/licenses/LICENSE",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      },
+      {
+        "index": 89,
+        "entry": "sayacode-3.2.4.dist-info/RECORD",
+        "field": "create_system",
+        "original": 0,
+        "rebuilt": 3,
+        "allowed": true
+      }
+    ],
+    "archive_byte_difference_count": 90,
+    "archive_size_equal": true,
+    "allowed_create_system_difference_count": 90,
+    "unexpected_archive_difference_count": 0,
+    "scope": "仅比较调用方提供的 wheel 文件；执行宿主由调用方另行记录；不改写输入。"
+  },
+  "network_probe_passed": true,
+  "network_cleanup_confirmed": true,
+  "network_probe_sha256": "5b191f16618a5df9d2a25fd0a3c3adaad74a60ba137775d7d8f82859647185d2",
+  "input_gate_error": {
+    "error_type": "ValueError",
+    "stage": "controls",
+    "reason": "controls_failed",
+    "model_calls_unknown": false
+  },
+  "precise_cold_input_failure_localized": false,
+  "official_reference_trials_attempted": 0,
+  "model_requests": 0,
+  "paid_model_cost_cny": 0,
+  "ansible_model_job": "skipped",
+  "formal_comparison_eligible": false,
+  "interpretation": "真实云端构建已直接核对90个OS标记字节；网络与清理通过，随后controls输入阶段ValueError，参考解与模型均未启动。根因尚未定位，不误报为网络失败或模型失败，原始工件私有保留。"
+}

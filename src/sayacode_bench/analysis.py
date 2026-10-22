@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import fatal_stop_reason
+from .resources import runtime_record_issues
 
 
 def _integer(value: Any, name: str, *, minimum: int = 0) -> int:
@@ -128,6 +129,7 @@ def analyze_experiment(
     if not isinstance(tasks, list) or not tasks:
         raise ValueError("tasks 必须是非空列表")
     task_repositories: dict[str, str] = {}
+    task_definitions: dict[str, Mapping[str, Any]] = {}
     for task in tasks:
         if not isinstance(task, Mapping):
             raise ValueError("每道任务必须是对象")
@@ -135,6 +137,7 @@ def analyze_experiment(
         if task_id in task_repositories:
             raise ValueError(f"任务重复：{task_id}")
         task_repositories[task_id] = _text(task.get("repository"), "repository")
+        task_definitions[task_id] = task
 
     rows = list(records)
     indexed: dict[tuple[str, str, int], Mapping[str, Any]] = {}
@@ -143,6 +146,11 @@ def analyze_experiment(
     if not isinstance(raw_issues, list) or any(not isinstance(issue, str) for issue in raw_issues):
         raise ValueError("validity_issues 必须是字符串列表")
     issues = list(raw_issues)
+    if (
+        phase in {"dev", "holdout", "validation"}
+        and manifest.get("runtime_evidence_required") is not True
+    ):
+        issues.append("runtime_policy_required_for_formal_phase")
     fatal = fatal_stop_reason(rows)
     if fatal:
         issues.append(f"fatal_stop_condition:{fatal}")
@@ -157,6 +165,18 @@ def analyze_experiment(
         if key in indexed:
             raise ValueError(f"试验重复：{task_id}/{label}/{repeat}")
         indexed[key] = row
+        if manifest.get("runtime_evidence_required") is True:
+            qualification = manifest.get("qualified_runtime_identities")
+            qualified = qualification.get(task_id) if isinstance(qualification, Mapping) else None
+            issues.extend(
+                f"runtime_evidence:{issue}:{task_id}/{label}/{repeat}"
+                for issue in runtime_record_issues(
+                    row,
+                    task_definitions[task_id],
+                    qualified,
+                    replay=manifest.get("benchmark") == "swe-bench-pro-v2",
+                )
+            )
         status = _text(row.get("status"), "status")
         success = row.get("success")
         if success is not None and not isinstance(success, bool):

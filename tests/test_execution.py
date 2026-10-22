@@ -4,12 +4,14 @@ import asyncio
 import json
 import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from harbor.models.agent.context import AgentContext
 from harbor.models.verifier.result import VerifierResult
+from resource_samples import runtime_evidence
 
 from sayacode_bench import execution
 
@@ -23,7 +25,9 @@ def write(path, value):
 def task(tmp_path):
     path = tmp_path / "instance_demo"
     path.mkdir()
-    (path / "task.toml").write_text('version = "1.0"\n', encoding="utf-8")
+    (path / "task.toml").write_text(
+        'version = "1.0"\n[environment]\ncpus=1\nmemory_mb=4096\n', encoding="utf-8"
+    )
     return path
 
 
@@ -198,6 +202,7 @@ def install_fake_job(
             selected = value or trial(config.tasks[0].path.name)
             path = config.jobs_dir / config.job_name / selected.trial_name
             write(path / "result.json", {"task_name": selected.task_name})
+            write(path / "runtime.json", runtime_evidence(image_id="sha256:fixed"))
             write(config.jobs_dir / config.job_name / "result.json", {"id": "job-uuid"})
             if source_worker is not None:
                 write(path / "agent" / "sayacode" / "result.json", source_worker)
@@ -373,6 +378,8 @@ async def test_job_path_escape_is_rejected(task, tmp_path, job_name):
 @pytest.fixture
 def replay_source(task, tmp_path):
     source = tmp_path / "source"
+    runtime = source / "instance_demo__only" / "runtime.json"
+    write(runtime, runtime_evidence(image_id="sha256:fixed"))
     write(
         source / "normalized.json",
         {
@@ -386,6 +393,11 @@ def replay_source(task, tmp_path):
             "verified": False,
             "record_complete": True,
             "duration_seconds": 8,
+            "original_reward": 1,
+            "input_tokens": 321,
+            "output_tokens": 20,
+            "runtime": execution._file_identity(runtime),
+            "runtime_identity": runtime_evidence(image_id="sha256:fixed"),
         },
     )
     write(source / "instance_demo__only" / "result.json", {"task_name": task.name})
@@ -404,6 +416,8 @@ def fake_replay(monkeypatch, tmp_path, patch, *, apply_rc=0, reward=1, verified=
     module.__file__ = str(module_file)
     monkeypatch.setitem(sys.modules, "patch_replay", module)
     job_dir = tmp_path / "regrade" / "fresh"
+    runtime = job_dir / "instance_demo__new" / "runtime.json"
+    write(runtime, runtime_evidence(image_id="sha256:fixed"))
     write(
         job_dir / "instance_demo__new" / "agent" / "replay.json",
         {
@@ -418,6 +432,8 @@ def fake_replay(monkeypatch, tmp_path, patch, *, apply_rc=0, reward=1, verified=
         "verified": verified,
         "duration_seconds": 3,
         "raw_trial_result": {"sha256": "replay-sha"},
+        "runtime": execution._file_identity(runtime),
+        "runtime_identity": runtime_evidence(image_id="sha256:fixed"),
     }
     mock = AsyncMock(return_value=result)
     monkeypatch.setattr(execution, "run_official_trial", mock)
@@ -534,6 +550,55 @@ async def test_runtime_drift_prevents_verification_even_when_official_reward_pas
     assert comparison["same_image" if field == "image_id" else "same_platform"] is False
 
 
+@pytest.mark.parametrize("side", ["source", "pristine"])
+@pytest.mark.parametrize("mutation", ["missing", "unlimited", "swap_drift"])
+async def test_replay_resources_are_checked_on_both_sides_without_erasing_score_or_tokens(
+    task, tmp_path, replay_source, monkeypatch, side, mutation
+):
+    source, patch = replay_source
+    tooling, mock = fake_replay(monkeypatch, tmp_path, patch)
+    path = (
+        source / "instance_demo__only" / "runtime.json"
+        if side == "source"
+        else Path(mock.return_value["runtime"]["path"])
+    )
+    observed = runtime_evidence(image_id="sha256:fixed")
+    if mutation == "missing":
+        observed.pop("cgroup_v2")
+    elif mutation == "unlimited":
+        observed["docker_limits"]["Memory"] = 0
+        observed["cgroup_v2"]["memory.max"] = "max"
+    else:
+        observed["docker_limits"]["MemorySwap"] = 4 * 1024**3
+        observed["cgroup_v2"]["memory.swap.max"] = "0"
+    write(path, observed)
+    if side == "source":
+        saved = json.loads((source / "normalized.json").read_text())
+        saved.update(runtime=execution._file_identity(path), runtime_identity=observed)
+        write(source / "normalized.json", saved)
+    else:
+        mock.return_value.update(runtime=execution._file_identity(path), runtime_identity=observed)
+    result = await execution.replay_official_trial(
+        task, tmp_path / "jobs", "fresh", source, tooling
+    )
+    assert result["original_reward"] == result["replay_reward"] == 1
+    assert result["input_tokens"] == 321 and result["output_tokens"] == 20
+    assert result["verified"] is False
+    assert result["runtime_comparison"]["same_resources"] is (
+        None if mutation == "missing" else False
+    )
+
+
+def test_normalization_keeps_cgroup_resource_evidence_without_container_environment(tmp_path):
+    path = tmp_path / "runtime.json"
+    evidence = runtime_evidence()
+    evidence["Env"] = ["API_KEY=do-not-export"]
+    write(path, evidence)
+    saved = execution._runtime_identity(path)
+    assert saved["cgroup_v2"] == evidence["cgroup_v2"]
+    assert "Env" not in saved
+
+
 async def test_replay_needs_confirmation_that_expected_patch_was_applied(
     task, tmp_path, replay_source, monkeypatch
 ):
@@ -587,6 +652,8 @@ async def test_real_official_module_import_preserves_snapshot_and_restores_bytec
     module_path.write_text("IMPORTED = True\nclass PatchReplayAgent: pass\n", encoding="utf-8")
     before = {path.name: path.read_bytes() for path in tooling.iterdir()}
     fresh = tmp_path / "fresh"
+    runtime = fresh / "instance_demo__new" / "runtime.json"
+    write(runtime, runtime_evidence(image_id="sha256:fixed"))
     write(
         fresh / "instance_demo__new" / "agent" / "replay.json", {"patch": str(patch), "apply_rc": 0}
     )
@@ -599,6 +666,8 @@ async def test_real_official_module_import_preserves_snapshot_and_restores_bytec
                 "trial_name": "instance_demo__new",
                 "original_reward": 1,
                 "verified": True,
+                "runtime": execution._file_identity(runtime),
+                "runtime_identity": runtime_evidence(image_id="sha256:fixed"),
             }
         ),
     )

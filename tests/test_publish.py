@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from resource_samples import runtime_evidence
 
 from sayacode_bench import publish
 from sayacode_bench.analysis import analyze_experiment
@@ -314,3 +315,59 @@ def test_report_is_recursively_validated_before_creating_public_directory(tmp_pa
     with pytest.raises(ValueError):
         export_results(manifest, records, output)
     assert not output.exists()
+
+
+def test_resource_evidence_roundtrips_publicly_without_container_env_or_private_fields(tmp_path):
+    declared = {"cpus": 1, "memory_mb": 4096, "env": {"api_key": "private-task-key"}}
+    qualified = runtime_evidence()
+    qualified["cgroup_v2"]["Env"] = "private-cgroup-body"
+    manifest, records = source_files(
+        tmp_path,
+        extra_manifest={
+            "benchmark": "swe-bench-pro-v2",
+            "runtime_evidence_required": True,
+            "qualified_runtime_identities": {"task-a": qualified},
+            "tasks": [{"task_id": "task-a", "repository": "repo", "environment": declared}],
+        },
+    )
+    row = record()
+    row.update(
+        runtime_identity=qualified,
+        replay_runtime_identity=runtime_evidence(),
+        runtime_comparison={"same_image": True, "same_platform": True, "same_resources": True},
+    )
+    records.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    output = tmp_path / "public"
+    report = export_results(manifest, records, output)
+    assert report["formal_validation_eligible"] is True
+    published = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    rows = [
+        json.loads(line)
+        for line in (output / "records.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert published["tasks"][0]["environment"] == {"cpus": 1, "memory_mb": 4096}
+    assert rows[0]["runtime_identity"]["cgroup_v2"] == runtime_evidence()["cgroup_v2"]
+    assert rows[0]["runtime_comparison"]["same_resources"] is True
+    assert rows[0]["runtime_identity"]["storage_hard_limit_supported"] is False
+    assert "private-" not in json.dumps((published, rows, report))
+    assert analyze_experiment(published, rows)["formal_validation_eligible"] is True
+    rows[0]["replay_runtime_identity"]["cgroup_v2"].pop("memory.swap.max")
+    assert analyze_experiment(published, rows)["formal_validation_eligible"] is False
+
+
+@pytest.mark.parametrize("policy", [None, False])
+def test_publication_cannot_promote_missing_or_disabled_formal_resource_policy(tmp_path, policy):
+    extra = {} if policy is None else {"runtime_evidence_required": policy}
+    manifest, records = source_files(tmp_path, extra_manifest=extra)
+    output = tmp_path / "public"
+    report = export_results(manifest, records, output)
+    published = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    rows = [
+        json.loads(line)
+        for line in (output / "records.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert published.get("runtime_evidence_required") is policy
+    assert "runtime_policy_required_for_formal_phase" in published["validity_issues"]
+    assert report["formal_validation_eligible"] is False
+    assert report["groups"]["baseline"]["recorded"] == 1 and rows[0]["success"] is True
+    assert analyze_experiment(published, rows)["formal_validation_eligible"] is False

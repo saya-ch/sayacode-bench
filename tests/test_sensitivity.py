@@ -11,6 +11,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+from resource_samples import complete_resource_fixture
 
 
 @pytest.fixture
@@ -21,6 +22,21 @@ def sensitivity() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_protocol_identity_changes_with_resource_validation_rules(
+    sensitivity: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    resource = tmp_path / "resources.py"
+    resource.write_text("first validation rules\n", encoding="utf-8")
+    monkeypatch.setattr(sensitivity.resources_module, "__file__", str(resource))
+    first = sensitivity.protocol_identity()
+    resource.write_text("revised validation rules\n", encoding="utf-8")
+    second = sensitivity.protocol_identity()
+    assert first["resource_rules_sha256"] != second["resource_rules_sha256"]
+    assert first["analysis_sha256"] == second["analysis_sha256"]
+    assert first["samples"] == second["samples"] == 10_000
+    assert first["seed"] == second["seed"] == 20261022
 
 
 def example(
@@ -61,6 +77,7 @@ def example(
         for label in labels
         for repeat in range(1, repeats + 1)
     ]
+    complete_resource_fixture(manifest, rows)
     return manifest, rows
 
 
@@ -109,6 +126,7 @@ def test_twenty_four_task_validation_reports_24_units_not_72_attempts(
         for index, task in enumerate(manifest["tasks"])
         for repeat in range(1, 4)
     ]
+    complete_resource_fixture(manifest, rows)
     result = sensitivity.analyze_sensitivity(manifest, rows)
     group = result["configurations"]["baseline"]
     assert result["tasks"] == 24 and result["repositories"] == 11

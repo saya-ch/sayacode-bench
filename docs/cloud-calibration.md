@@ -101,7 +101,7 @@ artifacts/
 
 - `acknowledge_actions_billing=false`：默认不执行 job，避免把 API 预算误作私有 Actions 费用授权。
 - 用户确认 Actions 额度／费用后，可以设置为 true。
-- `execute_models=false`：默认仅重建生产工件，生成 `preflight.json`；没有密钥、Docker 或模型调用。
+- `execute_models=false`：默认只核对运行工件、固定两题元数据及镜像，生成 `preflight.json` 和逐步的 `image-preparation.json`；不会读取模型密钥或运行参考解／模型。工作流显式提供缓存路径，因此会使用 Docker 拉取、标记和 inspect 固定镜像。
 
 该预检会安装锁定依赖、访问构建依赖源并写入独占临时目录，不是完全只读的文件系统操作。账本或声明缺失时，工件检查可以通过，但 `model_dispatch_ready=false`，明确记录 blocker；模型 job 不会启动。
 

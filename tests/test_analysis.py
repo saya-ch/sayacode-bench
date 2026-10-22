@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import pytest
+from resource_samples import runtime_evidence
 
 from sayacode_bench.analysis import (
     analyze_experiment,
@@ -20,9 +21,20 @@ def manifest(*, phase="holdout", repeats=2):
         "baseline": "reference",
         "candidate": "revised",
         "repeats": repeats,
+        "benchmark": "swe-bench-pro-v2",
+        "runtime_evidence_required": True,
+        "qualified_runtime_identities": {key: runtime_evidence() for key in ("alpha", "beta")},
         "tasks": [
-            {"task_id": "alpha", "repository": "repo-a"},
-            {"task_id": "beta", "repository": "repo-b"},
+            {
+                "task_id": "alpha",
+                "repository": "repo-a",
+                "environment": {"cpus": 1, "memory_mb": 4096},
+            },
+            {
+                "task_id": "beta",
+                "repository": "repo-b",
+                "environment": {"cpus": 1, "memory_mb": 4096},
+            },
         ],
     }
 
@@ -42,6 +54,8 @@ def records():
             "input_tokens": 100,
             "output_tokens": 20,
             "usage_complete": True,
+            "runtime_identity": runtime_evidence(),
+            "replay_runtime_identity": runtime_evidence(),
         }
         for task in ("alpha", "beta")
         for label in ("reference", "revised")
@@ -317,3 +331,100 @@ def test_analysis_does_not_modify_manifest_or_records():
     original = deepcopy((plan, rows))
     analyze_experiment(plan, rows, bootstrap_samples=100)
     assert (plan, rows) == original
+
+
+def resource_experiment(phase="holdout"):
+    plan, rows = manifest(phase=phase), records()
+    if phase == "validation":
+        plan.update(configurations=["reference"], candidate=None)
+        rows = [row for row in rows if row["configuration"] == "reference"]
+    plan.update(
+        benchmark="swe-bench-pro-v2",
+        runtime_evidence_required=True,
+        qualified_runtime_identities={
+            task["task_id"]: runtime_evidence() for task in plan["tasks"]
+        },
+    )
+    for task in plan["tasks"]:
+        task["environment"] = {"cpus": 1, "memory_mb": 4096}
+    for row in rows:
+        row.update(
+            runtime_identity=runtime_evidence(),
+            replay_runtime_identity=runtime_evidence(),
+            runtime_comparison={"same_image": True, "same_platform": True, "same_resources": True},
+            original_reward=int(row["success"]),
+            replay_reward=int(row["success"]),
+        )
+    return plan, rows
+
+
+def test_required_resource_evidence_accepts_complete_source_pristine_and_qualification():
+    plan, rows = resource_experiment()
+    result = analyze_experiment(plan, rows, bootstrap_samples=100)
+    assert result["formal_comparison_eligible"] is True
+    assert result["comparison"]["bootstrap"] is not None
+
+
+@pytest.mark.parametrize("phase", ["holdout", "validation", "dev"])
+@pytest.mark.parametrize("side", ["runtime_identity", "replay_runtime_identity", "qualification"])
+def test_offline_resource_drift_blocks_formal_conclusions_without_rewriting_outcomes(phase, side):
+    plan, rows = resource_experiment(phase)
+    prior = deepcopy(rows)
+    target = (
+        plan["qualified_runtime_identities"][rows[-1]["task_id"]]
+        if side == "qualification"
+        else rows[-1][side]
+    )
+    target["docker_limits"]["MemorySwap"] = 4 * 1024**3
+    target["cgroup_v2"]["memory.swap.max"] = "0"
+    before = deepcopy(rows)
+    result = analyze_experiment(plan, rows, bootstrap_samples=100)
+    assert result["formal_comparison_eligible"] is False
+    assert result["formal_validation_eligible"] is False
+    assert result["final_result_eligible"] is False
+    assert any(issue.startswith("runtime_evidence:") for issue in result["validity_issues"])
+    assert rows == before
+    assert [(row["original_reward"], row["input_tokens"], row["success"]) for row in rows] == [
+        (row["original_reward"], row["input_tokens"], row["success"]) for row in prior
+    ]
+    if result["comparison"] is not None:
+        assert result["comparison"]["bootstrap"] is None
+    if phase == "dev":
+        assert select_development_candidate(plan, rows)["status"] == "incomplete"
+
+
+@pytest.mark.parametrize("missing", ["cgroup", "qualification", "pristine"])
+def test_required_missing_runtime_evidence_stays_ineligible_even_if_saved_flags_say_true(missing):
+    plan, rows = resource_experiment()
+    if missing == "qualification":
+        plan.pop("qualified_runtime_identities")
+    elif missing == "pristine":
+        rows[-1].pop("replay_runtime_identity")
+    else:
+        rows[-1]["runtime_identity"].pop("cgroup_v2")
+    result = analyze_experiment(plan, rows, bootstrap_samples=100)
+    assert result["formal_comparison_eligible"] is False
+    assert result["comparison"]["bootstrap"] is None
+
+
+@pytest.mark.parametrize("phase", ["dev", "holdout", "validation"])
+@pytest.mark.parametrize("policy", [None, False])
+def test_offline_formal_resource_policy_cannot_be_removed_or_disabled(phase, policy):
+    plan, rows = resource_experiment(phase)
+    if policy is None:
+        plan.pop("runtime_evidence_required")
+    else:
+        plan["runtime_evidence_required"] = policy
+    for row in rows:
+        row.pop("runtime_identity")
+        row.pop("replay_runtime_identity")
+    result = analyze_experiment(plan, rows, bootstrap_samples=100)
+    assert result["final_result_eligible"] is False
+    assert result["formal_comparison_eligible"] is False
+    assert result["formal_validation_eligible"] is False
+    assert "runtime_policy_required_for_formal_phase" in result["validity_issues"]
+    assert sum(group["recorded"] for group in result["groups"].values()) == len(rows)
+    if result["comparison"] is not None:
+        assert result["comparison"]["bootstrap"] is None
+    if phase == "dev":
+        assert select_development_candidate(plan, rows)["status"] == "incomplete"

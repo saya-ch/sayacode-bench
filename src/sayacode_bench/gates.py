@@ -7,13 +7,15 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import file_sha256
+from .resources import compare_runtimes, resource_status
 
 TASK_IDENTITIES = ("instruction_sha256", "config_sha256", "task_tree_sha256")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
-def _qualified_trials(row: dict[str, Any], task_id: str) -> None:
+def _qualified_trials(row: dict[str, Any], task: dict[str, Any]) -> None:
     """正式冻结重查固定三加一及独立原生证据，不能只信汇总 passed。"""
+    task_id = task["task_id"]
     oracle = row.get("oracle_trials")
     nop = row.get("nop")
     if (
@@ -57,12 +59,9 @@ def _qualified_trials(row: dict[str, Any], task_id: str) -> None:
             or not isinstance(runtime.get("docker_limits"), dict)
         ):
             raise ValueError("固定 oracle/nop 缺少原生镜像、平台或资源证据")
-        runtimes.append(
-            {
-                key: runtime[key]
-                for key in ("image_id", "architecture", "os", "requested", "docker_limits")
-            }
-        )
+        if resource_status(runtime, task.get("environment", {})) is not True:
+            raise ValueError("固定 oracle/nop 的任务资源、Docker 或 cgroup 限制未确认或资源不一致")
+        runtimes.append(runtime)
         request = trial.get("request_sha256")
         native = trial.get("raw_trial_result")
         observation = trial.get("runtime")
@@ -81,7 +80,15 @@ def _qualified_trials(row: dict[str, Any], task_id: str) -> None:
         native_results.add(native["sha256"])
     if len(requests) != 4 or len(native_results) != 4:
         raise ValueError("三次 oracle 和一次 nop 必须来自四次独立原生试验")
-    if any(runtime != runtimes[0] for runtime in runtimes[1:]):
+    if any(
+        any(
+            value is not True
+            for value in compare_runtimes(
+                runtime, runtimes[0], task.get("environment", {})
+            ).values()
+        )
+        for runtime in runtimes[1:]
+    ):
         raise ValueError("固定 oracle/nop 的实际镜像、平台或资源不一致")
 
 
@@ -104,7 +111,7 @@ def validate_preflight(
             row.get(key) != task.get(key) for key in TASK_IDENTITIES
         ):
             raise ValueError("任务身份或参考解/空解门禁未确认")
-        _qualified_trials(row, task["task_id"])
+        _qualified_trials(row, task)
     network_file = Path(__file__).with_name("network.py")
     if (
         probe.get("passed") is not True
