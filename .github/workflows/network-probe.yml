@@ -12,9 +12,11 @@ jobs:
     timeout-minutes: 10
     env:
       SAYACODE_BENCH_DOCKER_TESTS: '1'
-      SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/network-probe.json
     steps:
       - uses: actions/checkout@v4
+      - name: 设置本次探针证据路径
+        shell: bash
+        run: echo "SAYACODE_BENCH_PROBE_OUTPUT=$RUNNER_TEMP/network-probe.json" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.12.5'
