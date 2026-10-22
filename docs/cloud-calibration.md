@@ -8,7 +8,7 @@
 - 主任务已建立私有执行仓库 `saya-ch/sayacode-bench-runs`，原始 requirements 已单独保留。
 - 新模板尚未触发；没有通过本工作流调用模型或上传模型密钥。
 - 精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 已完成 Windows 实际无密钥预检，源码重建 wheel 与原始基线逐字节一致；本地 565 通过、3 项平台跳过，四环境 CI 通过。这不是云端 Linux 模型运行证据，最小记录见 [准备工件](../reports/cloud-calibration-preparation-20261022-v1.json)。
-- GitHub 当前登录凭据不能确认账户私有 Actions 余额；不能据免费计划说明推断本账户尚有免费分钟。
+- GitHub API 凭据不能读取账户私有 Actions 余量；准备记录保留当时的未知状态。随后已通过本机登录页面只读核查实际额度与现有支出控制，账户财务详情仅留仓库外，未修改设置。工作流使用方式仍待用户确认，不能将免费计划说明当作实际余量。
 - 既有远端探针包含未保存的用量，历史预算范围尚未确认。因此当前必须保持模型派发阻断；无需密钥的工件预检仍可独立完成。
 
 相关协议见 [研究协议](protocol.md)、[Linux 执行说明](linux-execution.md) 和 [生产基线重建](../reproduction/README.md)。
@@ -118,7 +118,7 @@ artifacts/
 
 ## GitHub 费用与后续研究
 
-私有标准 Linux runner 规格和免费分钟受计划及实际剩余额度约束。新用户用量 API 为 `GET /users/{username}/settings/billing/usage`，汇总 API `/usage/summary` 仍为 public preview，需要用户级 `Plan: read`。普通 workflow 的 `GITHUB_TOKEN` 不提供该权限；当前查询失败不能解释为免费余额充足。计费读取凭据无需交给模型 runner。
+私有标准 Linux runner 规格和免费分钟受计划及实际剩余额度约束。新用户用量 API 为 `GET /users/{username}/settings/billing/usage`，汇总 API `/usage/summary` 仍为 public preview，需要用户级 `Plan: read`。普通 workflow 的 `GITHUB_TOKEN` 不提供该权限；初次 API 查询失败不能解释为免费余额充足，后来本机界面核查单独留证。计费读取凭据无需交给模型 runner。
 
 参考：[GitHub runner 规格](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)、[Actions 限制](https://docs.github.com/en/actions/reference/limits)、[Billing usage API](https://docs.github.com/en/rest/billing/usage?apiVersion=2026-03-10)。
 

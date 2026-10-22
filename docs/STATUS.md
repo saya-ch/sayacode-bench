@@ -47,7 +47,7 @@ Docker Engine 曾在安装 smoke 中连续返回 HTTP 500，旧中断现场保�
 
 在该精确提交上，用真实私有仓库 metadata、原始依赖文件和同字节工作流，已实际执行 Windows 无密钥预检：从生产源码归档重建的 wheel 与原始基线逐字节相同，requirements SHA 一致。工件预检通过，`model_dispatch_ready=false`，原因为历史费用账本和预算范围待核实。此次没有 Docker、模型请求或私有 Actions 派发，未上传 Secret；不能将本地重建等同于云端 Linux 运行通过。最小证明见 [校准准备记录](../reports/cloud-calibration-preparation-20261022-v1.json)。
 
-下一步已有可审阅的两题生产校准入口，详见 [云端校准说明](cloud-calibration.md)。密钥交由 GitHub 托管、早期未知费用的预算范围、私有 Actions 可用额度及费用均待用户确认；没有替用户生成放行声明。正式模型研究和完整分片仍未执行。
+下一步已有可审阅的两题生产校准入口，详见 [云端校准说明](cloud-calibration.md)。后续已通过本机登录页面只读核查私有 Actions 额度及现有支出控制，未修改设置，财务详情不公开。密钥交由 GitHub 托管、早期未知费用的预算范围及工作流使用方式仍待用户确认；没有替用户生成放行声明。正式模型研究和完整分片仍未执行。
 
 Windows 上曾因缓存路径过长导致 `CreateProcess` 工作目录无效；该未调用模型的门禁记录保留。实际运行改用独立短路径 `C:\sb\s`（源缓存）、`C:\sb\r`（结果），没有改写官方任务内容。
 
