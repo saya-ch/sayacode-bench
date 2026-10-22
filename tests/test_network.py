@@ -208,7 +208,7 @@ async def test_phase_network_switch_is_fail_closed(
     assert not attached
     await environment.set_network_policy(NetworkPolicy(network_mode=NetworkMode.PUBLIC))
     assert set(attached) == {"original"}
-    record = json.loads((tmp_path / "trial" / "network-isolation.json").read_text())
+    record = json.loads((tmp_path / "trial" / "network-isolation.json").read_text(encoding="utf-8"))
     assert [item["mode"] for item in record["history"]] == ["allowlist", "no-network", "public"]
     assert record["official_modal_equivalence_claimed"] is False
 
@@ -373,7 +373,7 @@ async def test_real_docker_network_isolation(tmp_path: Path) -> None:
 
     try:
         await environment.start(force_build=False)
-        runtime = json.loads((paths.trial_dir / "runtime.json").read_text())
+        runtime = json.loads((paths.trial_dir / "runtime.json").read_text(encoding="utf-8"))
         assert runtime["available"] is True
         assert runtime["image_id"].startswith("sha256:")
         assert runtime["docker_limits"]["NanoCpus"] == 1000000000

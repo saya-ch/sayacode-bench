@@ -276,7 +276,7 @@ async def test_cancelled_job_retains_incomplete_record(task, tmp_path, monkeypat
     install_fake_job(monkeypatch, error=asyncio.CancelledError())
     with pytest.raises(asyncio.CancelledError):
         await execution.run_official_trial(task, tmp_path / "jobs", "one", {"name": "oracle"})
-    result = json.loads((tmp_path / "jobs" / "one" / "normalized.json").read_text())
+    result = json.loads((tmp_path / "jobs" / "one" / "normalized.json").read_text(encoding="utf-8"))
     assert result["record_complete"] is False
     assert result["success"] is None
 
@@ -442,7 +442,7 @@ async def test_runtime_drift_prevents_verification_even_when_official_reward_pas
     original_runtime = source / "instance_demo__only" / "runtime.json"
     base = {"available": True, "image_id": "sha256:fixed", "architecture": "amd64", "os": "linux"}
     write(original_runtime, base)
-    source_record = json.loads((source / "normalized.json").read_text())
+    source_record = json.loads((source / "normalized.json").read_text(encoding="utf-8"))
     source_record["runtime"] = execution._file_identity(original_runtime)
     write(source / "normalized.json", source_record)
     replay_runtime = tmp_path / "regrade" / "fresh" / "instance_demo__new" / "runtime.json"
@@ -583,7 +583,7 @@ async def test_missing_native_trial_retains_runtime_failure_without_guessing_gra
     task, tmp_path, replay_source, status
 ):
     source, _ = replay_source
-    record = json.loads((source / "normalized.json").read_text())
+    record = json.loads((source / "normalized.json").read_text(encoding="utf-8"))
     record.update(status=status, success=False)
     write(source / "normalized.json", record)
     (source / "instance_demo__only" / "result.json").unlink()

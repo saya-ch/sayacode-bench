@@ -40,12 +40,13 @@ def make_agent(tmp_path: Path, **extra: Any) -> SayacodeAgent:
                 "model_id": "model",
                 "base_url": "http://private",
             }
-        )
+        ),
+        encoding="utf-8",
     )
     variant = tmp_path / "variant.json"
-    variant.write_text(json.dumps({"id": "baseline", "team_enabled": True}))
+    variant.write_text(json.dumps({"id": "baseline", "team_enabled": True}), encoding="utf-8")
     requirements = tmp_path / "requirements.txt"
-    requirements.write_text("example==1 --hash=sha256:abc\n")
+    requirements.write_text("example==1 --hash=sha256:abc\n", encoding="utf-8")
     return SayacodeAgent(
         logs_dir=tmp_path / "logs",
         product_wheel=str(wheel),
@@ -183,7 +184,7 @@ def test_recovered_error_is_not_terminal_and_text_does_not_define_status(tmp_pat
             "details": {"error": "429 rate limit api_key=private"},
         },
     ]
-    path.write_text("\n".join(json.dumps(item) for item in rows))
+    path.write_text("\n".join(json.dumps(item) for item in rows), encoding="utf-8")
     metrics = audit_metrics(path)
     assert metrics["terminal_http_statuses"] == []
     assert "private" not in json.dumps(metrics)
@@ -218,7 +219,8 @@ def test_context_never_presents_partial_usage_as_complete(tmp_path: Path) -> Non
     logs = agent.logs_dir / "sayacode"
     logs.mkdir(parents=True)
     (logs / "audit.jsonl").write_text(
-        json.dumps({"event": "model.started", "run_id": "unknown", "thread_id": "child"})
+        json.dumps({"event": "model.started", "run_id": "unknown", "thread_id": "child"}),
+        encoding="utf-8",
     )
     context = AgentContext()
     agent.populate_context_post_run(context)
@@ -229,8 +231,8 @@ def test_context_never_presents_partial_usage_as_complete(tmp_path: Path) -> Non
 
 def test_stale_pid_file_cannot_kill_reused_process(tmp_path: Path, monkeypatch: Any) -> None:
     path = tmp_path / "pid.json"
-    path.write_text(json.dumps({"pid": 12345, "starttime": "old"}))
-    (tmp_path / "result.json").write_text('{"status":"completed"}')
+    path.write_text(json.dumps({"pid": 12345, "starttime": "old"}), encoding="utf-8")
+    (tmp_path / "result.json").write_text('{"status":"completed"}', encoding="utf-8")
     monkeypatch.setattr("sayacode_bench.worker.process_identity", lambda pid: "different")
     monkeypatch.setattr("os.kill", lambda *args: pytest.fail("不应发送信号"))
     assert stop_worker(path) == 0
@@ -241,7 +243,7 @@ def test_missing_worker_without_result_is_not_confirmed_stopped(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     path = tmp_path / "pid.json"
-    path.write_text(json.dumps({"pid": 12345, "starttime": "old"}))
+    path.write_text(json.dumps({"pid": 12345, "starttime": "old"}), encoding="utf-8")
     monkeypatch.setattr("sayacode_bench.worker.process_identity", lambda pid: None)
     with pytest.raises(RuntimeError, match="停止状态未知"):
         stop_worker(path)
@@ -304,15 +306,15 @@ def test_patch_includes_new_binary_and_committed_changes_without_changing_index(
     git_command(repo, "config", "user.name", "Evaluation")
     git_command(repo, "config", "user.email", "evaluation@example.invalid")
     git_command(repo, "config", "core.autocrlf", "false")
-    (repo / "existing.txt").write_text("before\n")
+    (repo / "existing.txt").write_text("before\n", encoding="utf-8")
     git_command(repo, "add", ".")
     git_command(repo, "commit", "-qm", "initial")
     baseline = tmp_path / "base.json"
     original = git_baseline(repo, baseline)
-    (repo / "existing.txt").write_text("committed edit\n")
+    (repo / "existing.txt").write_text("committed edit\n", encoding="utf-8")
     git_command(repo, "add", ".")
     git_command(repo, "commit", "-qm", "agent commits")
-    (repo / "existing.txt").write_text("staged edit\n")
+    (repo / "existing.txt").write_text("staged edit\n", encoding="utf-8")
     git_command(repo, "add", ".")
     (repo / "added.bin").write_bytes(bytes(range(256)))
     before_index = (repo / ".git" / "index").read_bytes()
@@ -328,7 +330,7 @@ def test_patch_includes_new_binary_and_committed_changes_without_changing_index(
     git_command(repo, "worktree", "add", "--detach", str(target), result["base_commit"])
     git_command(target, "apply", str(patch))
     assert (target / "added.bin").read_bytes() == bytes(range(256))
-    assert (target / "existing.txt").read_text() == "staged edit\n"
+    assert (target / "existing.txt").read_text(encoding="utf-8") == "staged edit\n"
 
 
 def test_non_git_terminal_task_does_not_fabricate_patch(tmp_path: Path) -> None:
@@ -349,13 +351,13 @@ def test_checkpoint_export_does_not_overwrite_live_audit_or_export_credentials(
     state, logs = tmp_path / "private", tmp_path / "logs"
     state.mkdir()
     logs.mkdir()
-    (state / "audit.jsonl").write_text("stale-partial-audit")
-    (state / "store.sqlite3").write_text("private-key-in-task-snapshot")
-    (state / "config.json").write_text("private-key-in-config")
+    (state / "audit.jsonl").write_text("stale-partial-audit", encoding="utf-8")
+    (state / "store.sqlite3").write_text("private-key-in-task-snapshot", encoding="utf-8")
+    (state / "config.json").write_text("private-key-in-config", encoding="utf-8")
     (state / "checkpoints.sqlite3").write_bytes(b"native-checkpoint")
-    (logs / "audit.jsonl").write_text("complete-main-and-child-audit")
+    (logs / "audit.jsonl").write_text("complete-main-and-child-audit", encoding="utf-8")
     export_checkpoints(state, logs)
-    assert (logs / "audit.jsonl").read_text() == "complete-main-and-child-audit"
+    assert (logs / "audit.jsonl").read_text(encoding="utf-8") == "complete-main-and-child-audit"
     assert (logs / "checkpoints.sqlite3").read_bytes() == b"native-checkpoint"
     assert not (logs / "store.sqlite3").exists()
     assert not (logs / "config.json").exists()
@@ -425,7 +427,9 @@ async def test_runtime_record_captures_effective_limits_and_never_config_env(
 
     monkeypatch.setattr(network, "docker", inspect)
     await network.IsolatedDockerEnvironment._save_runtime_record(environment, state)
-    record = json.loads((environment.trial_paths.trial_dir / "runtime.json").read_text())
+    record = json.loads(
+        (environment.trial_paths.trial_dir / "runtime.json").read_text(encoding="utf-8")
+    )
     assert record["available"] is True
     assert record["docker_limits"]["Memory"] == 4294967296
     assert record["docker_limits"]["MemorySwap"] == 8589934592
@@ -448,5 +452,7 @@ async def test_failed_runtime_inspection_is_unknown_not_an_enforced_resource_cla
 
     monkeypatch.setattr(network, "docker", unavailable)
     await network.IsolatedDockerEnvironment._save_runtime_record(environment, {"Image": "x"})
-    record = json.loads((environment.trial_paths.trial_dir / "runtime.json").read_text())
+    record = json.loads(
+        (environment.trial_paths.trial_dir / "runtime.json").read_text(encoding="utf-8")
+    )
     assert record == {"schema_version": 1, "available": False, "error_type": "RuntimeError"}

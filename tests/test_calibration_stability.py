@@ -78,7 +78,7 @@ async def test_exactly_three_patch_and_oracle_attempts_even_after_failure(
     assert result["recorded"] == result["planned"] == 6
     assert result["groups"]["patch"]["observed_score_variation"] is True
     assert result["groups"]["oracle"]["unconfirmed"] == 1
-    assert "do-not-echo-secret" not in (output / "records.json").read_text()
+    assert "do-not-echo-secret" not in (output / "records.json").read_text(encoding="utf-8")
     assert read_json(output / "oracle-1.json")["error_type"] == "RuntimeError"
     assert result["original_scores_unchanged"] is True
 

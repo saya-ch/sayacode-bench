@@ -121,7 +121,7 @@ async def test_failed_fixture_finishes_fixed_trials_then_replaces_entire_group(
     assert any(row["reason"] == "fixture_qualification_failed" for row in selected["exclusions"])
     assert len(list((output / "selections").glob("selection-*.json"))) == 2
     assert result["qualification"]["checked_candidates"] == 3
-    assert "private-error-body" not in (output / "sanity.json").read_text()
+    assert "private-error-body" not in (output / "sanity.json").read_text(encoding="utf-8")
 
 
 async def test_budget_exhaustion_is_incomplete_without_silent_sample_reduction(

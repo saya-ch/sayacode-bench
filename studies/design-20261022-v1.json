@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "status": "design_frozen_before_formal_model_trials",
+  "frozen_date": "2026-10-22",
+  "canonical_model": "DeepSeek-V4.1-Flash",
+  "primary": {
+    "benchmark": "swe-bench-pro-v2",
+    "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+    "initial_selection_sha256": "39e62eb0c5aa51595cf1455f2a51c1579b57e3a61e35b3d4a8078a3b84a207c9",
+    "target_dev_tasks": 8,
+    "target_final_tasks": 24,
+    "configurations_dev": [
+      "baseline",
+      "diagnostic",
+      "focused"
+    ],
+    "repeats_dev": 2,
+    "repeats_final": 2,
+    "trial_count_dev": 48,
+    "trial_count_final_if_candidate": 96,
+    "trial_count_final_if_baseline": 48,
+    "concurrency": 1,
+    "connection_order": [
+      "local"
+    ],
+    "reported_token_threshold_per_phase": 1000000000,
+    "official_agent_timeout_seconds": 3000,
+    "official_verifier_timeout_seconds": 3000
+  },
+  "secondary": {
+    "benchmark": "terminal-bench-2.1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "target_final_tasks": 12,
+    "repeats": 1,
+    "trial_count_if_candidate": 24,
+    "trial_count_if_baseline": 12,
+    "candidate": "same selected configuration as primary; no secondary retuning",
+    "categories": [
+      "software-engineering",
+      "debugging",
+      "system-administration",
+      "file-operations",
+      "data-processing",
+      "security"
+    ],
+    "max_official_agent_timeout_seconds": 1800
+  },
+  "calibration": {
+    "completed_model_trials": 2,
+    "native_model_callbacks": 159,
+    "both_reported_usage_complete": true,
+    "connection_failures_observed": 0,
+    "final_success_claim": null,
+    "interpretation": "资源校准而非效果样本；其中一个fixture参考解不稳定。"
+  },
+  "conditions": [
+    "最终task IDs由固定3oracle+1nop资格流程决定，资格不足则incomplete不缩小N。",
+    "每任务和repeat内配置次序按冻结seed随机；主指标是独立重判后任务均值差。",
+    "不设产品工具或模型轮次上限；保留官方任务墙钟预算。",
+    "本机连接优先固定；付费连接预算尚未获得具体答复，不安排无界付费正式批次。",
+    "服务故障停止并保留原始数据；整块复验使用新身份，不覆盖失败侧。",
+    "95%主区间按任务块bootstrap，仓库簇敏感性单列，不能挑最有利区间。",
+    "没有候选胜出则保留baseline并进行独立validation，不造自身对照。"
+  ],
+  "hypotheses_sha256": "a9dbe1e5fae212719fc6972753be9c676de8140e770bff43d056c47359561645",
+  "variants": {
+    "baseline": "e652567ce5a4011a3280c134befdf6e9b845b2af594ee19a55ebcdbe7c8ed572",
+    "diagnostic": "eda37ae5c56ebce5a40e7046ec8f48ac46d726096334a016b43f8cf9e106e0c0",
+    "focused": "c168fde911473cb2c49c6178ea3d6516fdbd0a6bfe5659d06b6c19f3bbe3afc0"
+  },
+  "remaining_freeze": [
+    "最终环境资格selection/sanity以及实际image身份",
+    "开发manifest/执行实现和分析scriptSHA",
+    "开发完成后的唯一candidate签收及最终manifest"
+  ]
+}
