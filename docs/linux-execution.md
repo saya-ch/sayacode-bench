@@ -14,7 +14,7 @@
 | 无模型 oracle／nop upstream | 已统一为明确的 `http://127.0.0.1:9/v1/messages` sink，不依赖 Windows 宿主别名，不访问真实模型 |
 | Linux 校准工件复核 | 运行 `39740758231`：qutebrowser 已捕获补丁三次通过，Ansible 补丁三次失败、gold 三次通过、nop 失败；全部无模型，不是新增 Agent 尝试 |
 | 本机独立 Ubuntu WSL2 候选 | 独立 Engine／ext4 与网络探针核实；已完成 WSL 3.0.3 升级后固定八次，参考解仍未达到就绪门槛，本轮本地平台配置试验结束，见 [WSL 记录](wsl-diagnostic.md) |
-| 托管 Linux 的下一步 | 正在准备私有执行仓库与固定两题真实 Agent 校准；密钥托管、历史费用覆盖及 Actions 额度尚未确认，未执行，见 [云端校准](cloud-calibration.md) |
+| 托管 Linux 的下一步 | 私有执行仓库、固定两题入口及本地精确重建已准备并验证；密钥托管、历史费用覆盖及 Actions 额度尚未确认，未执行云端模型，见 [云端校准](cloud-calibration.md) |
 | 用户提供的正式 Linux 主机 | 尚待确定；本文没有连接任何已有 SSH 主机、上传凭据或创建付费资源 |
 | 完整正式模型比较 | 尚未执行；校准、参考解和网络探针不是最终研究成绩 |
 

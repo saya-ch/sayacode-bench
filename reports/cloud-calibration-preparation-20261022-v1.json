@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "phase": "private_cloud_calibration_preparation",
+  "date": "2026-10-22",
+  "source_commit": "fa9d9894ad7fe0ae690145b887c8a657b76432a1",
+  "script_sha256": "f49543c7f44680d5d1d5cb760a485b0886158d4a9ebbd8face42245c936ba2f8",
+  "workflow_sha256": "12c8fa75d25d192bf25969246994d6c00b02208c68b15d32f45dcc85e13c4b8b",
+  "execution_repository": "saya-ch/sayacode-bench-runs",
+  "execution_repository_visibility_confirmed": "private",
+  "local_host_system": "Windows",
+  "local_host_python": "3.13.12",
+  "local_no_secret_preflight_passed": true,
+  "rebuilt_wheel_sha256": "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe",
+  "original_requirements_sha256": "9eab06fb395d7b9bb84e14bfea83b79b4ab66d904c941c3b1606d39ed9712073",
+  "fixed_fixtures": [
+    "qutebrowser",
+    "ansible"
+  ],
+  "model_requests": 0,
+  "paid_model_cost_cny": 0,
+  "docker_test_performed_in_this_preflight": false,
+  "private_actions_dispatched": false,
+  "model_secret_uploaded": false,
+  "cloud_linux_execution_verified": false,
+  "model_dispatch_ready": false,
+  "ledger_blocker": "missing_prior_paid_records",
+  "known_paid_probe_budget_scope": "unconfirmed",
+  "github_private_actions_allowance": "unknown_current_token_lacks_required_scope",
+  "global_limit_cny": 100,
+  "cloud_dispatch_limit_cny": 15,
+  "provider_enforced_currency_cap": false,
+  "local_tests": {
+    "passed": 565,
+    "skipped": 3,
+    "ruff_passed": true,
+    "format_passed": true,
+    "mypy_source_files": 17,
+    "actionlint_version": "1.7.12",
+    "actionlint_passed": true
+  },
+  "private_preflight_artifact_sha256": "673a8d785400d5508121e5a8b3ad15b7efcf1758003ad5c180df01696c0cb37e",
+  "interpretation": "精确提交在Windows完成实际无密钥源码重建，wheel与原件逐字节相同；这不是云端Linux运行或正式模型评测。"
+}

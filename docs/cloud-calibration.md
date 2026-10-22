@@ -7,6 +7,7 @@
 - 公开仓库提供 `scripts/calibrate_cloud.py`、离线测试及工作流模板。
 - 主任务已建立私有执行仓库 `saya-ch/sayacode-bench-runs`，原始 requirements 已单独保留。
 - 新模板尚未触发；没有通过本工作流调用模型或上传模型密钥。
+- 精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 已完成 Windows 实际无密钥预检，源码重建 wheel 与原始基线逐字节一致；本地 565 通过、3 项平台跳过，四环境 CI 通过。这不是云端 Linux 模型运行证据，最小记录见 [准备工件](../reports/cloud-calibration-preparation-20261022-v1.json)。
 - GitHub 当前登录凭据不能确认账户私有 Actions 余额；不能据免费计划说明推断本账户尚有免费分钟。
 - 既有远端探针包含未保存的用量，历史预算范围尚未确认。因此当前必须保持模型派发阻断；无需密钥的工件预检仍可独立完成。
 

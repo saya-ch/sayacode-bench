@@ -41,6 +41,14 @@ Docker Engine 曾在安装 smoke 中连续返回 HTTP 500，旧中断现场保�
 
 诊断结束后已停止专用 Docker／socket／containerd，终止专用发行版及保活会话。恢复原 Docker Desktop 时遇到其运行目录遗留 socket 无法重命名的启动错误，尚未恢复；自动审批检查拒绝了删除失效 socket 的动作，未改用其他方式绕过，也未重置 Docker 数据、镜像或卷。具体系统日志仅在仓库外保留。这一收尾问题与本轮已封存的八项原生结果分开报告。
 
+## 私有云端校准的准备验证
+
+已建立 `saya-ch/sayacode-bench-runs` 私有仓库，保存原始 requirements、已知早期付费探针的最小事实和工作流；公开仓库保留全部执行代码及测试。精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 的本地检查为 **565 通过、3 项平台跳过**，Ruff、格式、MyPy 和 actionlint 通过，[四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39785392695)。
+
+在该精确提交上，用真实私有仓库 metadata、原始依赖文件和同字节工作流，已实际执行 Windows 无密钥预检：从生产源码归档重建的 wheel 与原始基线逐字节相同，requirements SHA 一致。工件预检通过，`model_dispatch_ready=false`，原因为历史费用账本和预算范围待核实。此次没有 Docker、模型请求或私有 Actions 派发，未上传 Secret；不能将本地重建等同于云端 Linux 运行通过。最小证明见 [校准准备记录](../reports/cloud-calibration-preparation-20261022-v1.json)。
+
+下一步已有可审阅的两题生产校准入口，详见 [云端校准说明](cloud-calibration.md)。密钥交由 GitHub 托管、早期未知费用的预算范围、私有 Actions 可用额度及费用均待用户确认；没有替用户生成放行声明。正式模型研究和完整分片仍未执行。
+
 Windows 上曾因缓存路径过长导致 `CreateProcess` 工作目录无效；该未调用模型的门禁记录保留。实际运行改用独立短路径 `C:\sb\s`（源缓存）、`C:\sb\r`（结果），没有改写官方任务内容。
 
 当前没有公开基准成绩或调优收益，不将本地 mock 或单元测试替代这些工作。WSL2 内核缺少 Harbor 原生 allowlist 所需配置，独立网络实现需要真实探针通过才允许正式研究；它属于明确记录的本地协议实现，不冒充官方 Modal 排行榜环境。
