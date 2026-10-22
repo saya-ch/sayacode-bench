@@ -231,6 +231,81 @@ async def test_completed_record_is_reused_without_rerunning(task, tmp_path, monk
     assert mock.await_count == 1
 
 
+@pytest.mark.parametrize("native_model", [False, True])
+async def test_optional_official_verifier_env_reaches_job_without_mutating_input(
+    task, tmp_path, monkeypatch, native_model
+):
+    from harbor.models.trial.config import VerifierConfig
+
+    captured, _ = install_fake_job(monkeypatch)
+    settings = {"env": {"PYTEST_ADDOPTS": "--hypothesis-seed=123", "PYTHONHASHSEED": "0"}}
+    value = VerifierConfig.model_validate(settings) if native_model else settings
+    await execution.run_official_trial(
+        task, tmp_path / "jobs", "fixed", {"name": "oracle"}, verifier_config=value
+    )
+    assert captured[0].verifier.env == settings["env"]
+    assert captured[0].agents[0].env == {}
+    captured[0].verifier.env["PYTEST_ADDOPTS"] = "changed-in-copy"
+    assert (value.env if native_model else value["env"])[
+        "PYTEST_ADDOPTS"
+    ] == "--hypothesis-seed=123"
+
+
+async def test_changed_verifier_seed_cannot_reuse_a_previous_trial(task, tmp_path, monkeypatch):
+    _, calls = install_fake_job(monkeypatch)
+    await execution.run_official_trial(
+        task,
+        tmp_path / "jobs",
+        "fixed",
+        {"name": "oracle"},
+        verifier_config={"env": {"PYTEST_ADDOPTS": "--hypothesis-seed=123"}},
+    )
+    with pytest.raises(ValueError, match="身份变化"):
+        await execution.run_official_trial(
+            task,
+            tmp_path / "jobs",
+            "fixed",
+            {"name": "oracle"},
+            verifier_config={"env": {"PYTEST_ADDOPTS": "--hypothesis-seed=124"}},
+        )
+    assert calls.await_count == 1
+
+
+async def test_official_verifier_passes_override_only_to_its_native_exec(tmp_path, monkeypatch):
+    from harbor.verifier.verifier import Verifier
+
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    script = tests / "test.sh"
+    script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    logs = tmp_path / "verifier"
+    logs.mkdir()
+    reward = logs / "reward.txt"
+    reward.write_text("1", encoding="utf-8")
+    task_env = {"PYTEST_ADDOPTS": "--old-flag", "EXISTING": "kept"}
+    injected = {"PYTEST_ADDOPTS": "--old-flag --hypothesis-seed=123", "PYTHONHASHSEED": "0"}
+    environment = SimpleNamespace(
+        os="linux", capabilities=SimpleNamespace(mounted=True), exec=AsyncMock()
+    )
+    verifier = Verifier(
+        task=SimpleNamespace(config=SimpleNamespace(verifier=SimpleNamespace(env=task_env))),
+        trial_paths=SimpleNamespace(
+            verifier_dir=logs,
+            test_stdout_path=logs / "test-stdout.txt",
+            reward_text_path=reward,
+            reward_json_path=logs / "reward.json",
+        ),
+        environment=environment,
+        override_env=injected,
+        skip_tests_upload=True,
+    )
+    monkeypatch.setattr(verifier, "_resolve_tests", lambda: ([tests], tests, script))
+    result = await verifier.verify()
+    assert result.rewards == {"reward": 1}
+    assert environment.exec.await_args.kwargs["env"] == {**task_env, **injected}
+    assert task_env["PYTEST_ADDOPTS"] == "--old-flag"
+
+
 async def test_unrelated_loaded_replay_module_does_not_change_original_job_identity(
     task, tmp_path, monkeypatch
 ):

@@ -16,7 +16,7 @@ from typing import Any
 
 from harbor.job import Job
 from harbor.models.job.config import JobConfig, RetryConfig
-from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig
+from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
 from harbor.models.trial.result import TrialResult
 
 CANONICAL_MODEL = "DeepSeek-V4.1-Flash"
@@ -277,6 +277,12 @@ def _environment(value: EnvironmentConfig | Mapping[str, Any] | None) -> Environ
     )
 
 
+def _verifier(value: VerifierConfig | Mapping[str, Any] | None) -> VerifierConfig:
+    if isinstance(value, VerifierConfig):
+        return value.model_copy(deep=True)
+    return VerifierConfig.model_validate(dict(value) if value is not None else {})
+
+
 def _request_identity(task_path: Path, config: JobConfig, metadata: Mapping[str, Any]) -> str:
     inputs: dict[str, Any] = {}
     for agent in config.agents:
@@ -327,6 +333,7 @@ async def run_official_trial(
     canonical_model: str = CANONICAL_MODEL,
     endpoint: str = "local",
     require_replay: bool = False,
+    verifier_config: VerifierConfig | Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """一个任务、一个配置、一次尝试；Harbor 负责环境、执行和验证。"""
     if not _NAME.fullmatch(job_name) or job_name in {".", ".."}:
@@ -345,6 +352,7 @@ async def run_official_trial(
         tasks=[TaskConfig(path=task_path)],
         agents=[_config(agent_config)],
         environment=_environment(environment_config),
+        verifier=_verifier(verifier_config),
         n_concurrent_trials=1,
         n_attempts=1,
         retry=RetryConfig(max_retries=0),
