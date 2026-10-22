@@ -1,0 +1,43 @@
+{
+  "source": "原运行开始时归档的公开 profile 元数据；不是事后读取当前私有配置。",
+  "run_identity_sha256": "7b1790707e14f4dcafb4a5503c21cb1a1c31795b97c1930fbf15dc4356a9c11a",
+  "profiles": {
+    "local": {
+      "protocol": "anthropic_messages",
+      "model_id": "deepseek/deepseek-v4.1-flash",
+      "context_length": 65536,
+      "max_output_tokens": 8192,
+      "summary_trigger_ratio": 0.8,
+      "summary_keep_messages": 12,
+      "context_edit_trigger": null,
+      "model_retries": 1,
+      "tool_retries": 2,
+      "file_search": true,
+      "tool_selector_max_tools": null
+    }
+  },
+  "artifacts": {
+    "wheel_sha256": "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe",
+    "requirements_sha256": "9eab06fb395d7b9bb84e14bfea83b79b4ab66d904c941c3b1606d39ed9712073"
+  },
+  "implementation": {
+    "__init__.py": "d1eb340030767aa1ef1e4c973153fe0bd89e4ea07719367ce93589f985218ce7",
+    "adapter.py": "e71cc8573a6b342c75cb524631d23300636e359dd7660011ff8995aed51d06eb",
+    "analysis.py": "3dd40c99b571ebb4418cfca4f26ed5f9482236a03515725e8925159fbb8eea54",
+    "artifacts.py": "0485aff310a11719a5d22b3fb7ba496f91a8794ac32a385de1825f15554edc50",
+    "budget.py": "654a208a43076a4d98f161d80bbcc24bddc6d21c5260f275c684becbc0a8bde0",
+    "cli.py": "148e7602de67b6e53bb798c038b49d831378d0512170bbbcce55c9e15f489e2a",
+    "connections.py": "28409f55cef904b2677f477901b7961636c77330279ffa65c8fbd14931e6bd82",
+    "execution.py": "9a25faf3c81f8852de2fc4e648deba7b34a699576984ffeb3932849d74ba6485",
+    "gates.py": "0b5d980dc0adba74b9a327e7fa5b187082ed808f6fd26d57c7c03ea1142ccca0",
+    "locking.py": "8eb8f2b35c443ebe40370b261a9f57911dfa6c1642916dabef222df1de58aa47",
+    "network.py": "85bdc83897c067ff78399e6a38d2baf93f47cf75280cf3895371238e341120df",
+    "selection.py": "6c471f41c8a3d91547ebe142017c3dab7a9f4b246aa80028482ba1c713839e5f",
+    "sources.py": "5a971a6922f7ac4f1227907275b1907bb265dbbb629e2439d9dbcd3029688306",
+    "study.py": "72d0472b3134db80578ff5e181b9958b3d63a130cce290d1e8250900efd0d860",
+    "worker.py": "4a39b26cf31d799f1615fdc6eb94a33e734578081414ec0f3505ac0dd03450d1",
+    "pyproject.toml": "e67c44a429fda82b6c7bb7863bed61f5f8a92793154cd9e5925f354858947b64",
+    "uv.lock": "cff2a63be4366dd037a0b7f8649da0124c427acedf0ec183260aeb605a3f73b9"
+  },
+  "scope": "对首批缺少profile字段的公开清单补充来源；不修改原始冻结清单和原判分。"
+}

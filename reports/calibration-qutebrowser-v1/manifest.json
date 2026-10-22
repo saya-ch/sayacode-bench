@@ -1,0 +1,54 @@
+{
+  "phase": "calibration",
+  "frozen": true,
+  "canonical_model": "DeepSeek-V4.1-Flash",
+  "benchmark": "swe-bench-pro-v2",
+  "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+  "seed": "sayacode-20261022-calibration-v1",
+  "configurations": [
+    "baseline"
+  ],
+  "baseline": "baseline",
+  "candidate": null,
+  "repeats": 1,
+  "connections": [
+    "local"
+  ],
+  "reported_token_limit": 2000000,
+  "validity_issues": [
+    "experiment_aborted"
+  ],
+  "tasks": [
+    {
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "benchmark": "swe-bench-pro-v2",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "repository": "ansible/ansible",
+      "language": "python",
+      "category": "debugging",
+      "difficulty": "medium",
+      "leakage_group": "ansible/ansible:de5858f48dc9e1ce9117034e0d7e76806f420ca8",
+      "instruction_sha256": "29c2d716704de616f08a8631814ff5869fa778d284a61420481e209375c1b016",
+      "config_sha256": "e5d213a440a621fd48af37dfb15a6a11b03ce7e4b174a1aabf4e93e299a813bd",
+      "task_tree_sha256": "14d1c91db6f61f4419e1e9f83299ce4e76ccc5d73927ba830c4b90f2c19a2a0c"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "benchmark": "swe-bench-pro-v2",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "repository": "qutebrowser/qutebrowser",
+      "language": "python",
+      "category": "debugging",
+      "difficulty": "medium",
+      "leakage_group": "qutebrowser/qutebrowser:3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a",
+      "instruction_sha256": "9a6d50a6bebda7c8f76a7006dfcb1377ae20abb3e8907430234b5f8bbcc4cb66",
+      "config_sha256": "6a8ebba00f26592afdab33100a1bd5b687309404fe6d569834b63190a7f7631d",
+      "task_tree_sha256": "31b618d1f7beef08411d5d860817f67db5b87307b8fb21ea0f1a4d29066c1cc7"
+    }
+  ],
+  "raw_identity": {
+    "manifest_sha256": "3faffa6b79d330b9240c8e27c5520506f5262ca0f5e75f677a5eb904e3149151",
+    "records_sha256": "299346a0da9890728857c0c21f723d74fb4c1c111b52b5c9bf61db8ab8911c60"
+  },
+  "evidence_scope": "白名单事实与原始工件哈希；完整轨迹、检查点、私有连接及原始绝对路径不公开。哈希用于来源关联，不构成独立认证；第三方应依冻结输入重新执行。"
+}

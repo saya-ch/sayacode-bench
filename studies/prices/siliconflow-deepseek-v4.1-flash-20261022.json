@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "checked_date": "2026-10-22",
+  "provider": "SiliconFlow CN",
+  "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+  "currency": "CNY",
+  "unit_tokens": 1000000,
+  "rates": [
+    {
+      "displayed_period": "0点～2点/8点～24点",
+      "input_cache_miss": 2,
+      "output": 8,
+      "input_cache_hit": 0.04
+    },
+    {
+      "displayed_period": "2点～8点",
+      "input_cache_miss": 1,
+      "output": 4,
+      "input_cache_hit": 0.02
+    }
+  ],
+  "period_timezone_evidence": "价格行未单独标明时区；北京时间来自中国站与旧版 Flash 公告惯例的推断，预算停止不依赖低价时段。",
+  "cache_write_price": null,
+  "conservative_estimation": {
+    "paid_endpoints": ["remote"],
+    "input_cny_per_million": 2,
+    "output_cny_per_million": 8,
+    "cache_discount_applied": false,
+    "default_stop_fraction": 0.8,
+    "provider_enforced_currency_cap": false
+  },
+  "provider_version_statement": {
+    "announcement_date": "2026-10-21",
+    "served_version": "DeepSeek-V4.1-Flash-1017",
+    "model_id_unchanged": true,
+    "immutable_endpoint_verified": false
+  },
+  "billing_observability": {
+    "user_info_retired_on": "2026-08-14",
+    "public_replacement_balance_api_found": false,
+    "documented_usage_fields": ["input_tokens", "output_tokens"],
+    "documented_trace_header": "x-siliconcloud-trace-id",
+    "documented_per_request_cny_charge": false,
+    "private_keys_read": false,
+    "model_requests_made_for_this_snapshot": 0
+  },
+  "sources": [
+    {
+      "url": "https://www.siliconflow.cn/pricing",
+      "fetched_at": "2026-10-22T05:47:54.432255+00:00",
+      "content_sha256": "1893733e441215e0d62f5ae5dceca8b29f1702f6acea6666840c4bbc17f0e265"
+    },
+    {
+      "url": "https://api-docs.siliconflow.cn/docs/release-notes/overview",
+      "fetched_at": "2026-10-22T05:47:54.705237+00:00",
+      "content_sha256": "c020f2c0c1f6813e570c4a4087db241faea7f7a2c223b9c701427c8dc7c742f4"
+    },
+    {
+      "url": "https://docs.siliconflow.cn/docs/api/messages-post",
+      "fetched_at": "2026-10-22T05:47:55.201370+00:00",
+      "content_sha256": "9fa1668d2a0e2ef4eea432c2e04b8f72c8a798513cb0d059fd71529195bb7104"
+    }
+  ],
+  "limitations": [
+    "这是当日公开标价快照，不是账户账单、余额或含税优惠后的实际付款金额。",
+    "没有找到当前公开文档承诺的替代余额或单请求金额 API；不推测私有端点。",
+    "max_tokens 文档不包含思考过程，不能直接用它证明单请求费用硬上界。",
+    "未知用量、已在途请求和 SDK 内部重试可能产生未被本地累计覆盖的费用。",
+    "本地反代套餐成本未知，不因未纳入 remote 估价就认定为免费。"
+  ]
+}

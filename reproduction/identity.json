@@ -1,0 +1,8 @@
+{
+  "git_base": "8cf966e508e94e1e501a4eb15939b29a39d16d12",
+  "contains_uncommitted_changes": true,
+  "source_archive_sha256": "d64a6525cb21811e877a02940bb5a00a6c689bf45ccdb204f0dc79baf2aa2db2",
+  "production_wheel_sha256": "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe",
+  "requirements_sha256": "9eab06fb395d7b9bb84e14bfea83b79b4ab66d904c941c3b1606d39ed9712073",
+  "scope": "Current exact runtime source bytes and build metadata. No user state or credentials."
+}

@@ -1,0 +1,1197 @@
+{
+  "catalog_sha256": "835f7b2f2f08973dc63f16fa2fd5921d4cbee8cf6c0a7245456db19421a12d33",
+  "dev": [
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "fe89eb6adffe5106b942bf7842f73c8349cf97367a065751b87e2866e45bd175",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-3e21c8214a998cb1058defd15aabb24617a76402-v5fc38aaf22415ab0b70567368332beee7955b367",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "03a6962f4beefca85fec7e9a2eca9b377f267ff8ea1a1cf6b9c31f90947eb5b6",
+      "language": "python",
+      "leakage_group": "qutebrowser/qutebrowser:3e21c8214a998cb1058defd15aabb24617a76402",
+      "repository": "qutebrowser/qutebrowser",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_qutebrowser__qutebrowser-3e21c8214a998cb1058defd15aabb24617a76402-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "task_name": "swebench-pro/instance_qutebrowser__qutebrowser-3e21c8214a998cb1058defd15aabb24617a76402-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "task_tree_sha256": "799faca605e8d8ed69d12fd5e550f443aa5f83347b2dd8074c8151fb392f25c2",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "506e660efedc87aa0c111a6dc36c581b902707d448b6fdcfe52848acdaf87b41",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "53ac6fe4462fa86d1b4a0d96214cb9e5553b81a55dd91190e895d9b7a94bf963",
+      "language": "python",
+      "leakage_group": "internetarchive/openlibrary:ba3abfb6af6e722185d3715929ab0f3e5a134eed",
+      "repository": "internetarchive/openlibrary",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "task_name": "swebench-pro/instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "task_tree_sha256": "1a6a883584045edae1fe64f2409f87359a4cf97d9f3504b7e28206322476bf1e",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "b0507c82819c67a4fdb6bc8407c071a848d39a7d7896abab5713f8309c469c9c",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-415e08c2970757472314e515cb63a51ad825c45e-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "7a29fbd4703ce03d775d635444df6cc2a4b40c2c1324e22b5caf672825af2b0a",
+      "language": "python",
+      "leakage_group": "ansible/ansible:415e08c2970757472314e515cb63a51ad825c45e",
+      "repository": "ansible/ansible",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_ansible__ansible-415e08c2970757472314e515cb63a51ad825c45e-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+      "task_name": "swebench-pro/instance_ansible__ansible-415e08c2970757472314e515cb63a51ad825c45e-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+      "task_tree_sha256": "63cc6a7e0e6c044023448eee1336a99c3d80a51ccee8d750e5454394cef8a36e",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "cc3b35ad0279268565e58cf544a05307a98ca1b52d18a8d9eda3f75a31367783",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_NodeBB__NodeBB-05f2236193f407cf8e2072757fbd6bb170bc13f0-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "2d03d08a0a282455b464b38d3e5f4dd6798aeca8465da36e6dd79d8f0cc06fec",
+      "language": "javascript",
+      "leakage_group": "NodeBB/NodeBB:05f2236193f407cf8e2072757fbd6bb170bc13f0",
+      "repository": "NodeBB/NodeBB",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_NodeBB__NodeBB-05f2236193f407cf8e2072757fbd6bb170bc13f0-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e",
+      "task_name": "swebench-pro/instance_NodeBB__NodeBB-05f2236193f407cf8e2072757fbd6bb170bc13f0-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e",
+      "task_tree_sha256": "bcd2156b01ae8654951adb8a0ee38b26fed72c58157f0fd491037e70c21015d6",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "e0e69f1936941e286e8bd03c5460fcd77812fe5941af8a76ed8aea9d5b85f0ad",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_navidrome__navidrome-dfa453cc4ab772928686838dc73d0130740f054e",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "425851ae3c291b10010a91335cccb50885ea1229a9a1bf11a5e61f7287041b41",
+      "language": "go",
+      "leakage_group": "navidrome/navidrome:dfa453cc4ab772928686838dc73d0130740f054e",
+      "repository": "navidrome/navidrome",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_navidrome__navidrome-dfa453cc4ab772928686838dc73d0130740f054e",
+      "task_name": "swebench-pro/instance_navidrome__navidrome-dfa453cc4ab772928686838dc73d0130740f054e",
+      "task_tree_sha256": "d9e26c41bdda7f3048cedc95fe8c5775d7533a51ff0f6f6cb643fe989084061e",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "f343fa41a21e837a6ef8f9421864ad19d8b34cbd7f66c58942bb5e134d8c014d",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_element-hq__element-web-b7fea97bb68c6628a644580076f840109132f074-vnan",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "ee270440283844a40bdd7bc8d063afb6e2d5f917449898340d8c89b5a1d2c1ab",
+      "language": "typescript",
+      "leakage_group": "element-hq/element-web:b7fea97bb68c6628a644580076f840109132f074",
+      "repository": "element-hq/element-web",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_element-hq__element-web-b7fea97bb68c6628a644580076f840109132f074-vnan",
+      "task_name": "swebench-pro/instance_element-hq__element-web-b7fea97bb68c6628a644580076f840109132f074-vnan",
+      "task_tree_sha256": "8a11e073ff8b470f5113893555327b0067835c7e35672fb04a3cf59356ccb2f4",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "334006664fc903f894847cc8867a79e00edf7b7c814ac1bb0394d78e0928a5bb",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_future-architect__vuls-030b2e03525d68d74cb749959aac2d7f3fc0effa",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "3ff9d2d1bb1c7e20862cc1d69caea15998e186853d6a3b6af2be85eceda76f89",
+      "language": "go",
+      "leakage_group": "future-architect/vuls:030b2e03525d68d74cb749959aac2d7f3fc0effa",
+      "repository": "future-architect/vuls",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_future-architect__vuls-030b2e03525d68d74cb749959aac2d7f3fc0effa",
+      "task_name": "swebench-pro/instance_future-architect__vuls-030b2e03525d68d74cb749959aac2d7f3fc0effa",
+      "task_tree_sha256": "b86042c09f8ccf0c150deac0e375641709913006b4b8f498d9bc999d5ff93456",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "66f8d790985fafc0d2495184574ba6c0caffea2af18a902d4cf594c2ab5caeef",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-e6895d8934f6e484341034869901145fbc025e72-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "29f1fa016d8e769ff8f58b12302c7a88c7a52c14d2628cddc57c15e9610e734b",
+      "language": "go",
+      "leakage_group": "gravitational/teleport:e6895d8934f6e484341034869901145fbc025e72",
+      "repository": "gravitational/teleport",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_gravitational__teleport-e6895d8934f6e484341034869901145fbc025e72-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+      "task_name": "swebench-pro/instance_gravitational__teleport-e6895d8934f6e484341034869901145fbc025e72-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+      "task_tree_sha256": "fcf08bde5a70f389e1d64d568f3db3c4826a1cc31cdce4a58caef7bfd5182d46",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    }
+  ],
+  "eligible_count": 640,
+  "exclusions": [
+    {
+      "benchmark": "swe-bench-pro-v2",
+      "reason": "calibration_group",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86"
+    },
+    {
+      "benchmark": "swe-bench-pro-v2",
+      "reason": "calibration_group",
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367"
+    }
+  ],
+  "holdout": [
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "5ce863f36fc4132e57b174538448a5cd239ce2fce93cc0aa612d3e00924dd027",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-c09e1439f145c66ee3af574386e277dd2388d094-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "8d42bdcc4b79b34a3f3e265f98901f4a5ee980cf76953ddde6e721a0b1f70411",
+      "language": "python",
+      "leakage_group": "qutebrowser/qutebrowser:c09e1439f145c66ee3af574386e277dd2388d094",
+      "repository": "qutebrowser/qutebrowser",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_qutebrowser__qutebrowser-c09e1439f145c66ee3af574386e277dd2388d094-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+      "task_name": "swebench-pro/instance_qutebrowser__qutebrowser-c09e1439f145c66ee3af574386e277dd2388d094-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+      "task_tree_sha256": "2d35164de9304a92c5ade83d0703ddff9d237b40a73b95b8c433c2e85cc05d28",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "6cc35cff7ac8532888e58386de3f41bf4e694fea3d2db298500baf8bddec9ba2",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "931d2d78a666ec101946de674182dca2b5da10b722f2ef88979ab6a62b7499b0",
+      "language": "python",
+      "leakage_group": "internetarchive/openlibrary:03095f2680f7516fca35a58e665bf2a41f006273",
+      "repository": "internetarchive/openlibrary",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+      "task_name": "swebench-pro/instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+      "task_tree_sha256": "9bf3dab3805d3aad032a1739f91aa46027372c48084daba67a3ce25d176664e8",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "65f37b066ca6a8667fedccab99c57fb560aea4d34f6108d7f8ecbf5f9b8ee3d8",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-fb144c44144f8bd3542e71f5db62b6d322c7bd85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "77aed9c4040f526a5ae684ab5338c20d2ad264a735a91a25f5af05068155ec16",
+      "language": "python",
+      "leakage_group": "ansible/ansible:fb144c44144f8bd3542e71f5db62b6d322c7bd85",
+      "repository": "ansible/ansible",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_ansible__ansible-fb144c44144f8bd3542e71f5db62b6d322c7bd85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "task_name": "swebench-pro/instance_ansible__ansible-fb144c44144f8bd3542e71f5db62b6d322c7bd85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "task_tree_sha256": "82a958f65d72543663ccf3d786b29f808436736bd8dc7b6f193a7d4909d21050",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "f27043ddc9654b19708cb9f0fd98420409a6fa55240a91ff489d70de849550f9",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_NodeBB__NodeBB-397835a05a8e2897324e566b41c5e616e172b4af-v89631a1cdb318276acb48860c5d78077211397c6",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "0d39bf8a607006cdd6213f6146089705a93a17b4749953bd801c970494fc3768",
+      "language": "javascript",
+      "leakage_group": "NodeBB/NodeBB:397835a05a8e2897324e566b41c5e616e172b4af",
+      "repository": "NodeBB/NodeBB",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_NodeBB__NodeBB-397835a05a8e2897324e566b41c5e616e172b4af-v89631a1cdb318276acb48860c5d78077211397c6",
+      "task_name": "swebench-pro/instance_NodeBB__NodeBB-397835a05a8e2897324e566b41c5e616e172b4af-v89631a1cdb318276acb48860c5d78077211397c6",
+      "task_tree_sha256": "f9c5a6b3f71a0f554e1d3570e0a4144023ccdc6c2e70c87491d9138ee59652b7",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "083d12493d325457ffa2269d804a1643069932c7e01bead433fd1ed1a26bf357",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_navidrome__navidrome-812dc2090f20ac4f8ac271b6ed95be5889d1a3ca",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "b16f0dd3923b8cd4cd3d1cb19b1ee9c567d3bca35c3101941d9dd38893ef41ca",
+      "language": "go",
+      "leakage_group": "navidrome/navidrome:812dc2090f20ac4f8ac271b6ed95be5889d1a3ca",
+      "repository": "navidrome/navidrome",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_navidrome__navidrome-812dc2090f20ac4f8ac271b6ed95be5889d1a3ca",
+      "task_name": "swebench-pro/instance_navidrome__navidrome-812dc2090f20ac4f8ac271b6ed95be5889d1a3ca",
+      "task_tree_sha256": "61a057360256eadb775d35ce0e12368bd47af86540efa1a3a8540d1679905af4",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "74223b74cca5f9cdae1a998033ccf3f20e4bb805dfdee9e6d801214276254af6",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_element-hq__element-web-9bf77963ee5e036d54b2a3ca202fbf6378464a5e-vnan",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "1c03376313e2b2b81f7fc50653070892b06e3cb524e4ff098d627bf582cef4df",
+      "language": "typescript",
+      "leakage_group": "element-hq/element-web:9bf77963ee5e036d54b2a3ca202fbf6378464a5e",
+      "repository": "element-hq/element-web",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_element-hq__element-web-9bf77963ee5e036d54b2a3ca202fbf6378464a5e-vnan",
+      "task_name": "swebench-pro/instance_element-hq__element-web-9bf77963ee5e036d54b2a3ca202fbf6378464a5e-vnan",
+      "task_tree_sha256": "8e805c89c80914aec7bf944a58c36f2c377fe169b1d21a57f4bca989df09c72f",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "508b16fb282ffe5bdb2f6068da334d2b19e0abd24bf6e9068825c4a84298b07e",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_future-architect__vuls-dc496468b9e9fb73371f9606cdcdb0f8e12e70ca",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "28440bba51a326717b80d026a318796c0894a015b37901d89b6779c773b134c0",
+      "language": "go",
+      "leakage_group": "future-architect/vuls:dc496468b9e9fb73371f9606cdcdb0f8e12e70ca",
+      "repository": "future-architect/vuls",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_future-architect__vuls-dc496468b9e9fb73371f9606cdcdb0f8e12e70ca",
+      "task_name": "swebench-pro/instance_future-architect__vuls-dc496468b9e9fb73371f9606cdcdb0f8e12e70ca",
+      "task_tree_sha256": "bd5f28d041d56d1d2947b2aa59d88a2999e6ccfc4e61ea642071713b1a2f52a5",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "cc465d40abcc1d314cb40e845f247684b48d9cad56ab32e0d16b88002cb7adac",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-3587cca7840f636489449113969a5066025dd5bf",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "5c532e4222c7aa00e9a890514f2d22988205bee22d22a58611404031e1b08101",
+      "language": "go",
+      "leakage_group": "gravitational/teleport:3587cca7840f636489449113969a5066025dd5bf",
+      "repository": "gravitational/teleport",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_gravitational__teleport-3587cca7840f636489449113969a5066025dd5bf",
+      "task_name": "swebench-pro/instance_gravitational__teleport-3587cca7840f636489449113969a5066025dd5bf",
+      "task_tree_sha256": "a88e37201d61832687e99ed2b9746ef39cb9172a78ff516ead8382ef15456b9f",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "651e2e55ebc7f705d38449ecda92944dc9897c497c18aa482e69df97012c1f5a",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_protonmail__webclients-3a6790f480309130b5d6332dce6c9d5ccca13ee3",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "c41157560290dba769df41bb119b279f3176a66baac6bf270540959642fc0387",
+      "language": "typescript",
+      "leakage_group": "protonmail/webclients:3a6790f480309130b5d6332dce6c9d5ccca13ee3",
+      "repository": "protonmail/webclients",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_protonmail__webclients-3a6790f480309130b5d6332dce6c9d5ccca13ee3",
+      "task_name": "swebench-pro/instance_protonmail__webclients-3a6790f480309130b5d6332dce6c9d5ccca13ee3",
+      "task_tree_sha256": "9061fae6973d113bf00924ae57008c2c34299c0a689cf05ca03e69808fddd52b",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "370350f6ba8a059d218cbaefe79e854008d6c63e4ca07d0bc44b458b60720aef",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-756f00f79ba8abf9fe53f3c6c818123b42eb7355",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "0fcbd0af32796dc4d84ca9798bacd7eeb21c0629b39f9757f54095cf6b36365f",
+      "language": "go",
+      "leakage_group": "flipt-io/flipt:756f00f79ba8abf9fe53f3c6c818123b42eb7355",
+      "repository": "flipt-io/flipt",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_flipt-io__flipt-756f00f79ba8abf9fe53f3c6c818123b42eb7355",
+      "task_name": "swebench-pro/instance_flipt-io__flipt-756f00f79ba8abf9fe53f3c6c818123b42eb7355",
+      "task_tree_sha256": "0cb40f7141023dcfe2d16ff5f4c1818e84357397767541ce6f889d2b37fccc02",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "8187611742da207237918cbf99db891fb1a6baaa704a849d2b16a296092ec9bc",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_tutao__tutanota-51818218c6ae33de00cbea3a4d30daac8c34142e-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "d6768968d0f7c1bda1141e12a740b0c60ba0ae276e9321ef112ff72d11767633",
+      "language": "typescript",
+      "leakage_group": "tutao/tutanota:51818218c6ae33de00cbea3a4d30daac8c34142e",
+      "repository": "tutao/tutanota",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_tutao__tutanota-51818218c6ae33de00cbea3a4d30daac8c34142e-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+      "task_name": "swebench-pro/instance_tutao__tutanota-51818218c6ae33de00cbea3a4d30daac8c34142e-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+      "task_tree_sha256": "b1963a312ff870e9f702bfba40aa9b5398991e6510235021f3dfe2b7e9b807af",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "a03f4b7d75a62130d3f81932babfa71cbb420841646ea6ec9b48551c4b245b25",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-52708364b5f91e198defb022d1a5b4b3ebd9b563-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "797523e3b0b44d517c26e016fdc52159b3d6886233512e0036f333659d630fc2",
+      "language": "python",
+      "leakage_group": "qutebrowser/qutebrowser:52708364b5f91e198defb022d1a5b4b3ebd9b563",
+      "repository": "qutebrowser/qutebrowser",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_qutebrowser__qutebrowser-52708364b5f91e198defb022d1a5b4b3ebd9b563-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+      "task_name": "swebench-pro/instance_qutebrowser__qutebrowser-52708364b5f91e198defb022d1a5b4b3ebd9b563-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+      "task_tree_sha256": "3513e0029a99d239f7e511271e91826aae7966fdd26172fb1ce193caf3dd77cf",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "3c3d0d5d79f29ab28e69c2e46112b378398f7961f3e037ff9d456849bbe6e2dc",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "651c88ffd43716c457750bd7d7356c5bb8216ce3faaa6122f7e049a9e84864ce",
+      "language": "python",
+      "leakage_group": "internetarchive/openlibrary:fdbc0d8f418333c7e575c40b661b582c301ef7ac",
+      "repository": "internetarchive/openlibrary",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+      "task_name": "swebench-pro/instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+      "task_tree_sha256": "91eefeb1b472c177fa1314ede85ed980fe9e17952c2af26d542598a56e6bf9d3",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "220e619a718d754408d26d0a236f8e239d1160e835e82565641fb6948171e6dd",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-de01db08d00c8d2438e1ba5989c313ba16a145b0-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "ea8e58302b86bf9b0bc286c69554c8da0afad44b3102f1f1c5ebe5e17987c25c",
+      "language": "python",
+      "leakage_group": "ansible/ansible:de01db08d00c8d2438e1ba5989c313ba16a145b0",
+      "repository": "ansible/ansible",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_ansible__ansible-de01db08d00c8d2438e1ba5989c313ba16a145b0-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "task_name": "swebench-pro/instance_ansible__ansible-de01db08d00c8d2438e1ba5989c313ba16a145b0-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "task_tree_sha256": "f316e9c86a637b11682d165e863efeea572946817d29b5a0773a633efe8b6b81",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "f27a605e6de433504a7ca4d4bb70383633d9d0ada47901b8c76f8c3e57d9380f",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_NodeBB__NodeBB-4327a09d76f10a79109da9d91c22120428d3bdb9-vnan",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "a37c3d256856d664446a7324c5965a96fa7c27dc94dc16ab1a48d17052b34ae2",
+      "language": "javascript",
+      "leakage_group": "NodeBB/NodeBB:4327a09d76f10a79109da9d91c22120428d3bdb9",
+      "repository": "NodeBB/NodeBB",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_NodeBB__NodeBB-4327a09d76f10a79109da9d91c22120428d3bdb9-vnan",
+      "task_name": "swebench-pro/instance_NodeBB__NodeBB-4327a09d76f10a79109da9d91c22120428d3bdb9-vnan",
+      "task_tree_sha256": "eb0a1284971cc65a4e3b626863c2ad8f91372ab852c72e93026ebf0d7550eed1",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "e2042f8947238f4d7803babec128fb25f5b8abdf1f0eb23605efec628355023b",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_navidrome__navidrome-0130c6dc13438b48cf0fdfab08a89e357b5517c9",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "882f85669fbe942f3477d805b53aa74096c028dfc4889469378f32e0dbe59247",
+      "language": "go",
+      "leakage_group": "navidrome/navidrome:0130c6dc13438b48cf0fdfab08a89e357b5517c9",
+      "repository": "navidrome/navidrome",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_navidrome__navidrome-0130c6dc13438b48cf0fdfab08a89e357b5517c9",
+      "task_name": "swebench-pro/instance_navidrome__navidrome-0130c6dc13438b48cf0fdfab08a89e357b5517c9",
+      "task_tree_sha256": "291ea07fe1d46100ec9877e1377a1f4ff085005d2c51fad1c46a2e8746c183cf",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "1be19425ee8038cf5c411cd11b0c0f81873bbef382e6eaaac162e3db75a12df8",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "52a3b6b9d404589045fd719c1d3730623b4f3ab369e4e4e58fa41fcd1f7049e1",
+      "language": "typescript",
+      "leakage_group": "element-hq/element-web:d405160080bbe804f7e9294067d004a7d4dad9d6",
+      "repository": "element-hq/element-web",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan",
+      "task_name": "swebench-pro/instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan",
+      "task_tree_sha256": "e86ea0a560613568092a612eb646439b56dca65e37db824534c69451d781729f",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "846e81ce23374b91930f8af39bd86a374a9b57492f7cc02abb5d6a54b89aea25",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_future-architect__vuls-e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "6c94aeb648a5aaaab865badc1cf4da2da64171a38529c67e77ecaeea7d5e42a7",
+      "language": "go",
+      "leakage_group": "future-architect/vuls:e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+      "repository": "future-architect/vuls",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_future-architect__vuls-e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+      "task_name": "swebench-pro/instance_future-architect__vuls-e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+      "task_tree_sha256": "6361b3ac7153c04af6b5f540385207f7267385735c5ddbacddc0a3822bb27f37",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "292bb983841cdb3f7209f2cac47b4de9f8c2ad0829e071897a7986569af0af1d",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-bb562408da4adeae16e025be65e170959d1ec492-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "e57424d67864cf9e1662bfd165e651875812f7f9ddf79b65df63981c0163f10f",
+      "language": "go",
+      "leakage_group": "gravitational/teleport:bb562408da4adeae16e025be65e170959d1ec492",
+      "repository": "gravitational/teleport",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_gravitational__teleport-bb562408da4adeae16e025be65e170959d1ec492-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+      "task_name": "swebench-pro/instance_gravitational__teleport-bb562408da4adeae16e025be65e170959d1ec492-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+      "task_tree_sha256": "b492efe874c57bcd669d90ff70860526fa18fa62873832bc759f20f978eefc19",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "0c59a41290cc5c014bee61d13c096292e4c8d63cefdff570bd0106bac5edcefa",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_protonmail__webclients-cb8cc309c6968b0a2a5fe4288d0ae0a969ff31e1",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "f21e04c2ddd6cfc0594d32493ed477f9181974aa3e3f260746d1eb6292c8e54d",
+      "language": "typescript",
+      "leakage_group": "protonmail/webclients:cb8cc309c6968b0a2a5fe4288d0ae0a969ff31e1",
+      "repository": "protonmail/webclients",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_protonmail__webclients-cb8cc309c6968b0a2a5fe4288d0ae0a969ff31e1",
+      "task_name": "swebench-pro/instance_protonmail__webclients-cb8cc309c6968b0a2a5fe4288d0ae0a969ff31e1",
+      "task_tree_sha256": "a674298ed14bc21f1e81caaec6e5dd3c037f0c53dbf7edb4599fed2d1394e104",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "3ace2c3b274fe415fdc0297c890013a6f65f4963f076c9ddc07621a0e09dba79",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-8bd3604dc54b681f1f0f7dd52cbc70b3024184b6",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "5ee02ead06c6b2f2f11839fc95e55b68cd2b1bc425d5eaf5a314c79bc760c1ac",
+      "language": "go",
+      "leakage_group": "flipt-io/flipt:8bd3604dc54b681f1f0f7dd52cbc70b3024184b6",
+      "repository": "flipt-io/flipt",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_flipt-io__flipt-8bd3604dc54b681f1f0f7dd52cbc70b3024184b6",
+      "task_name": "swebench-pro/instance_flipt-io__flipt-8bd3604dc54b681f1f0f7dd52cbc70b3024184b6",
+      "task_tree_sha256": "bdf3be9809c4e5c7b255dac2a3f7fabab08c22b9b7802c638c4c6e1f6ea266db",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "305b8af561c83edbb8dca8751a6ee5f3619d246d80f473894f8b2579d8a69a32",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_tutao__tutanota-de49d486feef842101506adf040a0f00ded59519-v10a26bfb45a064b93f4fc044a0254925037b88f1",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "0ebf40baf8e9f6e3a0e04da2d0c0c8c799a1f4c89aa3151cb2fe97ff5b009ced",
+      "language": "typescript",
+      "leakage_group": "tutao/tutanota:de49d486feef842101506adf040a0f00ded59519",
+      "repository": "tutao/tutanota",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_tutao__tutanota-de49d486feef842101506adf040a0f00ded59519-v10a26bfb45a064b93f4fc044a0254925037b88f1",
+      "task_name": "swebench-pro/instance_tutao__tutanota-de49d486feef842101506adf040a0f00ded59519-v10a26bfb45a064b93f4fc044a0254925037b88f1",
+      "task_tree_sha256": "144e677114d1d677a314b19ed8dd28f7836498f81099e650db7c495f7035805c",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "99a18ef49466255482b567a5a21010cd2e460aeb91ff95e372c7412611bad491",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "822803e202957e0df1c6cea0797820b59953170026a6c9c5f0987ca6f3205ff0",
+      "language": "python",
+      "leakage_group": "qutebrowser/qutebrowser:6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d",
+      "repository": "qutebrowser/qutebrowser",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "task_name": "swebench-pro/instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "task_tree_sha256": "16d1d5b66aadbd90af89d4ddbc5047bc99e6fc3f422756887891acd76da5a835",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    },
+    {
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "benchmark": "swe-bench-pro-v2",
+      "category": "debugging",
+      "config_sha256": "3d4f989e1306f60e8e6b7b95e7084168f3701f8b93414ff3c3b9a41d6812284e",
+      "difficulty": "medium",
+      "environment": {
+        "build_timeout_sec": 1800.0,
+        "cpus": 1,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-3f7db6bbbcc7c418b3db72d157c6aed1d45b2ccf-v430f20c722405e462d9ef44dee7d34c41e76fe7a",
+        "env": {},
+        "mcp_servers": [],
+        "memory_mb": 4096,
+        "network_mode": "public",
+        "os": "linux",
+        "storage_mb": 10240
+      },
+      "has_custom_compose": false,
+      "instruction_sha256": "89640f3e0765dd56d208f1386bc9cae4268e794cd1613f29b2ccefa101ee5f3f",
+      "language": "python",
+      "leakage_group": "internetarchive/openlibrary:3f7db6bbbcc7c418b3db72d157c6aed1d45b2ccf",
+      "repository": "internetarchive/openlibrary",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_internetarchive__openlibrary-3f7db6bbbcc7c418b3db72d157c6aed1d45b2ccf-v430f20c722405e462d9ef44dee7d34c41e76fe7a",
+      "task_name": "swebench-pro/instance_internetarchive__openlibrary-3f7db6bbbcc7c418b3db72d157c6aed1d45b2ccf-v430f20c722405e462d9ef44dee7d34c41e76fe7a",
+      "task_tree_sha256": "ee6eefde48a514330c52cbd3c59676bc4fc6abe2f89891d1dc0e3302be2b6180",
+      "verifier": {
+        "collect": [],
+        "env": {},
+        "network_mode": "public",
+        "timeout_sec": 3000.0
+      }
+    }
+  ],
+  "interpretation": "固定公开基准子集；不代表完整榜单；调优只允许使用 dev",
+  "rules": {
+    "categories": null,
+    "concurrency": 1,
+    "excluded_group_matching": "exact leakage_group or benchmark:leakage_group",
+    "excluded_leakage_groups": [
+      "ansible/ansible:de5858f48dc9e1ce9117034e0d7e76806f420ca8",
+      "qutebrowser/qutebrowser:3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a"
+    ],
+    "exclusion_timing": "before any model result; no score-dependent replacement",
+    "languages": null,
+    "leakage_guard": "one variant per repository/fixing commit; no cross-split overlap",
+    "max_agent_timeout_sec": null,
+    "max_memory_mb": 4096,
+    "ordering": "sha256 seeded group order; independent round-robin coverage for dev then holdout",
+    "preferred_languages": [
+      "python"
+    ],
+    "resources": "preserve official per-task environment/agent/verifier configuration",
+    "strata": "repository for SWE; category for Terminal-Bench",
+    "topology": "single-container tasks only; custom Compose excluded before model trials",
+    "unmatched_excluded_leakage_groups": []
+  },
+  "schema_version": 1,
+  "seed": "sayacode-20261022-primary-v1"
+}

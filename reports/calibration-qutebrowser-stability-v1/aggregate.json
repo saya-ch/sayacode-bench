@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+  "patch_sha256": "d905b09f498fa5ff4edbecc185d88f16200db2967acae28d5c2e5b185efc6592",
+  "planned": 6,
+  "recorded": 6,
+  "model_calls": 0,
+  "groups": {
+    "patch": {
+      "attempts": 3,
+      "verified_grades": 3,
+      "rewards": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "observed_score_variation": false,
+      "all_verified_pass": false,
+      "unconfirmed": 0
+    },
+    "oracle": {
+      "attempts": 3,
+      "verified_grades": 3,
+      "rewards": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "observed_score_variation": false,
+      "all_verified_pass": false,
+      "unconfirmed": 0
+    }
+  },
+  "original_scores_unchanged": true,
+  "caution": "三轮未观察到翻转不证明绝对稳定；诊断结果不替换原始官方首判。",
+  "raw_aggregate_sha256": "f0912598f433db7ff5865f3943dcd8fc134d9cc1c421ffd9ffeb7e5cddc31b86",
+  "scope": "固定次数无模型诊断；不替换第一批原始成绩，不构成正式效果比较。"
+}

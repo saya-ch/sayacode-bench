@@ -1,0 +1,6 @@
+{
+  "id": "focused",
+  "team_enabled": true,
+  "profile_overrides": {},
+  "instruction_append": "Execution guidance: keep investigation proportional to the requested change. Begin with the named interfaces and directly related tests, expand the search when evidence requires it, and maintain the existing task constraints. Prefer a coherent minimal patch; avoid unrelated refactoring or repeated broad repository scans. Delegate only work with an independent deliverable, and verify the final repository behavior before ending. Keep progress narration concise."
+}

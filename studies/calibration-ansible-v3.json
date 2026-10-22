@@ -1,0 +1,79 @@
+{
+  "phase": "calibration",
+  "benchmark": "swe-bench-pro-v2",
+  "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+  "selection_seed": "sayacode-20261022-calibration-v1",
+  "tasks": [
+    {
+      "benchmark": "swe-bench-pro-v2",
+      "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "task_name": "swebench-pro/instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "repository": "ansible/ansible",
+      "language": "python",
+      "category": "debugging",
+      "difficulty": "medium",
+      "leakage_group": "ansible/ansible:de5858f48dc9e1ce9117034e0d7e76806f420ca8",
+      "instruction_sha256": "29c2d716704de616f08a8631814ff5869fa778d284a61420481e209375c1b016",
+      "config_sha256": "e5d213a440a621fd48af37dfb15a6a11b03ce7e4b174a1aabf4e93e299a813bd",
+      "task_tree_sha256": "14d1c91db6f61f4419e1e9f83299ce4e76ccc5d73927ba830c4b90f2c19a2a0c",
+      "agent": {
+        "network_mode": "no-network",
+        "timeout_sec": 3000.0
+      },
+      "verifier": {
+        "network_mode": "public",
+        "timeout_sec": 3000.0,
+        "collect": [],
+        "env": {}
+      },
+      "environment": {
+        "network_mode": "public",
+        "build_timeout_sec": 1800.0,
+        "docker_image": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+        "os": "linux",
+        "cpus": 1,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "mcp_servers": [],
+        "env": {}
+      }
+    }
+  ],
+  "frozen": true,
+  "canonical_model": "DeepSeek-V4.1-Flash",
+  "seed": "sayacode-20261022-calibration-ansible-v3",
+  "configurations": [
+    "baseline"
+  ],
+  "baseline": "baseline",
+  "candidate": null,
+  "repeats": 1,
+  "connections": [
+    "local"
+  ],
+  "reported_token_limit": 100000000,
+  "runtime_evidence_required": true,
+  "preflight": {
+    "sanity_sha256": "bb27fcfdea6257dfa0dcca70286b70656f3bf36ecfd183356e249d60ed7de495",
+    "network_probe_sha256": "297684c4a542f8e17d5b77313f8f004d0aacb261c4638330c5580387ce990431"
+  },
+  "scope": "单题资源校准；第一批中止、失败与未执行的v2草案保留，不并入正式成绩。实际实现以运行identity.json为准。",
+  "connection_profiles": {
+    "local": {
+      "name": "public-benchmark",
+      "protocol": "anthropic_messages",
+      "base_url": "http://host.docker.internal:8787",
+      "model_id": "deepseek/deepseek-v4.1-flash",
+      "context_length": 65536,
+      "max_output_tokens": 8192,
+      "summary_trigger_ratio": 0.8,
+      "summary_keep_messages": 12,
+      "context_edit_trigger": null,
+      "model_retries": 1,
+      "tool_retries": 2,
+      "file_search": true,
+      "tool_selector_max_tools": null
+    }
+  }
+}

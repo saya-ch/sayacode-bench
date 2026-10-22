@@ -1,0 +1,6 @@
+{
+  "id": "diagnostic",
+  "team_enabled": true,
+  "profile_overrides": {},
+  "instruction_append": "Execution guidance: preserve a compact list of the task's concrete requirements and the evidence needed to verify each one. When a check fails, inspect its exact failure and the relevant implementation before making the next change; distinguish an environment/setup problem from a behavior defect. After the change, run focused checks for the requested behavior and affected regression tests. Incorporate and verify any delegated delivery in the current task repository before declaring completion."
+}
