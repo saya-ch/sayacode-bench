@@ -10,7 +10,7 @@
 - 两个已授权连接均完成实际 Messages 协议工具调用往返，研究规范模型统一为 DeepSeek-V4.1-Flash。
 - 官方 Harbor 在本机的无模型 smoke：参考解 reward=1、空解 reward=0。
 - 补丁采集已用真实 Git 检查新建二进制、暂存改动、中途提交及独立重放。
-- 已发布提交 `8fd62bf` 的 Ubuntu／Windows × Python 3.12／3.13 四环境 CI 通过；真实 Docker 探针独立执行，普通测试中显式跳过。后续变更以对应提交的 CI 为准。
+- 实现提交 `0ab66b8` 的 Ubuntu／Windows × Python 3.12／3.13 四环境 [CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39742502958)；真实 Docker 探针独立执行，普通测试中显式跳过。后续变更以对应提交的 CI 为准。
 - 本轮最终 Windows／Python 3.13 全套测试 507 通过、3 项明确跳过（独立 Docker 探针、文件符号链接权限、POSIX FIFO）；Ruff、格式、严格类型和已知密钥扫描通过。Linux 网络探针另行实际通过，不能把单元测试跳过写成 Docker 没有验证。
 
 ## 实际容器门禁
