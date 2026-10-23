@@ -108,7 +108,8 @@ def _sse(message: dict[str, Any]) -> bytes:
             {
                 "type": "message_delta",
                 "delta": {"stop_reason": message["stop_reason"], "stop_sequence": None},
-                "usage": {"output_tokens": message["usage"]["output_tokens"]},
+                # 固定 Anthropic 适配器只在最终 delta 采集完整用量。
+                "usage": dict(message["usage"]),
             },
             {"type": "message_stop"},
         ]
@@ -575,5 +576,62 @@ def test_canned_sse_has_native_anthropic_usage_and_tool_json_events() -> None:
         "cache_creation_input_tokens": 0,
     }
     assert events[-2]["usage"]["output_tokens"] == 16
+    assert events[-2]["usage"] == message["usage"]
     assert events[-1]["type"] == "message_stop"
     assert json.loads(events[2]["delta"]["partial_json"]) == message["content"][0]["input"]
+
+
+def test_canned_final_usage_survives_official_anthropic_stream_parser() -> None:
+    """走锁定 SDK 的真实事件转换；不创建 HTTP 连接或改写生产 callback。"""
+    pytest.importorskip("langchain_anthropic")
+    from anthropic.types import RawMessageStreamEvent
+    from langchain_anthropic import ChatAnthropic
+    from pydantic import TypeAdapter
+
+    message = {
+        "id": "msg_synthetic",
+        "type": "message",
+        "role": "assistant",
+        "model": "synthetic",
+        "content": [{"type": "text", "text": "synthetic"}],
+        "stop_reason": "end_turn",
+        "stop_sequence": None,
+        "usage": {
+            "input_tokens": 30,
+            "output_tokens": 16,
+            "cache_read_input_tokens": 2,
+            "cache_creation_input_tokens": 0,
+        },
+    }
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in _sse(message).decode("utf-8").splitlines()
+        if line.startswith("data: ")
+    ]
+    model = ChatAnthropic(
+        model="synthetic", api_key="synthetic-local-only", base_url="http://127.0.0.1:9"
+    )
+    parser = TypeAdapter(RawMessageStreamEvent)
+
+    def converted_usage() -> Any:
+        combined = block = None
+        for raw in events:
+            chunk, block = model._make_message_chunk_from_anthropic_event(
+                parser.validate_python(raw),
+                stream_usage=True,
+                coerce_content_to_string=False,
+                block_start_event=block,
+            )
+            if chunk is not None:
+                combined = chunk if combined is None else combined + chunk
+        assert combined is not None
+        return combined.usage_metadata
+
+    usage = converted_usage()
+    assert usage["input_tokens"] == 32 and usage["output_tokens"] == 16
+    assert usage["input_token_details"] == {"cache_read": 2, "cache_creation": 0}
+    # 保留失败回归：只有 start 带输入计量不能让当前适配器获得缓存旁证。
+    events[-2]["usage"] = {"output_tokens": 16}
+    missing = converted_usage()
+    assert missing["input_tokens"] == 0
+    assert not missing.get("input_token_details")

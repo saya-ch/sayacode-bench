@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "kind": "public_qualification_host_cohort_guard",
+  "github_run_id": 39899427125,
+  "public_source_sha": "5fcc3ce48fa98cd65c98ea5f74c1b36d43c42c0e",
+  "workflow_conclusion": "failure",
+  "new_controls": 0,
+  "model_requests": 0,
+  "first_batch_history_confirmed": true,
+  "expected_host_cohort": {
+    "ImageOS": "ubuntu24",
+    "ImageVersion": "20261021.345.10",
+    "RUNNER_ARCH": "X64"
+  },
+  "observed_host_cohort": {
+    "ImageOS": "ubuntu24",
+    "ImageVersion": "20261012.334.1",
+    "RUNNER_ARCH": "X64"
+  },
+  "reason": "host_cohort_mismatch_before_native_controls",
+  "original_plan_rewritten": false,
+  "followup_study_id": "primary-v7-host20261012",
+  "followup_basis": "实际观察到的宿主版本；尚无oracle或模型结果，不依据reward选环境",
+  "original_artifacts": [
+    {
+      "artifact_id": 12478151738,
+      "sha256": "3ea4a5fcde9c09df6b7c2522f11da54435c22132a3cdae412eb1e57fe47decbe",
+      "service_digest_match": true,
+      "extracted_files_verified": 2
+    },
+    {
+      "artifact_id": 12477803097,
+      "sha256": "6b4d43f61bc9923b282ffe7f2e0e747d00d51d61c9d88d525b36914509707eeb",
+      "service_digest_match": true,
+      "extracted_files_verified": 6
+    }
+  ],
+  "boundary": "网络真实探针通过后，固定cohort门禁在原生任务前拒绝；这是基础设施诊断，不计作fixture失败或模型失败。"
+}

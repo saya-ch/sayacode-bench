@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "kind": "real_docker_synthetic_stream_usage_fixture_failure",
+  "github_run_id": 39899372348,
+  "public_source_sha": "5fcc3ce48fa98cd65c98ea5f74c1b36d43c42c0e",
+  "workflow_conclusion": "failure",
+  "supplier_model_requests": 0,
+  "model_capability_evaluated": false,
+  "actual_source_runs": 2,
+  "independent_pristine_runs": 2,
+  "callback_coverage": {
+    "each_source_model_calls": 2,
+    "each_source_matched_calls": 2,
+    "callback_ids_match_audit": true,
+    "each_source_input_tokens": 0,
+    "each_source_output_tokens": 32,
+    "cache_status": "unavailable",
+    "reason": "coverage_or_details_missing"
+  },
+  "root_cause": "synthetic final message_delta provided output usage only; pinned ChatAnthropic collects usage from final delta, not message_start",
+  "fix_scope": "test SSE fixture final usage and official event-parser regression only; observer and completeness gates unchanged",
+  "release_workflow_token_probe_executed": false,
+  "archive_verification": {
+    "artifact_id": 12478870038,
+    "sha256": "7f4f581b1aec5155410af6fc39ae5a99b0db8c59bfb48783697f6f6412160ed2",
+    "zip_size_bytes": 25298969,
+    "service_digest_match": true,
+    "selectively_extracted_files": 779
+  },
+  "boundary": "原失败保留；不把缺缓存旁证放宽为complete，不重跑供应商模型；修复后真实容器需独立新run验证。"
+}

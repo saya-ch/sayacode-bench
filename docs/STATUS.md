@@ -13,6 +13,10 @@
 
 最新 Windows／Python 3.13 完整离线验收为 **1,012 通过、6 项明确跳过**：包括未启用的真实 Docker 测试、平台条件和未安装产品 LangChain 依赖的测试。原生产依赖环境的官方图用量测试另行通过；这不替代新的云端 Docker smoke。Ruff、格式、包内 MyPy、四个编排／资格脚本的显式包类型检查、九份工作流 actionlint 均通过。v7 协议新增分片、编排、资格入口与完整实现身份，10,000 次任务块 bootstrap、仓库簇敏感性、seed、样本数不变；旧协议不覆盖。
 
+提交 `5fcc3ce48fa98cd65c98ea5f74c1b36d43c42c0e` 的[四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39899305422)。随后真实 smoke `39899372348` 在缓存完整性断言失败：两个 source 均实际匹配 2／2 次 callback，但合成 SSE 最终事件只给输出用量，锁定的 ChatAnthropic 因此得到输入 0 且无缓存详情。已由原始工件及官方事件转换器确认；修复仅调整测试桩最终 usage 并新增官方 parser 回归，observer 和完整性门禁不变。[失败事实](../reports/native-shard-smoke-fixture-failure-20261023-v2.json)
+
+首个公开资格 run `39899427125` 在任何 oracle／nop 前因实际宿主 ImageVersion 与固定值不同而停止，新增 controls 为 0，模型请求为 0；完整工件已保全并核对服务 digest。保持旧计划不变，另按实际已观察 cohort 建立 `primary-v7-host20261012`；新 run `39899824620` 已正常收尾首个控制批次，具体资格事实仍以保存的 sanity 和原生记录为准，不能仅凭 workflow 绿色宣称任务已经合格。[原拒绝事实](../reports/public-qualification-cohort-guard-20261023-v1.json)
+
 ## 已有证据
 
 - 已固定 Harbor 0.24.0 和独立依赖锁，SAYACODE 生产包与依赖另行固定。

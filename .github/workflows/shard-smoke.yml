@@ -97,7 +97,7 @@ jobs:
           SAYACODE_BENCH_SMOKE_OUTPUT: ${{ runner.temp }}/evidence/native-smoke
         run: uv run --no-sync pytest tests/test_shards_docker.py -q -rA
       - name: 仅用合成文件核实原生 workflow token 的 Release 权限
-        if: inputs.probe_release_storage
+        if: always() && inputs.probe_release_storage
         working-directory: bench
         env:
           GH_TOKEN: ${{ github.token }}
