@@ -35,17 +35,75 @@ env:
   CASE_INDICES_JSON: ${{ inputs.case_indices_json }}
   BUNDLE_ROOT: /tmp/sayacode-studies/deepseek-v41-20261023
 jobs:
-  case:
+  plan:
     if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 5
+    outputs:
+      groups: ${{ steps.admit.outputs.groups }}
+      ready: ${{ steps.admit.outputs.ready }}
+    steps:
+      - name: 核对配额并按两项划分原生矩阵
+        id: admit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          assert re.fullmatch(r'[0-9a-f]{40}',os.environ['SOURCE_SHA'])
+          assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*\.json',os.environ['SEED_MANIFEST_FILE'])
+          indices=json.loads(os.environ['CASE_INDICES_JSON'])
+          assert isinstance(indices,list) and 1<=len(indices)<=46
+          assert all(type(index) is int and 1<=index<=46 for index in indices)
+          assert len(set(indices))==len(indices)
+          directory=Path(os.environ['RUNNER_TEMP'])/'admission'
+          directory.mkdir(exist_ok=False)
+          result=subprocess.run(['gh','api','repos/saya-ch/sayacode-bench-runs','--include'],capture_output=True,check=True)
+          (directory/'response.bin').write_bytes(result.stdout)
+          headers,separator,body=result.stdout.decode('utf-8').replace('\r\n','\n').partition('\n\n')
+          assert separator
+          project=json.loads(body)
+          assert project['id']==1429748203 and project['private'] is True
+          assert project['full_name']=='saya-ch/sayacode-bench-runs'
+          fields={line.partition(':')[0].lower():line.partition(':')[2].strip() for line in headers.splitlines()[1:] if ':' in line}
+          limit=int(fields['x-ratelimit-limit'])
+          remaining=int(fields['x-ratelimit-remaining'])
+          required_remaining=950 if len(indices)>2 else 100
+          ready=limit>=1000 and remaining>=required_remaining
+          groups=[{'case_index':indices[index],'case_indices':indices[index:index+2]} for index in range(0,len(indices),2)]
+          report={'ready':ready,'limit':limit,'remaining':remaining,'required_remaining':required_remaining,'reset_epoch':int(fields['x-ratelimit-reset']),'case_indices':indices,'groups':groups,'native_cases_started':0,'supplier_credentials_available':False}
+          (directory/'quota.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              output.write('groups='+json.dumps(groups,separators=(',',':'))+'\n')
+              output.write('ready='+str(ready).lower()+'\n')
+          print(json.dumps({'ready':ready,'remaining':remaining,'reset_epoch':report['reset_epoch'],'native_cases_started':0}))
+          PY
+      - name: 保存真实配额与未启动事实
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: installation-admission-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/admission
+          retention-days: 3
+          if-no-files-found: warn
+  case:
+    name: case (${{ matrix.case_index }})
+    needs: plan
+    if: needs.plan.outputs.ready == 'true' && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    # 两个 SWE 的原 build+setup 最坏90分钟，另留30分钟准备和收尾。
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
-        case_index: ${{ fromJSON(inputs.case_indices_json) }}
+        include: ${{ fromJSON(needs.plan.outputs.groups) }}
     env:
       CASE_INDEX: ${{ matrix.case_index }}
+      CASE_GROUP_JSON: ${{ toJSON(matrix.case_indices) }}
     steps:
       - name: 核实私有仓库、首次尝试和输入边界
         env:
@@ -66,11 +124,13 @@ jobs:
           assert all(type(n) is int and 1<=n<=46 for n in indices)
           assert len(set(indices))==len(indices)
           assert int(os.environ['CASE_INDEX']) in indices
+          group=json.loads(os.environ['CASE_GROUP_JSON'])
+          assert group in [indices[index:index+2] for index in range(0,len(indices),2)]
+          assert group[0]==int(os.environ['CASE_INDEX'])
           value=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_bytes())
           assert value['id']==1429748203 and value['private'] is True
           assert value['full_name']=='saya-ch/sayacode-bench-runs'
           PY
-          printf 'CASE_DIRECTORY=%s/installations/restart-v2/case-%04d\n' "$BUNDLE_ROOT" "$CASE_INDEX" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           path: execution
@@ -110,6 +170,7 @@ jobs:
           from sayacode_bench.release_evidence import download_archive
           from scripts.generate_sharded_workflow import restore_archive
           manifest=read_json(Path('../execution/artifacts')/os.environ['SEED_MANIFEST_FILE'])
+          assert len(manifest['parts'])==1, '批量预检仅接受同一原始tar的单分片传输'
           archive=download_archive(manifest,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',output_dir=Path(os.environ['RUNNER_TEMP'])/'incoming')
           restore_archive(archive,Path(os.environ['BUNDLE_ROOT']),manifest['archive_sha256'])
           if (Path(os.environ['BUNDLE_ROOT'])/'installations/restart-v2').exists():
@@ -132,20 +193,22 @@ jobs:
         shell: bash
         run: |
           set -eu
-          test ! -e "$CASE_DIRECTORY"
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          value={key:os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','SOURCE_SHA','CASE_INDEX')}
-          with (Path(os.environ['RUNNER_TEMP'])/'evidence/native-attempt.json').open('x',encoding='utf-8') as stream:
-              json.dump(value,stream)
-          PY
           env -u GH_TOKEN -u GITHUB_TOKEN -u SAYACODE_STUDY_CONNECTION_KEYS_JSON \
-            uv run --no-sync python -m scripts.preflight_installations run \
-            --inputs "$BUNDLE_ROOT/inputs/restart-v2/installation-inputs.json" \
-            --source-sha "$SOURCE_SHA" --case-index "$CASE_INDEX" --output "$CASE_DIRECTORY" \
-            --runner-preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
-            --probe "$RUNNER_TEMP/evidence/network-probe.json"
+            uv run --no-sync python - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root=Path(os.environ['BUNDLE_ROOT'])
+          temporary=Path(os.environ['RUNNER_TEMP'])
+          for index in json.loads(os.environ['CASE_GROUP_JSON']):
+              case=root/f'installations/restart-v2/case-{index:04d}'
+              if case.exists():
+                  raise FileExistsError('不覆盖本项现场')
+              value={key:os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','SOURCE_SHA')}
+              value['CASE_INDEX']=str(index)
+              with (temporary/f'evidence/native-attempt-{index:04d}.json').open('x',encoding='utf-8') as stream:
+                  json.dump(value,stream)
+              subprocess.run([sys.executable,'-m','scripts.preflight_installations','run','--inputs',str(root/'inputs/restart-v2/installation-inputs.json'),'--source-sha',os.environ['SOURCE_SHA'],'--case-index',str(index),'--output',str(case),'--runner-preparation',str(temporary/'evidence/runner-preparation.json'),'--probe',str(temporary/'evidence/network-probe.json')],check=True)
+          PY
       - name: 保存当项完整私有原件
         id: archive
         if: always() && (steps.native.outcome == 'success' || steps.native.outcome == 'failure')
@@ -160,28 +223,39 @@ jobs:
           from sayacode_bench.artifacts import write_json
           from sayacode_bench.release_evidence import upload_archive
           root=Path(os.environ['BUNDLE_ROOT'])
-          case=Path(os.environ['CASE_DIRECTORY'])
           evidence=Path(os.environ['RUNNER_TEMP'])/'evidence'
-          attempt=json.loads((evidence/'native-attempt.json').read_bytes())
-          assert all(attempt[key]==os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','SOURCE_SHA','CASE_INDEX'))
-          if not case.is_dir() or not case.is_relative_to(root):
-              raise ValueError('未取得当项现场；保留 Actions 原始日志，不生成通过收据')
-          host=case/'host'
-          host.mkdir(exist_ok=True)
-          for path in evidence.glob('*.json'):
-              target=host/path.name
-              if target.exists():
-                  assert target.read_bytes()==path.read_bytes()
-              else:
-                  shutil.copyfile(path,target)
+          group=json.loads(os.environ['CASE_GROUP_JSON'])
+          cases=[]
+          for index in group:
+              case=root/f'installations/restart-v2/case-{index:04d}'
+              if not case.is_dir():
+                  continue
+              attempt=json.loads((evidence/f'native-attempt-{index:04d}.json').read_bytes())
+              assert attempt['CASE_INDEX']==str(index)
+              assert all(attempt[key]==os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','SOURCE_SHA'))
+              cases.append(case)
+          if not cases:
+              raise ValueError('没有本次现场；只保留未启动诊断，不生成通过收据')
+          write_json(evidence/'case-members.json',{'source_sha':os.environ['SOURCE_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'run_attempt':os.environ['GITHUB_RUN_ATTEMPT'],'case_indices':group,'present_case_indices':[int(case.name.rsplit('-',1)[-1]) for case in cases]},exclusive=True)
+          for case in cases:
+              host=case/'host'
+              host.mkdir(exist_ok=True)
+              for path in evidence.glob('*.json'):
+                  target=host/path.name
+                  if target.exists():
+                      assert target.read_bytes()==path.read_bytes()
+                  else:
+                      shutil.copyfile(path,target)
           archive=Path(os.environ['RUNNER_TEMP'])/'case.tar.gz'
           with tarfile.open(archive,'w:gz',dereference=False) as stream:
-              stream.add(case,arcname=case.relative_to(root))
+              for case in cases:
+                  stream.add(case,arcname=case.relative_to(root))
           manifest=upload_archive(archive,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',work_dir=Path(os.environ['RUNNER_TEMP'])/'release-upload')
           write_json(evidence/'case-archive-manifest.json',manifest,exclusive=True)
-          receipt=case/'case-receipt.json'
-          if receipt.is_file():
-              shutil.copyfile(receipt,evidence/receipt.name)
+          for case in cases:
+              receipt=case/'case-receipt.json'
+              if receipt.is_file():
+                  shutil.copyfile(receipt,evidence/(case.name+'-receipt.json'))
           with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
               output.write('archived=true\n')
           PY
@@ -197,19 +271,34 @@ jobs:
           uv run --no-sync python -m scripts.preflight_installation_storage fallback \
             --archive "$RUNNER_TEMP/case.tar.gz" --output "$RUNNER_TEMP/evidence/retention-fallback.json"
           echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - name: 以固定目录结构整理交接
+        if: always()
+        env:
+          FALLBACK_READY: ${{ steps.fallback.outputs.ready }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          temporary=Path(os.environ['RUNNER_TEMP'])
+          handoff=temporary/'handoff'
+          (handoff/'evidence').mkdir(parents=True,exist_ok=False)
+          for path in (temporary/'evidence').glob('*.json'):
+              shutil.copyfile(path,handoff/'evidence'/path.name)
+          if os.environ.get('FALLBACK_READY')=='true':
+              shutil.copyfile(temporary/'case.tar.gz',handoff/'case.tar.gz')
+          PY
       - name: 私有小型交接或未确认现场
         if: always() && github.repository == 'saya-ch/sayacode-bench-runs'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: installation-case-${{ github.run_id }}-${{ matrix.case_index }}
-          path: |
-            ${{ runner.temp }}/evidence/*.json
-            ${{ steps.fallback.outputs.ready == 'true' && format('{0}/case.tar.gz', runner.temp) || format('{0}/no-raw-fallback', runner.temp) }}
+          path: ${{ runner.temp }}/handoff
           retention-days: 3
           if-no-files-found: warn
   merge:
-    needs: case
-    if: always() && inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    needs: [plan, case]
+    if: always() && needs.plan.outputs.ready == 'true' && github.repository == 'saya-ch/sayacode-bench-runs'
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     steps:
@@ -271,12 +360,21 @@ jobs:
               case_index=int(handoff.name.rsplit('-',1)[-1])
               assert handoff.name==f'installation-case-{os.environ["GITHUB_RUN_ID"]}-{case_index}'
               assert case_index in requested
-              if (handoff/'case-archive-manifest.json').is_file():
-                  manifest=read_json(handoff/'case-archive-manifest.json')
+              evidence=handoff/'evidence'
+              if not (evidence/'case-members.json').is_file():
+                  continue
+              members=read_json(evidence/'case-members.json')
+              group=next(group for group in [requested[offset:offset+2] for offset in range(0,len(requested),2)] if group[0]==case_index)
+              assert members['case_indices']==group
+              assert members['source_sha']==os.environ['SOURCE_SHA'] and members['run_id']==os.environ['GITHUB_RUN_ID'] and members['run_attempt']=='1'
+              present=members['present_case_indices']
+              assert present and len(set(present))==len(present) and all(index in group for index in present)
+              if (evidence/'case-archive-manifest.json').is_file():
+                  manifest=read_json(evidence/'case-archive-manifest.json')
                   archive=download_archive(manifest,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',output_dir=temporary/f'incoming-{index:03d}')
                   digest=manifest['archive_sha256']
               elif (handoff/'case.tar.gz').is_file():
-                  fallback=read_json(handoff/'retention-fallback.json')
+                  fallback=read_json(evidence/'retention-fallback.json')
                   archive=handoff/'case.tar.gz'
                   assert fallback['passed'] is True and fallback['fallback_ready'] is True
                   assert archive.stat().st_size==fallback['archive']['size_in_bytes']<=10000000
@@ -286,17 +384,18 @@ jobs:
                   continue
               restored=temporary/f'restored-case-{index:03d}'
               restore_archive(archive,restored,digest)
-              relative=Path(f'installations/restart-v2/case-{case_index:04d}')
+              relatives=[Path(f'installations/restart-v2/case-{index:04d}') for index in present]
               for member in restored.rglob('*'):
                   name=member.relative_to(restored)
-                  if name!=relative and not name.is_relative_to(relative) and name not in relative.parents:
+                  if not any(name==relative or name.is_relative_to(relative) or name in relative.parents for relative in relatives):
                       raise ValueError('当项归档含越界成员')
-              source=restored/relative
-              destination=root/relative
-              if not source.is_dir() or source.is_symlink() or destination.exists():
-                  raise ValueError('当项现场缺失、链接或与 seed 冲突；不覆盖')
-              destination.parent.mkdir(parents=True,exist_ok=True)
-              shutil.move(str(source),str(destination))
+              for relative in relatives:
+                  source=restored/relative
+                  destination=root/relative
+                  if not source.is_dir() or source.is_symlink() or destination.exists():
+                      raise ValueError('当项现场缺失、链接或与 seed 冲突；不覆盖')
+                  destination.parent.mkdir(parents=True,exist_ok=True)
+                  shutil.move(str(source),str(destination))
           PY
       - name: 严格合并四十六项；部分回归仅保留诊断
         id: merge
@@ -304,16 +403,17 @@ jobs:
         shell: bash
         run: |
           uv run --no-sync python - <<'PY'
-          import json, os, subprocess, sys
+          import json, os
           from pathlib import Path
+          from scripts.preflight_installations import merge_cases
           root=Path(os.environ['BUNDLE_ROOT'])
-          receipts=[root/f'installations/restart-v2/case-{index:04d}/case-receipt.json' for index in json.loads(os.environ['CASE_INDICES_JSON'])]
+          receipts=[path for index in json.loads(os.environ['CASE_INDICES_JSON']) if (path:=root/f'installations/restart-v2/case-{index:04d}/case-receipt.json').is_file()]
           output=root/'installations/restart-v2/preflight.json'
           if output.exists():
               raise FileExistsError('本次合并不能复用旧诊断')
-          result=subprocess.run([sys.executable,'-m','scripts.preflight_installations','merge','--inputs',str(root/'inputs/restart-v2/installation-inputs.json'),'--source-sha',os.environ['SOURCE_SHA'],'--case-receipts',*map(str,receipts),'--output',str(output)],check=False)
-          if result.returncode and sorted(json.loads(os.environ['CASE_INDICES_JSON']))==list(range(1,47)):
-              raise SystemExit(result.returncode)
+          result=merge_cases(root/'inputs/restart-v2/installation-inputs.json',os.environ['SOURCE_SHA'],receipts,output)
+          if not result['passed'] and sorted(json.loads(os.environ['CASE_INDICES_JSON']))==list(range(1,47)):
+              raise SystemExit(1)
           if not output.is_file():
               raise ValueError('原生安装合并没有保存诊断')
           PY

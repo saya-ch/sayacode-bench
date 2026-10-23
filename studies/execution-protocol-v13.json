@@ -11,7 +11,14 @@
     "terminal_tasks": 14,
     "harbor_install_only": true,
     "supplier_credentials_allowed": false,
-    "verifier_allowed": false
+    "verifier_allowed": false,
+    "max_cases_per_hosted_job": 2,
+    "hosted_job_timeout_seconds": 7200,
+    "original_case_build_and_setup_timeouts_preserved": true,
+    "seed_transport_parts": 1,
+    "full_api_remaining_required": 950,
+    "regression_api_remaining_required": 100,
+    "low_api_quota_starts_native_cases": false
   },
   "primary_dev": {
     "tasks": 8,

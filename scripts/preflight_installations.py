@@ -196,11 +196,12 @@ async def run_case(
             environment=EnvironmentConfig(
                 import_path="sayacode_bench.network:IsolatedDockerEnvironment",
                 delete=True,
-                kwargs={"messages_upstream": "http://127.0.0.1:9"},
+                kwargs={"messages_upstream": "http://127.0.0.1:9/v1/messages"},
             ),
         )
         write_json(output / "native-config.json", config.model_dump(mode="json"), exclusive=True)
-        await Job(config).run()
+        job = await Job.create(config)
+        await job.run()
         job_directory = output / "native" / job_name
         trials = [
             p / "result.json"

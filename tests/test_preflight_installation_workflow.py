@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import tarfile
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -43,6 +45,7 @@ def guarded(tmp_path: Path, monkeypatch: Any) -> None:
         "SEED_MANIFEST_FILE": "installation-seed.json",
         "CASE_INDICES_JSON": "[1,2]",
         "CASE_INDEX": "1",
+        "CASE_GROUP_JSON": "[1,2]",
     }.items():
         monkeypatch.setenv(key, value)
 
@@ -105,12 +108,22 @@ def restored(tmp_path: Path, monkeypatch: Any) -> dict[str, Any]:
     seed = make_archive("seed", {"inputs/original.json": '{"original":true}\n'})
     write_json(artifacts / "installation-seed.json", seed)
     handoff = temporary / "case-handoffs/installation-case-456-1"
-    handoff.mkdir(parents=True)
+    (handoff / "evidence").mkdir(parents=True)
     case = make_archive(
         "case",
         {"installations/restart-v2/case-0001/case-receipt.json": '{"passed":true}\n'},
     )
-    write_json(handoff / "case-archive-manifest.json", case)
+    write_json(handoff / "evidence/case-archive-manifest.json", case)
+    write_json(
+        handoff / "evidence/case-members.json",
+        {
+            "source_sha": "a" * 40,
+            "run_id": "456",
+            "run_attempt": "1",
+            "case_indices": [1],
+            "present_case_indices": [1],
+        },
+    )
 
     def download(manifest: dict[str, Any], **kwargs: Any) -> Path:
         return archives[manifest["archive_sha256"]]
@@ -123,6 +136,7 @@ def restored(tmp_path: Path, monkeypatch: Any) -> dict[str, Any]:
         "SEED_MANIFEST_FILE": "installation-seed.json",
         "CASE_INDICES_JSON": "[1]",
         "GITHUB_RUN_ID": "456",
+        "SOURCE_SHA": "a" * 40,
     }.items():
         monkeypatch.setenv(key, value)
     return {
@@ -151,7 +165,7 @@ def test_case_overlay_rejects_another_case_archive(restored: dict[str, Any]) -> 
 
 def test_case_archive_cannot_replace_original_inputs(restored: dict[str, Any]) -> None:
     manifest = restored["make_archive"]("out-of-case", {"inputs/original.json": "changed"})
-    write_json(restored["handoff"] / "case-archive-manifest.json", manifest)
+    write_json(restored["handoff"] / "evidence/case-archive-manifest.json", manifest)
     with pytest.raises(ValueError, match="越界"):
         exec(compile(body("merge", "恢复全部原始安装现场"), str(TEMPLATE), "exec"), {})
     assert (restored["root"] / "inputs/original.json").read_bytes() == b'{"original":true}\n'
@@ -168,11 +182,11 @@ def test_partial_seed_cannot_reuse_stale_preflight(restored: dict[str, Any]) -> 
 
 def test_bounded_fallback_restores_same_native_case(restored: dict[str, Any]) -> None:
     handoff = restored["handoff"]
-    (handoff / "case-archive-manifest.json").unlink()
+    (handoff / "evidence/case-archive-manifest.json").unlink()
     archive = handoff / "case.tar.gz"
     archive.write_bytes((restored["originals"] / "case.tar.gz").read_bytes())
     write_json(
-        handoff / "retention-fallback.json",
+        handoff / "evidence/retention-fallback.json",
         {
             "passed": True,
             "fallback_ready": True,
@@ -186,21 +200,136 @@ def test_bounded_fallback_restores_same_native_case(restored: dict[str, Any]) ->
 def test_workflow_has_no_model_secret_and_pins_actions() -> None:
     value = workflow()
     assert "secrets." not in TEMPLATE.read_text(encoding="utf-8")
-    for job in value["jobs"].values():
-        assert int(job["timeout-minutes"]) < 60
+    for name, job in value["jobs"].items():
+        assert int(job["timeout-minutes"]) <= (120 if name == "case" else 55)
         for step in job["steps"]:
             if "uses" in step:
                 assert re.fullmatch(r"[A-Za-z0-9_./-]+@[0-9a-f]{40}", step["uses"])
             if "GH_TOKEN" in step.get("env", {}):
-                assert "scripts.preflight_installations run" not in step.get("run", "")
-    native = next(
-        step
-        for step in value["jobs"]["case"]["steps"]
-        if "scripts.preflight_installations run" in step.get("run", "")
-    )
+                assert step.get("id") != "native"
+    native = next(step for step in value["jobs"]["case"]["steps"] if step.get("id") == "native")
     assert "env -u GH_TOKEN -u GITHUB_TOKEN -u SAYACODE_STUDY_CONNECTION_KEYS_JSON" in native["run"]
     assert value["jobs"]["case"]["strategy"]["fail-fast"] == "false"
-    assert value["jobs"]["merge"]["needs"] == "case"
+    assert value["jobs"]["merge"]["needs"] == ["plan", "case"]
+    assert "needs.plan.outputs.ready == 'true'" in value["jobs"]["case"]["if"]
+
+
+@pytest.mark.parametrize("remaining,ready", [(999, True), (949, False), (0, False)])
+def test_quota_admission_never_starts_native_when_low(
+    guarded: None, tmp_path: Path, monkeypatch: Any, remaining: int, ready: bool
+) -> None:
+    monkeypatch.setenv("CASE_INDICES_JSON", json.dumps(list(range(1, 47))))
+    output = tmp_path / "github-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+
+    def response(arguments: list[str], **kwargs: Any) -> SimpleNamespace:
+        assert arguments == ["gh", "api", "repos/saya-ch/sayacode-bench-runs", "--include"]
+        headers = (
+            f"HTTP/2.0 200 OK\r\nx-ratelimit-limit: 1000\r\n"
+            f"x-ratelimit-remaining: {remaining}\r\nx-ratelimit-reset: 1234567890\r\n\r\n"
+        )
+        project = {"id": 1429748203, "private": True, "full_name": "saya-ch/sayacode-bench-runs"}
+        return SimpleNamespace(stdout=(headers + json.dumps(project)).encode())
+
+    monkeypatch.setattr(subprocess, "run", response)
+    exec(compile(body("plan", "核对配额并按两项划分原生矩阵"), str(TEMPLATE), "exec"), {})
+    report = json.loads((tmp_path / "admission/quota.json").read_bytes())
+    assert report["ready"] is ready and report["native_cases_started"] == 0
+    assert len(report["groups"]) == 23
+    assert [index for group in report["groups"] for index in group["case_indices"]] == list(
+        range(1, 47)
+    )
+    assert f"ready={str(ready).lower()}" in output.read_text(encoding="utf-8")
+
+
+def test_handoff_staging_has_explicit_nested_evidence(tmp_path: Path, monkeypatch: Any) -> None:
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    write_json(evidence / "case-members.json", {"case_indices": [1, 2]})
+    archive = tmp_path / "case.tar.gz"
+    archive.write_bytes(b"checked bounded raw archive")
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    monkeypatch.setenv("FALLBACK_READY", "true")
+    exec(compile(body("case", "以固定目录结构整理交接"), str(TEMPLATE), "exec"), {})
+    assert (tmp_path / "handoff/evidence/case-members.json").read_bytes() == (
+        evidence / "case-members.json"
+    ).read_bytes()
+    assert (tmp_path / "handoff/case.tar.gz").read_bytes() == archive.read_bytes()
+    upload = next(
+        step
+        for step in workflow()["jobs"]["case"]["steps"]
+        if step.get("name") == "私有小型交接或未确认现场"
+    )
+    assert upload["with"]["path"] == "${{ runner.temp }}/handoff"
+
+
+def test_two_case_archive_restores_both_without_copying_history(
+    restored: dict[str, Any], monkeypatch: Any
+) -> None:
+    manifest = restored["make_archive"](
+        "pair",
+        {
+            f"installations/restart-v2/case-{index:04d}/case-receipt.json": '{"passed":true}'
+            for index in (1, 2)
+        },
+    )
+    handoff = restored["handoff"]
+    write_json(handoff / "evidence/case-archive-manifest.json", manifest)
+    members = json.loads((handoff / "evidence/case-members.json").read_bytes())
+    members.update(case_indices=[1, 2], present_case_indices=[1, 2])
+    write_json(handoff / "evidence/case-members.json", members)
+    monkeypatch.setenv("CASE_INDICES_JSON", "[1,2]")
+    exec(compile(body("merge", "恢复全部原始安装现场"), str(TEMPLATE), "exec"), {})
+    for index in (1, 2):
+        assert (
+            restored["root"] / f"installations/restart-v2/case-{index:04d}/case-receipt.json"
+        ).is_file()
+
+
+def test_two_case_step_keeps_separate_cli_outputs(
+    guarded: None, tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "bundle"
+    root.mkdir()
+    monkeypatch.setenv("BUNDLE_ROOT", str(root))
+    monkeypatch.setenv("GITHUB_RUN_ID", "456")
+    calls: list[list[str]] = []
+
+    def invoke(arguments: list[str], **kwargs: Any) -> None:
+        assert kwargs == {"check": True}
+        assert arguments[1:4] == ["-m", "scripts.preflight_installations", "run"]
+        calls.append(arguments)
+        Path(arguments[arguments.index("--output") + 1]).mkdir(parents=True)
+
+    monkeypatch.setattr(subprocess, "run", invoke)
+    exec(
+        compile(body("case", "原生 install_only；不执行 Agent 或 verifier"), str(TEMPLATE), "exec"),
+        {},
+    )
+    assert [arguments[arguments.index("--case-index") + 1] for arguments in calls] == ["1", "2"]
+    for index in (1, 2):
+        assert (root / f"installations/restart-v2/case-{index:04d}").is_dir()
+        marker = json.loads((tmp_path / f"evidence/native-attempt-{index:04d}.json").read_bytes())
+        assert marker["CASE_INDEX"] == str(index)
+
+
+def test_missing_case_outputs_still_produce_partial_diagnostic(
+    restored: dict[str, Any], monkeypatch: Any
+) -> None:
+    from scripts import preflight_installations
+
+    restored["root"].mkdir()
+    observed: list[list[Path]] = []
+
+    def merge(inputs: Path, source: str, receipts: list[Path], output: Path) -> dict[str, bool]:
+        observed.append(receipts)
+        write_json(output, {"complete": False, "passed": False}, exclusive=True)
+        return {"complete": False, "passed": False}
+
+    monkeypatch.setattr(preflight_installations, "merge_cases", merge)
+    exec(compile(body("merge", "严格合并四十六项；部分回归仅保留诊断"), str(TEMPLATE), "exec"), {})
+    assert observed == [[]]
+    assert (restored["root"] / "installations/restart-v2/preflight.json").is_file()
 
 
 def test_all_embedded_python_blocks_compile() -> None:

@@ -8,10 +8,12 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from harbor.job import Job as NativeJob
 from test_installation import Environment
 
 from sayacode_bench import installation
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
+from sayacode_bench.network import GatewayConfig, nginx_config
 from scripts import preflight_installations as script
 
 
@@ -179,8 +181,14 @@ def setup(tmp_path: Path, monkeypatch: Any) -> SimpleNamespace:
 
     class RecordingJob:
         def __init__(self, config: Any) -> None:
-            self.config = config
+            raise ValueError("Use await Job.create(config)")
+
+        @classmethod
+        async def create(cls, config: Any) -> RecordingJob:
+            job = object.__new__(cls)
+            job.config = config
             state.jobs.append(config)
+            return job
 
         async def run(self) -> None:
             config = self.config
@@ -268,12 +276,48 @@ async def test_native_install_only_and_exclusive_case_output(setup: SimpleNamesp
     original = path.read_bytes()
     config = setup.jobs[0]
     assert str(config.tasks[0].path).endswith("synthetic-task")
-    assert config.environment.kwargs["messages_upstream"] == "http://127.0.0.1:9"
+    upstream = config.environment.kwargs["messages_upstream"]
+    assert upstream == "http://127.0.0.1:9/v1/messages"
+    gateway = nginx_config(GatewayConfig(chat_upstream=None, messages_upstream=upstream))
+    assert "server 127.0.0.1:9 resolve;" in gateway
+    assert "proxy_pass http://saya_messages/v1/messages;" in gateway
     assert setup.cases[5]["runtime_identity"]["requested"]["docker_image"].endswith(":fixed")
     assert "api_key" not in read_json(Path(setup.inputs["profile"]["path"]))
     with pytest.raises(FileExistsError):
         await case(setup, 6)
     assert len(setup.jobs) == 1 and path.read_bytes() == original
+
+
+async def test_real_harbor_create_reaches_run_boundary_without_docker(
+    setup: SimpleNamespace, monkeypatch: Any
+) -> None:
+    reached = []
+
+    async def boundary(job: NativeJob) -> None:
+        reached.append(job)
+        # 官方 create 已完整返回；不进入 run 的容器或模型执行。
+        job._close_logger_handlers()
+        raise RuntimeError("native-run-boundary")
+
+    monkeypatch.setattr(script, "Job", NativeJob)
+    monkeypatch.setattr(NativeJob, "run", boundary)
+    output = setup.root / "installations/restart-v2/case-0006"
+    result = await script.run_case(
+        setup.inputs_path, setup.source, 6, output, setup.preparation, setup.probe
+    )
+    assert len(reached) == 1
+    config = reached[0].config
+    assert config.install_only is True and config.verifier.disable is True
+    assert config.n_attempts == config.n_concurrent_trials == 1
+    assert config.retry.max_retries == 0
+    assert config.agents[0].import_path == "sayacode_bench.adapter:SayacodeAgent"
+    assert config.agents[0].model_name is None
+    gateway = nginx_config(GatewayConfig(chat_upstream=None, **config.environment.kwargs))
+    assert "server 127.0.0.1:9 resolve;" in gateway
+    assert "proxy_pass http://saya_messages/v1/messages;" in gateway
+    assert result["error_type"] == "RuntimeError"
+    assert result["failure_message"] == "native-run-boundary"
+    assert result["complete"] is False and result["passed"] is False
 
 
 async def test_model_secret_blocks_before_native_job(
