@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "benchmark": "terminal-bench-2.1",
+  "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+  "run_id": 39906586154,
+  "run_url": "https://github.com/saya-ch/sayacode-bench/actions/runs/39906586154",
+  "run_conclusion": "failure",
+  "source_sha": "96d20591492c88ea1c378606c20414e8eb34371b",
+  "source_ref": "qualification-v8-96d2059",
+  "study_id": "terminal-v8-host20261012",
+  "initial_selection_sha256": "f970414577484523e7be2fb1b351cefd2aa78042c270d597e182bf60c34fdc3f",
+  "control_attempt_count": 0,
+  "new_controls": 0,
+  "qualified_tasks": 0,
+  "rejected_tasks": 0,
+  "model_requests": 0,
+  "continuation_allowed": false,
+  "native_cli_returncode": 1,
+  "native_failure": {
+    "stage": "select_again before control attempt",
+    "exception_type": "ValueError",
+    "message": "完整候选池与初始选择身份不同",
+    "source_location": "scripts/qualify_fixtures.py:174"
+  },
+  "outer_secondary_error_type": "FileNotFoundError",
+  "reproduced_source_defect": {
+    "implementation": "sorted(Path) depends on host path case semantics",
+    "frozen_windows_catalog_sha256": "ea74b3a29111cf2b3eca74fe880e34d77b43ad59aab6cdab6acb31b04d52418c",
+    "same_source_linux_order_catalog_sha256": "4e60e1a92cc86e1aacd4daa06f439b2e890cad85ba441d473dbf859d95a0cf83",
+    "new_selection_changes_task_ids": false,
+    "cloud_source_snapshot_tree_sha256": "0534c99951b9b58aff365c08ac76a539ff93cbab11c44cb5155ce0833df8563e",
+    "corrected_local_source_tree_matches_cloud": true
+  },
+  "host_cohort": {
+    "ImageOS": "ubuntu24",
+    "ImageVersion": "20261012.334.1",
+    "RUNNER_ARCH": "X64"
+  },
+  "host_preparation_passed": true,
+  "control_runtime_resource_evidence_available": false,
+  "artifacts": [
+    {
+      "artifact_id": 12481301888,
+      "name": "qualification-terminal-v8-host20261012-39906586154-1-host",
+      "bytes": 8257,
+      "service_and_local_sha256": "b98ad500c72e46246c6d9c603ab407eb1e78449a7f459b89d4005c70bbd2ebc4"
+    },
+    {
+      "artifact_id": 12481023147,
+      "name": "qualification-terminal-v8-host20261012-39906586154-1",
+      "bytes": 52781297,
+      "service_and_local_sha256": "09c923f361ca59de877f39c184516ddd7f84fda97cbaaa94dda57d7f6bac6d9d"
+    }
+  ],
+  "archive_sha256": "f006c8da3d8a09e492b4934af65c765db79a944247c46390cd8441dc30100788",
+  "archive_bytes": 52769173,
+  "cloud_plan_sha256": "9f268751efe67e496af620424480413e5f19d52551255c79e5cdbf81a00b017a",
+  "raw_artifacts_preserved": true,
+  "cloud_artifacts_deleted": false,
+  "interpretation": "资格选样身份阶段的基础设施失败；未运行官方控制，不是fixture不合格或模型效果结果。"
+}

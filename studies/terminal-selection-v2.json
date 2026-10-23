@@ -1,0 +1,723 @@
+{
+  "schema_version": 1,
+  "seed": "sayacode-tb-20261022-scope-v1",
+  "catalog_sha256": "4e60e1a92cc86e1aacd4daa06f439b2e890cad85ba441d473dbf859d95a0cf83",
+  "rules": {
+    "max_memory_mb": 4096,
+    "concurrency": 1,
+    "resources": "preserve official per-task environment/agent/verifier configuration",
+    "topology": "single-container tasks only; custom Compose excluded before model trials",
+    "languages": null,
+    "categories": [
+      "data-processing",
+      "debugging",
+      "file-operations",
+      "security",
+      "software-engineering",
+      "system-administration"
+    ],
+    "max_agent_timeout_sec": 1800,
+    "preferred_languages": [
+      "python"
+    ],
+    "excluded_leakage_groups": [],
+    "excluded_group_matching": "exact leakage_group or benchmark:leakage_group",
+    "unmatched_excluded_leakage_groups": [],
+    "strata": "repository for SWE; category for Terminal-Bench",
+    "ordering": "sha256 seeded group order; independent round-robin coverage for dev then holdout",
+    "leakage_guard": "one variant per repository/fixing commit; no cross-split overlap",
+    "exclusion_timing": "before any model result; no score-dependent replacement"
+  },
+  "eligible_count": 45,
+  "exclusions": [
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "adaptive-rejection-sampler",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "bn-fit-modify",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "build-pov-ray",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "caffe-cifar-10",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "chess-best-move",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "circuit-fibsqrt",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "compile-compcert",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "constraints-scheduling",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "count-dataset-tokens",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "distribution-search",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "dna-assembly",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "dna-insert",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "feal-differential-cryptanalysis",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "feal-linear-cryptanalysis",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "filter-js-from-html",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "fix-ocaml-gc",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "gpt2-codegolf",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "hf-model-inference",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "install-windows-3.11",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "largest-eigenval",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "llm-inference-batching-scheduler",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "mcmc-sampling-stan",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "model-extraction-relu-logits",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "modernize-scientific-stack",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "mteb-leaderboard",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "mteb-retrieve",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "portfolio-optimization",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "protein-assembly",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "pytorch-model-cli",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "pytorch-model-recovery",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "query-optimize",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "raman-fitting",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "regex-chess",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "reshard-c4-data",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "rstan-to-pystan",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "sam-cell-seg",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "schemelike-metacircular-eval",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "sparql-university",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "torch-pipeline-parallelism",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "torch-tensor-parallelism",
+      "reason": "official_memory_exceeds_declared_host_budget"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "train-fasttext",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "tune-mjcf",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "video-processing",
+      "reason": "outside_predeclared_category_scope"
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "task_id": "winning-avg-corewars",
+      "reason": "official_agent_timeout_exceeds_study_scope"
+    }
+  ],
+  "dev": [
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "make-doom-for-mips",
+      "task_name": "terminal-bench/make-doom-for-mips",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "software-engineering",
+      "difficulty": "hard",
+      "leakage_group": "make-doom-for-mips",
+      "instruction_sha256": "1903b660e4c64966ff257f828c932adff2b289de589bd6aee22b933bb4fef429",
+      "config_sha256": "a7d7a498f0d3a992b384e5086ba2b411767c1c1a013d1b41f6a25cdaf6d05acc",
+      "task_tree_sha256": "4bd7b5ebb0ea145a2ea7fcdae8128c3e2cf53223f0c5b806d03540d9b94488be",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/make-doom-for-mips:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "sqlite-db-truncate",
+      "task_name": "terminal-bench/sqlite-db-truncate",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "debugging",
+      "difficulty": "medium",
+      "leakage_group": "sqlite-db-truncate",
+      "instruction_sha256": "465c135cd80be49023ea3ecf8f1d840c679b3a960efe425d510894e417b9d802",
+      "config_sha256": "56061acd75d9933aa554aeb249b85d7d081227fca1b71a3da7e3dc97a675723e",
+      "task_tree_sha256": "3554385c69596f4b4f07446f40b57c2ab03bc8147430735d0bfe01372e15091d",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/sqlite-db-truncate:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    }
+  ],
+  "holdout": [
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "path-tracing",
+      "task_name": "terminal-bench/path-tracing",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "software-engineering",
+      "difficulty": "hard",
+      "leakage_group": "path-tracing",
+      "instruction_sha256": "9f36e02d636f5dc0946619bc518f2e51c24fa75251da9d1f0ca9eca612cb9572",
+      "config_sha256": "cf47013f69bf1b43242da984f231d4daf364fdf44d3845f2eea2ca2cb9308c46",
+      "task_tree_sha256": "de23370c2a8c5d29c1a5def4b99065aa9969f5735df0e3a074ed5943dd82c9e9",
+      "agent": {
+        "timeout_sec": 1800.0
+      },
+      "verifier": {
+        "timeout_sec": 1800.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/path-tracing:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "merge-diff-arc-agi-task",
+      "task_name": "terminal-bench/merge-diff-arc-agi-task",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "debugging",
+      "difficulty": "medium",
+      "leakage_group": "merge-diff-arc-agi-task",
+      "instruction_sha256": "2d826479873e5ac1c94c1f802763bf85c22bb04624384685ebdf6b153fe0278e",
+      "config_sha256": "6ced40e06b43b169857509765eb7f07791db558f9437cc7367d2536771c2ca5b",
+      "task_tree_sha256": "7f0e024d00fd1d52d06d1e2b27562c62342616cde986dbc197a47b0a8a3dd1cd",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/merge-diff-arc-agi-task:20251031",
+        "cpus": 1,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "configure-git-webserver",
+      "task_name": "terminal-bench/configure-git-webserver",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "system-administration",
+      "difficulty": "hard",
+      "leakage_group": "configure-git-webserver",
+      "instruction_sha256": "62151b7371bc364277a3c118bba755334c640fb0cefc7a5af106e6e763cf1d97",
+      "config_sha256": "ebb40d72f689512cbd90d865d88ef966b6665ab215544f9247b898b7fa94751b",
+      "task_tree_sha256": "e027d585f16c01c154b46c1aa2374ff085df2d5569449285a6104a3b9842f756",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/configure-git-webserver:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "log-summary-date-ranges",
+      "task_name": "terminal-bench/log-summary-date-ranges",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "data-processing",
+      "difficulty": "medium",
+      "leakage_group": "log-summary-date-ranges",
+      "instruction_sha256": "c1d4516ad4ec2238209740eaf01291df9ab48b0028a3fc5df383c6f831453484",
+      "config_sha256": "9a9593673d6805ef3a301ea734e9c4dbaf80da1b37c0fe9d1f2ceea2a8c57e18",
+      "task_tree_sha256": "472cd1ba8a965927371ccc4564940f6cce8692961d50dc372f82b290619a7852",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/log-summary-date-ranges:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "password-recovery",
+      "task_name": "terminal-bench/password-recovery",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "security",
+      "difficulty": "hard",
+      "leakage_group": "password-recovery",
+      "instruction_sha256": "bc4f501148805bbccdb94a5c5b745f1ce9564f04ef0fe36bc37c3ca20b7810a5",
+      "config_sha256": "cfd0362d201b957796f9bf1c02cc75646250cb2bd107ec88c768bfcfd091b24b",
+      "task_tree_sha256": "932b42ad01c7c6c2fe3d96f2f0201c81f5acaf4ddc5cdee939f1ac3d7a88f5ee",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/password-recovery:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "large-scale-text-editing",
+      "task_name": "terminal-bench/large-scale-text-editing",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "file-operations",
+      "difficulty": "medium",
+      "leakage_group": "large-scale-text-editing",
+      "instruction_sha256": "2746a16369b28b2e368ca168bc85222811cbe570f3b315f1b1c432afad07ddc8",
+      "config_sha256": "5c9488e80c1186f72efb8193e6be13c74eadf334b3846db2e794d24513a88f5f",
+      "task_tree_sha256": "2d0a3c9d021891a9f38aa1509bf459174d9b20cf7d58a639fb76d8910deff8f8",
+      "agent": {
+        "timeout_sec": 1200.0
+      },
+      "verifier": {
+        "timeout_sec": 1200.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/large-scale-text-editing:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "code-from-image",
+      "task_name": "terminal-bench/code-from-image",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "software-engineering",
+      "difficulty": "medium",
+      "leakage_group": "code-from-image",
+      "instruction_sha256": "8c3af6483e409defef9786da51f318ae2ca71afe2327b94471d2f0e2e367442c",
+      "config_sha256": "3a13c1e252bb8759f51215be0b2b2cb1b4c697f0dd570f2d7702cc28b28f08de",
+      "task_tree_sha256": "0a9b3f827c42601dd0e5324d107b8641e0c0f15f0bf1aa02328adb2b288815ce",
+      "agent": {
+        "timeout_sec": 1200.0
+      },
+      "verifier": {
+        "timeout_sec": 1200.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/code-from-image:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "overfull-hbox",
+      "task_name": "terminal-bench/overfull-hbox",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "debugging",
+      "difficulty": "easy",
+      "leakage_group": "overfull-hbox",
+      "instruction_sha256": "91381d7490afbbf11255e22471d3ed76317353d8e1da372fbc91887e65c57f47",
+      "config_sha256": "64680925bd47043216bffb2c44eb3620f1730e111a89ffbcc5550e5ffc89e72b",
+      "task_tree_sha256": "92aed71c6e308ec9ec654261fbf17ef9e1292097deb1cc3420151b594d3bf5ad",
+      "agent": {
+        "timeout_sec": 750.0
+      },
+      "verifier": {
+        "timeout_sec": 360.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/overfull-hbox:20260403",
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "sqlite-with-gcov",
+      "task_name": "terminal-bench/sqlite-with-gcov",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "system-administration",
+      "difficulty": "medium",
+      "leakage_group": "sqlite-with-gcov",
+      "instruction_sha256": "b6ba9acf62292bc2a0bab40d4805b3abceededbb0ccd4477a1ce9ccc42c14dd9",
+      "config_sha256": "9a0da96990ee2ecbf4d92682a4c5301a53db45fc6e2d46ac7d45d3b8ee7fe523",
+      "task_tree_sha256": "e38316738d7e5cec80d1c8e714ec07a2b4d53b060cff0bd750d9c92b1735210e",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/sqlite-with-gcov:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "regex-log",
+      "task_name": "terminal-bench/regex-log",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "data-processing",
+      "difficulty": "medium",
+      "leakage_group": "regex-log",
+      "instruction_sha256": "4f7ac05e70cf9220ea0f1e5a052c5f908cd0fa884e847d80b0bd51bae2e96f9c",
+      "config_sha256": "6bc98525852755caf1fe34c174c2f10f4328adb4ce6c1968dcafe1c877e4e160",
+      "task_tree_sha256": "e8ac27bb51eb09c6f5957e88f78081df1cf2c1fd0228869430284de06c79f8ec",
+      "agent": {
+        "timeout_sec": 900.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/regex-log:20251031",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "crack-7z-hash",
+      "task_name": "terminal-bench/crack-7z-hash",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "security",
+      "difficulty": "medium",
+      "leakage_group": "crack-7z-hash",
+      "instruction_sha256": "f5f89400c549eefb2c245caa7770356737b7a12098e6879787e846d9cb5eb822",
+      "config_sha256": "8e192bcbe00e817419bde7ff9b562a5fa0c1e24ec4f3384cba4a31eda0a7b013",
+      "task_tree_sha256": "5ccd1223600680c610a4f5c3ebe8ac0397ce065435119a00206f02ca5d3c9b3b",
+      "agent": {
+        "timeout_sec": 1800.0
+      },
+      "verifier": {
+        "timeout_sec": 900.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/crack-7z-hash:20251031",
+        "cpus": 1,
+        "memory_mb": 4096,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    },
+    {
+      "benchmark": "terminal-bench-2.1",
+      "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "task_id": "extract-moves-from-video",
+      "task_name": "terminal-bench/extract-moves-from-video",
+      "repository": "terminal-bench",
+      "language": "unknown",
+      "category": "file-operations",
+      "difficulty": "hard",
+      "leakage_group": "extract-moves-from-video",
+      "instruction_sha256": "6697dca6199359a7409962db4609ad5909a8fe2b35e606a61ea63f1d25e44858",
+      "config_sha256": "2c9e1b466871da3c3703ec3c6d9835f154b8f1cc34af1f1ba45d64fec56f3605",
+      "task_tree_sha256": "5473919f5a998c515d9ac0979c12e2b47c975bfce43ab7b507c50eb41517e8d6",
+      "agent": {
+        "timeout_sec": 1800.0
+      },
+      "verifier": {
+        "timeout_sec": 1800.0,
+        "env": {}
+      },
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/extract-moves-from-video:20260403",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "has_custom_compose": false
+    }
+  ],
+  "interpretation": "Terminal-Bench 2.1 独立补充固定子集；dev 仅环境校准，最终复用主 SWE 候选，不进行终端调参；不代表完整榜单",
+  "study_role": "terminal_supplement",
+  "hash_ordering": "relative path.parts tuple; case-sensitive; preserves Linux Path ordering"
+}

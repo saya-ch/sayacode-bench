@@ -1,20 +1,26 @@
 # Terminal-Bench 2.1 独立补充研究
 
-本页承接 [固定设计](../studies/design-20261022-v1.json) 与 [原协议](protocol.md) 中已经声明的终端补充：12 道最终任务、每配置一次，复用主 SWE-bench Pro V2 开发阶段选中的唯一配置，不在 Terminal 上重新调参。当前交付包括固定初选、公开无模型资格入口和正式冻结约束；这些文件与离线测试不代表 Terminal 官方控制或模型试验已经执行。
+本页承接 [固定设计](../studies/design-20261022-v1.json) 与 [原协议](protocol.md) 中已经声明的终端补充：12 道最终任务、每配置一次，复用主 SWE-bench Pro V2 开发阶段选中的唯一配置，不在 Terminal 上重新调参。公开入口首批在任何官方控制前因 catalog 身份不一致停止；已保全原件并修复目录指纹排序，尚无 Terminal 官方控制或模型成绩。
 
 | 项目 | 固定值 |
 | --- | --- |
 | 上游 | `terminal-bench-2.1`，提交 `7131e4375048a0e408a8fb404b5f499d726b695b` |
 | 全部任务与适用范围 | 89 道原始任务；按原范围筛选后 45 道 eligible |
 | 初选 seed | `sayacode-tb-20261022-scope-v1` |
-| 初选文件 | [terminal-selection-v1.json](../studies/terminal-selection-v1.json) |
-| 文件 SHA256 | `f970414577484523e7be2fb1b351cefd2aa78042c270d597e182bf60c34fdc3f` |
-| 完整 catalog SHA256 | `ea74b3a29111cf2b3eca74fe880e34d77b43ad59aab6cdab6acb31b04d52418c` |
+| 当前初选文件 | [terminal-selection-v2.json](../studies/terminal-selection-v2.json)；[v1 原件](../studies/terminal-selection-v1.json) 保留 |
+| v2 文件 SHA256 | `d8e7f64170250886e806092913f637bb23249b62508ddd332cd4d9464757d65f` |
+| v2 完整 catalog SHA256 | `4e60e1a92cc86e1aacd4daa06f439b2e890cad85ba441d473dbf859d95a0cf83` |
 | 两组规模 | 2 道环境校准候选，12 道独立最终候选 |
 | 资源范围 | 六个预声明类别、官方 RAM ≤4096 MB、官方 Agent timeout ≤1800 秒、无 GPU、无自定义 Compose |
 | 最终模型 trial 数 | 选中新候选：12×2×1=24；保留 baseline：12×1×1=12 |
 
-六个类别是 `software-engineering`、`debugging`、`system-administration`、`file-operations`、`data-processing`、`security`。已用固定本地 Git 快照重新核对原候选 metadata；seed、catalog、任务 ID 与全部排除原因和原先记录一致。只解析任务配置，题面和参考解只计算字节哈希，没有将正文用于选样。Terminal 上游没有提供本适配器可用的 `SHA256SUMS`，因此 catalog／task tree 哈希是本项目的复现身份，不冒充官方校验清单或独立认证。
+六个类别是 `software-engineering`、`debugging`、`system-administration`、`file-operations`、`data-processing`、`security`。已用固定本地 Git 快照重新核对原候选 metadata；seed、任务 ID 与全部排除原因和原先记录一致，目录指纹修订如下。只解析任务配置，题面和参考解只计算字节哈希，没有将正文用于选样。Terminal 上游没有提供本适配器可用的 `SHA256SUMS`，因此 catalog／task tree 哈希是本项目的复现身份，不冒充官方校验清单或独立认证。
+
+2026-10-23 的 [首批实际运行](https://github.com/saya-ch/sayacode-bench/actions/runs/39906586154) 使用 v1 与源码 `96d20591492c88ea1c378606c20414e8eb34371b`，原生 CLI 在检查完整 catalog 时抛错，随后外层读取尚不存在的 sanity 产生二次错误。主／host 原 ZIP 服务 SHA 和内部 tar SHA 已核验；attempt、新增控制、合格、拒绝、模型请求均为零，不能将这次基础设施失败算作 fixture 不通过。最小事实见 [失败记录](../reports/terminal-qualification-catalog-failure-20261023-v1.json)。
+
+v2 修正 `tree_digest` 的平台依赖：旧 `sorted(Path)` 在 Windows 折叠大小写，新规范对相对路径 `parts` 元组逐组件、区分大小写排序，严格保持旧 Linux Path 顺序。不能改成按完整 POSIX 字符串排序，因为 `a/file` 与 `a.txt` 的先后会不同。原 seed、scope、14 个任务 ID、排除原因、资源、instruction／config 字节哈希均保持，只有受影响的 task tree、完整 catalog 和相应 selection 文件身份更新；v1 与失败 raw 不改写。
+
+SourceSnapshot 的整树指纹也采用同一规范；它覆盖源码根目录，会因 README 等文件的排序修正旧 Windows 指纹，即使任务 catalog 不变。重算 SWE 642 题 catalog 仍为既有 `835f7b2f2f08973dc63f16fa2fd5921d4cbee8cf6c0a7245456db19421a12d33`，并重新通过官方 6,436 项 checksum，不更换主研究选择。官方 Git revision、原文件字节与上游 checksum 语义不受排序影响。旧缓存若保存了 Windows 旧指纹，应保留原件并从固定源建立新的缓存身份，不加入兼容错误排序的分支，也不手改旧缓存元数据。
 
 `dev` 在此 selection 中只表示环境校准候选槽位，不能调用开发选型把 Terminal 结果作为候选来源。文件明确声明 `study_role=terminal_supplement`，该声明贯穿资格重选；冻结时忘传角色或使用 `generic` 均拒绝。环境资格阶段仍对全部两组执行固定三次 oracle、一次 nop、最多 64 个候选，失败按原 seed 和完整 catalog 机械替补。最终合格数量不足时保持 incomplete，不降低 N、不换 seed、不挑容易题。当前 2+12 是初选，最终 ID 仍由该资格流程产生。
 

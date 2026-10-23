@@ -47,7 +47,7 @@ def protocol_identity() -> dict[str, Any]:
         "qualification_sha256": file_sha256(root / "scripts/qualify_fixtures.py"),
         "cloud_qualification_sha256": file_sha256(root / "scripts/qualify_cloud.py"),
         "qualification_workflow_sha256": file_sha256(root / ".github/workflows/qualify-study.yml"),
-        "terminal_selection_sha256": file_sha256(root / "studies/terminal-selection-v1.json"),
+        "terminal_selection_sha256": file_sha256(root / "studies/terminal-selection-v2.json"),
         "executor_workflow_sha256": file_sha256(root / ".github/workflows/run-study-shard.yml"),
         "samples": SAMPLES,
         "seed": SEED,

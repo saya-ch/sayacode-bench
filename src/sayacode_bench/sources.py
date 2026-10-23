@@ -214,7 +214,8 @@ def tree_digest(root: Path) -> str:
     """项目自己的目录身份；不冒充 Harbor Hub 的规范化任务 digest。"""
 
     digest = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
+    # 按相对路径组件逐项排序，保持 Linux Path 顺序，避免 Windows 大小写折叠。
+    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).parts):
         if path.name == ".sayacode-source.json":
             continue
         if path.is_symlink():

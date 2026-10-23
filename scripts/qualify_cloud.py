@@ -30,8 +30,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/qualify-study.yml"
 INITIAL_SELECTION = ROOT / "studies/primary-selection-v1.json"
 INITIAL_SHA = "39e62eb0c5aa51595cf1455f2a51c1579b57e3a61e35b3d4a8078a3b84a207c9"
-TERMINAL_SELECTION = ROOT / "studies/terminal-selection-v1.json"
-TERMINAL_SHA = "f970414577484523e7be2fb1b351cefd2aa78042c270d597e182bf60c34fdc3f"
+TERMINAL_SELECTION = ROOT / "studies/terminal-selection-v2.json"
+TERMINAL_SHA = "d8e7f64170250886e806092913f637bb23249b62508ddd332cd4d9464757d65f"
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 STUDY = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}\Z")
@@ -460,6 +460,15 @@ def run_batch(
             rc = call_qualifier(bundle, directory / f"control-{index + 1}.log", deadline)
             status["native_cli_returncode"] = rc
             status["new_controls"] = _attempt_count(bundle) - before
+            if rc != 0 and not (bundle / "qualification/sanity.json").is_file():
+                # 保留原 CLI 失败来源，不能被后续读取不存在的 sanity 所掩盖。
+                status.update(
+                    reason="qualification_cli_failed_before_sanity",
+                    error_type="NativeQualificationCLIError",
+                    native_log=str(directory / f"control-{index + 1}.log"),
+                    continuation_allowed=False,
+                )
+                break
             if rc not in {0, 1}:
                 raise ValueError("资格 CLI 异常退出")
             sanity = bind_qualification_host(bundle, plan)

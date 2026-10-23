@@ -134,6 +134,26 @@ def test_frozen_terminal_metadata_preserves_original_scope_and_official_network(
         assert "instruction" not in task and "solution" not in task
 
 
+def test_terminal_v2_only_revises_platform_dependent_tree_and_catalog_identity() -> None:
+    original_path = qualify_cloud.ROOT / "studies/terminal-selection-v1.json"
+    assert (
+        file_sha256(original_path)
+        == "f970414577484523e7be2fb1b351cefd2aa78042c270d597e182bf60c34fdc3f"
+    )
+    before, after = read_json(original_path), read_json(qualify_cloud.TERMINAL_SELECTION)
+    for key in ("seed", "rules", "eligible_count", "exclusions", "study_role"):
+        assert before[key] == after[key]
+    for split in ("dev", "holdout"):
+        for old, new in zip(before[split], after[split], strict=True):
+            assert {key: value for key, value in old.items() if key != "task_tree_sha256"} == {
+                key: value for key, value in new.items() if key != "task_tree_sha256"
+            }
+    assert before["catalog_sha256"] != after["catalog_sha256"]
+    assert after["hash_ordering"] == (
+        "relative path.parts tuple; case-sensitive; preserves Linux Path ordering"
+    )
+
+
 def test_public_terminal_qualification_reuses_fixed_controls_and_cannot_resume_as_primary(
     tmp_path: Path,
 ) -> None:

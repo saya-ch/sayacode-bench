@@ -4,6 +4,7 @@
 
 ## 最新实际状态
 
+- v9 修复了目录指纹的跨平台排序：相对路径组件按区分大小写的元组排序，保留旧 Linux 语义。SWE 642 题 catalog 与冻结值相同，6,436 项官方 checksum 全部通过；Terminal v2 选择保持原十四个 ID、seed、资源和排除规则。Windows 全套 **1,074 通过、7 项环境跳过**，Ruff、格式、包内及五个脚本类型检查通过。Terminal 首批 `39906586154` 在任何 control attempt 前因 catalog 身份不一致失败，原件已完整保全；该批不能算作模型或 fixture 不通过。[失败与修复证据](../reports/terminal-qualification-catalog-failure-20261023-v1.json)
 - v8 实现已完成 Windows／Python 3.13 全套 **1,068 通过、7 项按环境跳过**；Ruff、格式、20 个源码文件及 5 个编排脚本的类型检查通过。九份静态 workflow，以及部分批次／前缀恢复／仅归并三种实际生成 DAG 均通过 actionlint。新增合同覆盖跨阶段目录隔离、显式物理批次恢复和 Terminal 独立补充；这些新合同当前以离线行为验收为证据，尚未完成跨 VM 的真实模型恢复或 Terminal 资格执行。v8 保留原样本数、统计方法与 seed，并绑定恢复 helper、资格 workflow 和 Terminal 初选身份。
 - `1c4ed0bac9ffd55023875c517a327cf4869fd727` 的 [四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39808430484)，Windows 本地对应 886 项通过、4 项明确跳过。未提交的后续修改不能借用该结果。
 - 真实原生容器分片 smoke [39809148360](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39809148360) 通过：固定生产 wheel、真实 LangChain／LangGraph 图、两次 source、两次官方 pristine 重放和严格归并。模型来自本地 HTTP/SSE 合成替身，供应商调用为零；它不是 DeepSeek 或 SWE 能力成绩，也不是跨 VM 完整 DAG 的执行证明。
