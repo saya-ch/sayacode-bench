@@ -91,6 +91,17 @@ async def sanity(manifest_path: Path, cache: Path, output: Path) -> dict[str, An
 
 def freeze(args: argparse.Namespace) -> dict[str, Any]:
     selection = read_json(args.selection)
+    study_role = getattr(args, "study_role", "generic")
+    if selection.get("study_role", study_role) != study_role:
+        raise ValueError("选择文件已声明研究角色，必须显式使用相同的 study role")
+    primary_dev = getattr(args, "primary_dev_manifest", None)
+    if study_role == "terminal_supplement":
+        if args.phase not in {"holdout", "validation"} or primary_dev is None:
+            raise ValueError("终端补充仅允许最终阶段，且必须绑定主研究 dev；不得在终端题上重新调参")
+        if len(selection.get("dev", [])) != 2 or len(selection.get("holdout", [])) != 12:
+            raise ValueError("终端补充固定保留两题环境校准与十二题最终候选")
+    elif study_role != "generic" or primary_dev is not None:
+        raise ValueError("主研究 dev 来源参数只适用于 terminal_supplement")
     variants, connections = _mapping(args.variant), _mapping(args.connection)
     if "baseline" not in variants or args.repeats < 1 or args.reported_token_limit < 1:
         raise ValueError("必须声明基线、正重复数和正用量阈值")
@@ -157,6 +168,17 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "validity_issues": [],
         "scope": "固定公开子集和本地网络实现，不宣称官方完整榜单成绩",
     }
+    if study_role == "terminal_supplement":
+        assert primary_dev is not None
+        manifest["study_role"] = study_role
+        manifest["primary_dev_manifest"] = {
+            "path": str(primary_dev.resolve(strict=True)),
+            "sha256": file_sha256(primary_dev),
+        }
+        manifest["scope"] = (
+            "Terminal-Bench 2.1 独立补充；复用主 SWE 候选，不重新调参；"
+            "保持官方逐题网络和资源，不与 SWE 合并成功率"
+        )
     if qualified_cohort is not None:
         manifest["qualification_host_cohort"] = qualified_cohort
         if "qualification_host_scope" in gate:
@@ -228,6 +250,17 @@ def build_parser() -> argparse.ArgumentParser:
     frozen.add_argument("--sanity", type=Path, required=True)
     frozen.add_argument("--network-probe", type=Path, required=True)
     frozen.add_argument("--candidate-lock", type=Path)
+    frozen.add_argument(
+        "--study-role",
+        choices=("generic", "terminal_supplement"),
+        default="generic",
+        help="终端补充必须复用主研究候选；默认保留通用研究入口",
+    )
+    frozen.add_argument(
+        "--primary-dev-manifest",
+        type=Path,
+        help="终端补充必须使用的主 SWE 开发清单，路径与内容哈希会冻结",
+    )
     frozen.add_argument("--seed", required=True)
     frozen.add_argument("--repeats", type=int, default=2)
     frozen.add_argument("--reported-token-limit", type=int, required=True)

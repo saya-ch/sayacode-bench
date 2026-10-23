@@ -18,6 +18,9 @@ on:
       shard_id:
         required: true
         type: string
+      job_key:
+        required: true
+        type: string
       evidence_manifest_json:
         required: true
         type: string
@@ -59,7 +62,9 @@ jobs:
       SAYACODE_STUDY_CONTRACT: ${{ inputs.contract_json }}
       PUBLIC_SOURCE_SHA: ${{ fromJSON(inputs.contract_json).public_source_sha }}
       BUNDLE_ROOT: ${{ fromJSON(inputs.contract_json).bundle_root }}
+      MASTER_SHA: ${{ fromJSON(inputs.contract_json).master_sha256 }}
       SHARD_ID: ${{ inputs.shard_id }}
+      SAYACODE_ACTIONS_JOB_KEY: ${{ inputs.job_key }}
       MODE: ${{ inputs.mode }}
       SAYACODE_EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest_json }}
     steps:
@@ -132,6 +137,11 @@ jobs:
           SAYACODE_BENCH_DOCKER_TESTS: '1'
           SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
         run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 无模型 Secret 复核恢复前缀与剩余片尚未开始
+        if: fromJSON(inputs.contract_json).resume_receipt != null
+        working-directory: bench
+        shell: bash
+        run: uv run --no-sync python -m scripts.generate_sharded_workflow resume-verify --shard-id "$SHARD_ID" --mode "$MODE"
       - name: 一片一配置，继承累计账本并调用原生研究 CLI
         if: inputs.mode == 'shard'
         working-directory: bench
@@ -165,7 +175,7 @@ jobs:
         run: |
           set -eu
           mkdir -p "$BUNDLE_ROOT/orchestration"
-          cp -a "$RUNNER_TEMP/evidence" "$BUNDLE_ROOT/orchestration/${SHARD_ID:-merged}-host"
+          cp -a "$RUNNER_TEMP/evidence" "$BUNDLE_ROOT/orchestration/${SHARD_ID:-merged-$MASTER_SHA}-host"
       - name: 完整原始私有证据打包，失败不裁剪
         id: archive
         if: always() && steps.restore.outcome == 'success'
@@ -218,8 +228,9 @@ jobs:
                       if path.is_dir():
                           shutil.copytree(path,target/parent/shard,symlinks=True)
           else:
+              contract=json.loads(os.environ['SAYACODE_STUDY_CONTRACT'])
               for name in ('manifest.json','summary.json','merge-receipt.json','missing.json','invalid.json'):
-                  copy_file(bundle/'merged/final'/name,target/'merged'/name)
+                  copy_file(bundle/contract['merge_relative_directory']/'final'/name,target/'merged'/name)
           (target/'evidence-policy.json').write_text(json.dumps({
               'release_transfer_confirmed':confirmed,
               'raw_current_shard_retained':bool(shard and not confirmed and current.is_dir()),

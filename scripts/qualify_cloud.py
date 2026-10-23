@@ -20,6 +20,7 @@ from typing import Any
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
 from sayacode_bench.network import docker
 from sayacode_bench.shards import qualification_host_cohort
+from sayacode_bench.sources import SOURCES
 from scripts.diagnose_fixtures import pin_image
 from scripts.generate_sharded_workflow import restore_archive
 from scripts.prepare_cloud_runner import require_hosted_runner
@@ -29,6 +30,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/qualify-study.yml"
 INITIAL_SELECTION = ROOT / "studies/primary-selection-v1.json"
 INITIAL_SHA = "39e62eb0c5aa51595cf1455f2a51c1579b57e3a61e35b3d4a8078a3b84a207c9"
+TERMINAL_SELECTION = ROOT / "studies/terminal-selection-v1.json"
+TERMINAL_SHA = "f970414577484523e7be2fb1b351cefd2aa78042c270d597e182bf60c34fdc3f"
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 STUDY = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}\Z")
@@ -43,6 +46,31 @@ PUBLIC_ARTIFACT_SCOPE = (
     "public_actions_host_metadata",
 )
 HOST_BOUNDARY = "public standard host 4 CPU/16 GiB versus private 2 CPU/8 GiB; not identical hardware; official container CPU/RAM/swap remain unchanged and measured"
+
+
+def study_definition(study_kind: str) -> dict[str, Any]:
+    """只接受两份事前固定选择；不开放任意公开归档输入。"""
+    if study_kind == "primary":
+        path, sha, benchmark = INITIAL_SELECTION, INITIAL_SHA, "swe-bench-pro-v2"
+    elif study_kind == "terminal":
+        path, sha, benchmark = TERMINAL_SELECTION, TERMINAL_SHA, "terminal-bench-2.1"
+    else:
+        raise ValueError("公开资格 study kind 只能是 primary 或 terminal")
+    source = SOURCES[benchmark]
+    return {
+        "selection": path,
+        "sha256": sha,
+        "benchmark": benchmark,
+        "revision": source.revision,
+        "source_license": source.license,
+        "public_artifact_scope": [
+            item.replace(
+                "official_public_MIT_task_snapshot",
+                f"official_public_{source.license}_task_snapshot",
+            )
+            for item in PUBLIC_ARTIFACT_SCOPE
+        ],
+    }
 
 
 def require_public_repository(metadata: Path) -> None:
@@ -115,7 +143,7 @@ def guard_first_batch(history: Any, study_id: str, run_number: int) -> None:
         raise ValueError("Actions 历史缺少当前原生 run")
 
 
-def verify_source(source_sha: str, workflow: Path) -> None:
+def verify_source(source_sha: str, workflow: Path, study_kind: str = "primary") -> None:
     """只接受固定公开源码与逐字节相同的私有模板，不读取模型配置。"""
     if not COMMIT.fullmatch(source_sha):
         raise ValueError("公开源码必须是完整小写提交 SHA")
@@ -131,25 +159,33 @@ def verify_source(source_sha: str, workflow: Path) -> None:
         stderr=subprocess.DEVNULL,
         check=True,
     )
+    definition = study_definition(study_kind)
     if (
         current != source_sha
         or file_sha256(workflow) != file_sha256(WORKFLOW)
-        or file_sha256(INITIAL_SELECTION) != INITIAL_SHA
+        or file_sha256(definition["selection"]) != definition["sha256"]
     ):
         raise ValueError("源码、资格模板或初始公开选择身份不同")
 
 
-def plan_identity(source_sha: str, expected_cohort: dict[str, str]) -> dict[str, Any]:
-    initial = read_json(INITIAL_SELECTION)
+def plan_identity(
+    source_sha: str, expected_cohort: dict[str, str], study_kind: str = "primary"
+) -> dict[str, Any]:
+    definition = study_definition(study_kind)
+    initial = read_json(definition["selection"])
     return {
         "schema_version": 1,
         "phase": "cloud_fixture_qualification",
+        "study_kind": study_kind,
+        "benchmark": definition["benchmark"],
+        "revision": definition["revision"],
+        "source_license": definition["source_license"],
         "execution_repository": PUBLIC_REPOSITORY,
-        "public_artifact_scope": list(PUBLIC_ARTIFACT_SCOPE),
+        "public_artifact_scope": definition["public_artifact_scope"],
         "host_hardware_boundary": HOST_BOUNDARY,
         "public_source_sha": source_sha,
         "implementation": implementation_identity(),
-        "initial_selection_sha256": INITIAL_SHA,
+        "initial_selection_sha256": definition["sha256"],
         "seed": initial["seed"],
         "oracle_repeats": 3,
         "nop_repeats": 1,
@@ -177,21 +213,24 @@ def plan_identity(source_sha: str, expected_cohort: dict[str, str]) -> dict[str,
     }
 
 
-def initialize(bundle: Path, source_sha: str, expected_cohort: dict[str, str]) -> dict[str, Any]:
+def initialize(
+    bundle: Path, source_sha: str, expected_cohort: dict[str, str], study_kind: str = "primary"
+) -> dict[str, Any]:
     """续批只恢复同一计划；N 可变，固定规则和初选不可变。"""
-    expected = plan_identity(source_sha, expected_cohort)
+    definition = study_definition(study_kind)
+    expected = plan_identity(source_sha, expected_cohort, study_kind)
     expected["bundle_root"] = str(bundle.resolve())
     path = bundle / "inputs/cloud-plan.json"
     if bundle.exists():
         if (
             read_json(path) != expected
-            or file_sha256(bundle / "inputs/initial-selection.json") != INITIAL_SHA
+            or file_sha256(bundle / "inputs/initial-selection.json") != definition["sha256"]
         ):
             raise ValueError("续批 source、实现、seed、cohort 或固定三加一规则变化")
     else:
         bundle.mkdir(parents=True, exist_ok=False)
         write_json(path, expected, exclusive=True)
-        shutil.copyfile(INITIAL_SELECTION, bundle / "inputs/initial-selection.json")
+        shutil.copyfile(definition["selection"], bundle / "inputs/initial-selection.json")
     return expected
 
 
@@ -450,10 +489,9 @@ def run_batch(
 
 def pack_bundle(bundle: Path, output: Path, *, entry_report: Path | None = None) -> dict[str, Any]:
     """仅归档固定公开输入产生的资格材料；不复制私有 wheel/profile/账单。"""
-    if (
-        read_json(bundle / "inputs/cloud-plan.json").get("execution_repository")
-        != PUBLIC_REPOSITORY
-    ):
+    plan = read_json(bundle / "inputs/cloud-plan.json")
+    definition = study_definition(plan.get("study_kind", "primary"))
+    if plan.get("execution_repository") != PUBLIC_REPOSITORY:
         raise ValueError("拒绝将私有或模型 bundle 当作公开资格工件上传")
     if output.resolve().is_relative_to(bundle.resolve()):
         raise ValueError("tar 必须在 bundle 外部")
@@ -484,7 +522,10 @@ def pack_bundle(bundle: Path, output: Path, *, entry_report: Path | None = None)
         "selection_path": str(bundle / "qualification/selection.json"),
         "sanity_path": str(bundle / "qualification/sanity.json"),
         "retention_days": 3,
-        "public_artifact_scope": list(PUBLIC_ARTIFACT_SCOPE),
+        "study_kind": plan.get("study_kind", "primary"),
+        "benchmark": definition["benchmark"],
+        "source_license": definition["source_license"],
+        "public_artifact_scope": definition["public_artifact_scope"],
         "host_hardware_boundary": HOST_BOUNDARY,
         "storage_note": "公开标准 runner 资格控制不消耗私有 2000 分钟；公开工件三天保留，不保证平台永远免费，不自动删除。",
         "cloud_artifact_deletion_performed": False,
@@ -504,6 +545,7 @@ def main() -> int:
     for name in ("run", "archive"):
         sub = commands.add_parser(name)
         sub.add_argument("--study-id", required=True)
+        sub.add_argument("--study-kind", choices=("primary", "terminal"), default="primary")
         sub.add_argument("--entry-report", type=Path)
         sub.add_argument("--repository-metadata", type=Path, required=True)
         if name == "run":
@@ -528,11 +570,17 @@ def main() -> int:
         require_public_repository(args.repository_metadata)
         bundle = bundle_root(args.study_id)
         if args.command == "archive":
+            if (
+                read_json(bundle / "inputs/cloud-plan.json").get("study_kind", "primary")
+                != args.study_kind
+            ):
+                raise ValueError("归档 study kind 与冻结计划不同")
             pack_bundle(bundle, args.output, entry_report=args.entry_report)
             return 0
         entry = {
             "schema_version": 1,
             "study_id": args.study_id,
+            "study_kind": args.study_kind,
             "public_source_sha": args.source_sha,
             "resume_archive_sha256": args.resume_sha256,
             "max_new_controls": args.max_new_controls,
@@ -549,7 +597,7 @@ def main() -> int:
         if args.entry_report:
             write_json(args.entry_report, entry, exclusive=True)
             owned_report = True
-        verify_source(args.source_sha, args.workflow)
+        verify_source(args.source_sha, args.workflow, args.study_kind)
         expected = cohort(args.image_os, args.image_version)
         if args.resume_archive:
             if not args.resume_sha256 or not SHA.fullmatch(args.resume_sha256):
@@ -563,7 +611,7 @@ def main() -> int:
             history = json.loads(args.first_batch_history.read_text(encoding="utf-8"))
             guard_first_batch(history, args.study_id, args.run_number)
             entry["first_batch_history_confirmed"] = True
-        plan = initialize(bundle, args.source_sha, expected)
+        plan = initialize(bundle, args.source_sha, expected, args.study_kind)
         status = run_batch(
             bundle,
             plan,

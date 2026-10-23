@@ -11,8 +11,54 @@ from typing import Any
 
 from .analysis import select_development_candidate
 from .artifacts import file_sha256, read_json, write_json
+from .sources import SOURCES
 
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _validate_terminal_supplement(
+    final_manifest: Mapping[str, Any],
+    dev_manifest: Mapping[str, Any],
+    dev_path: Path,
+) -> None:
+    """本次终端补充只复用已签收的主研究候选，不允许另做终端调参。"""
+    role = final_manifest.get("study_role", "generic")
+    if role == "generic":
+        return
+    if role != "terminal_supplement":
+        raise ValueError("未知研究角色")
+    source = final_manifest.get("primary_dev_manifest")
+    if not isinstance(source, dict) or not isinstance(source.get("path"), str):
+        raise ValueError("终端补充必须显式绑定主研究 dev 清单")
+    if Path(source["path"]).resolve(strict=True) != dev_path or _digest(
+        source.get("sha256"), "primary_dev_manifest"
+    ) != file_sha256(dev_path):
+        raise ValueError("候选签收不是指定的固定主研究 dev 来源")
+    for manifest, benchmark, count, repeats in (
+        (dev_manifest, "swe-bench-pro-v2", 8, 2),
+        (final_manifest, "terminal-bench-2.1", 12, 1),
+    ):
+        tasks = manifest.get("tasks")
+        revision = SOURCES[benchmark].revision
+        if (
+            manifest.get("benchmark") != benchmark
+            or manifest.get("revision") != revision
+            or not isinstance(tasks, list)
+            or len(tasks) != count
+            or type(manifest.get("repeats")) is not int
+            or manifest["repeats"] != repeats
+            or any(
+                not isinstance(task, dict)
+                or task.get("benchmark") != benchmark
+                or task.get("revision") != revision
+                for task in tasks
+            )
+        ):
+            raise ValueError("终端补充固定为主 SWE V2 开发八题 R2、Terminal 2.1 最终十二题 R1")
+    if dev_manifest.get("study_role", "generic") != "generic":
+        raise ValueError("终端补充不得作为主研究候选来源")
+    if dev_manifest.get("configurations") != ["baseline", "diagnostic", "focused"]:
+        raise ValueError("主研究必须使用预声明的三个开发配置")
 
 
 def _digest(value: Any, name: str) -> str:
@@ -176,6 +222,7 @@ def validate_candidate_receipt(
             raise ValueError(f"候选来源已变化：{field}")
         sources[field] = path
     manifest = read_json(sources["dev_manifest"])
+    _validate_terminal_supplement(final_manifest, manifest, sources["dev_manifest"])
     if manifest.get("phase") != "dev" or manifest.get("frozen") is not True:
         raise ValueError("候选来源不是冻结开发集")
     if any(

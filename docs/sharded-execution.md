@@ -12,6 +12,7 @@
 | `shards.py` | 冻结完整计划、执行单片、重验原生工件、严格归并 |
 | `qualify_fixtures.py` | 固定三次参考解与一次空解、实际资源资格、机械替补与分批 |
 | `generate_sharded_workflow.py` | 将冻结 schedule 转为 GitHub 原生串行 DAG，恢复和归档完整证据 |
+| `study_resume.py` | 冻结显式完整前缀声明，逐 run/job 核验历史与归档归属 |
 | 私有工作流 | 当前 VM 的输入、网络、宿主镜像、时间与磁盘门禁；显式注入和清理本片凭据 |
 
 没有另一个 Agent 循环、评分器、常驻 worker 或自动重跑服务。分片只改变物理执行位置，研究的任务、配置、重复编号和分母不变。
@@ -35,7 +36,8 @@
   qualifications/
   shards/<shard-id>/
   orchestration/
-  merged/
+  merged/<master-sha256>/prefix-NNNN/
+  merged/<master-sha256>/final/
 
 /tmp/sayacode-private/<study-id>/
 ```
@@ -43,6 +45,8 @@
 实际资格输出目录由调用时固定，后续恢复须保持相同绝对位置。原始 JobConfig、source 路径和请求身份不重写。私有连接文件位于 bundle 外，本片创建的原 profile 和 gateway 副本结束时清理；完整 bundle 不包含这些文件。
 
 可以将下载的 Linux bundle 映射到 Windows 本地进行只读审阅和 DAG 生成。正式计划及原始路径仍由 Linux 执行环境固定，不能用 Windows 路径替换原 JSON 后冒充同一次执行。
+
+同 study 的 SWE dev、holdout 和 Terminal 补充阶段使用同一 bundle，按完整 master SHA 隔离归并目录。前阶段 source、receipt、候选签收和金融 prior 的原绝对路径持续有效，不因后阶段的 `prefix-0001` 或 `final` 冲突而搬家。
 
 ## 资格检查
 
@@ -127,7 +131,11 @@ python -m scripts.generate_sharded_workflow generate \
 
 三个派发确认项默认都为 false：实际执行、完整阶段 scope、Actions 额度。正式密钥使用单独的 `STUDY_CONNECTION_KEYS_JSON`，按冻结连接别名映射；不会暗中复用仅获两题授权的 `SILICONFLOW_API_KEY`。凭据只进入实际执行步骤和 bundle 外的临时 profile。
 
-首片还核对指定私有仓库的原生 Actions 历史与固定 master 身份。再次 dispatch 是新的 run，即使 attempt 仍为 1，也不能从最初 seed 重置试验和费用。已有同 master 的执行、历史缺失或身份不确定时拒绝新首批。自动续派和跨 dispatch 的恢复尚不由工作流代办，须审阅已有完整 prefix 与累计消耗后另行处理，不能直接点重新运行。
+首片还核对指定私有仓库的原生 Actions 历史与固定 master 身份。再次 dispatch 是新的 run，即使 attempt 仍为 1，也不能从最初 seed 重置试验和费用。已有同 master 的执行、历史缺失或身份不确定时拒绝新首批。
+
+正常分批可使用 `generate --through-sequence K`，仅限制本次物理片终点，保留完整 schedule 与研究分母。K<N 时停在完整片及 prefix 归并之后，不运行 final merge；`physical_batch_complete` 不表示研究完成。下一批使用 `freeze-resume` 冻结不可变声明，再以 `generate --resume-receipt` 从原序号 k+1 生成剩余 DAG，不能任意选择起点。
+
+恢复 review 在无模型 Secret 的 Linux runner 按原路径恢复完整 Release bundle，重新枚举全部同 master runs/jobs，并复用原生 receipt 与累计止损核验。历史集合变化、非 terminal run、失败或未知已启动 job、缺原件、上传未知及剩余片已有现场均拒绝。暂停后有其他 master 正式派发时，冻结 prior 无法续入新消耗，V1 保守拒绝，不重置 100 元。详细命令和仅归并边界见 [物理批次与显式恢复](physical-batch-resume.md)。
 
 ## 账本、失效与候选签收
 
@@ -137,7 +145,7 @@ python -m scripts.generate_sharded_workflow generate \
 
 相同 receipt 可幂等读取；冲突版本、复用 source、篡改原生工件、账本分叉或实现漂移会拒绝。完成的成功和失败均不重跑，缺片不补造失败。
 
-每片保存严格的 `merged/prefix-NNNN`。中途停止时审阅最后可用 prefix；只有完整末片成功后，独立最终 merge 才运行。归并保留全 master 的 missing，并将原片异常传入派生 manifest 和 `invalid.json`，候选签收不能绕过这些事实。
+每片保存严格的 `merged/<master-sha256>/prefix-NNNN`。中途停止时审阅最后可用 prefix；只有完整末片成功后，独立最终 merge 才写入该 master 的 `final`。归并保留全 master 的 missing，并将原片异常传入派生 manifest 和 `invalid.json`，候选签收不能绕过这些事实。
 
 完整末片刚好触及后续派发阈值时，该片仍可成功收尾与归并；原生 CLI 非零或 receipt 不完整时，工作流会失败，不以“后续 job 全跳过”伪装整个阶段已完成。
 

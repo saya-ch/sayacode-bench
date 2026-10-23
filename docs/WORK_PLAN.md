@@ -19,7 +19,7 @@ WSL 3.0.3 升级后的固定八次诊断已完成，就绪未通过，本轮本�
 
 全局 schedule、按任务与重复的配对块分片、累计费用、源与 pristine 实际资源复核、跨片严格归并和缺失／重复检查已经接入，并有独立的真实容器 smoke。新 v7 协议在正式模型试验前绑定实现；原样本和统计方法不变。接下来先实际运行公开三加一资格批次，并验证新 callback 与 workflow token 的无付费传输；完整正式批次仍依赖上述确认和有效任务资格。不存在把两题校准晋升为 48 次开发或最多 96 次最终比较的路径。
 
-分片的现行入口、单片恢复、原生 DAG 和证据存储见 [执行手册](sharded-execution.md)，[执行设计](sharded-execution-design.md) 保留历史设计。既有 prefix 可由 CLI 严格复核；生成 DAG 的跨 dispatch prefix 恢复尚未实现，同 master 新首批会被拒绝，不能重新从 seed 开始消除历史消耗。代码与离线验证不代表已取得正式模型数据或跨 VM 完整 DAG 的执行证明。
+分片的现行入口、单片恢复、原生 DAG 和证据存储见 [执行手册](sharded-execution.md)，[执行设计](sharded-execution-design.md) 保留历史设计。[显式片间恢复](physical-batch-resume.md) 已接入本地实现与离线行为回归：`--through-sequence` 在完整物理片边界暂停，不改全 master；不可变 resume receipt 绑定原计划、完整 prefix、累计费用、Release manifest 及既有 run/job 集合，Linux review 重新读取历史并核验原路径原生证据。新首批仍拒绝同 master 重派，费用未知、失败或已启动后续片不自动重跑。跨阶段使用同 bundle、按 master SHA 隔离归并，保留所有旧绝对引用。代码与离线验证不代表已取得正式模型数据或跨 VM 完整 DAG、恢复运行的执行证明。
 
 ## 架构
 

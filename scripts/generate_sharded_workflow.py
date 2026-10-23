@@ -29,6 +29,7 @@ from sayacode_bench.release_evidence import (
     download_archive,
     upload_archive,
 )
+from scripts import study_resume
 
 EXECUTION_REPOSITORY = "saya-ch/sayacode-bench-runs"
 PUBLIC_REPOSITORY = "saya-ch/sayacode-bench"
@@ -70,7 +71,7 @@ def _manifest_json(value: dict[str, Any], release: dict[str, Any]) -> str:
 
 
 def guard_study_dispatch(history: Any, master_sha256: str, run_id: int) -> None:
-    """同一 master 不从空账本重派发；失败也保留，未实现的新 prefix 恢复明确拒绝。"""
+    """同一 master 首次派发不得重置账本；恢复必须使用显式收据入口。"""
     if (
         not SHA.fullmatch(master_sha256)
         or type(run_id) is not int
@@ -104,7 +105,9 @@ def guard_study_dispatch(history: Any, master_sha256: str, run_id: int) -> None:
     if not any(row["id"] == run_id and row["display_title"] == title for row in rows):
         raise ValueError("Actions 历史缺少当前正式运行")
     if any(row["id"] != run_id and row["display_title"] == title for row in rows):
-        raise ValueError("同 master 已有正式派发；不得从空账本重启，显式 prefix 恢复尚未实现")
+        raise ValueError(
+            "同 master 已有正式派发，不得从空账本重启；必须使用显式、仍有效的 prefix 恢复收据"
+        )
 
 
 def _host_cohort(value: Any) -> dict[str, str]:
@@ -255,6 +258,8 @@ def generate(
     output: Path,
     *,
     seed_manifest: Path,
+    resume_receipt: Path | None = None,
+    through_sequence: int | None = None,
 ) -> dict[str, Any]:
     """只生成可审阅文件，不访问 GitHub、Docker、凭据或模型。"""
     if output.exists() or output.with_suffix(".receipt.json").exists():
@@ -262,10 +267,27 @@ def generate(
     plan, master, runner = inspect_plan(plan_path, bundle)
     initial_manifest = read_json(seed_manifest)
     initial_manifest_json = _manifest_json(initial_manifest, runner["evidence_release"])
+    resume = read_json(resume_receipt) if resume_receipt is not None else None
+    prefix = 0
+    if resume is not None:
+        study_resume._validate_resume(resume, plan_path, plan, master, runner, bundle)
+        if initial_manifest != resume["evidence_manifest"]:
+            raise ValueError("恢复种子必须是收据冻结的完整 Release 归档")
+        prefix = resume["prefix_length"]
+    through = len(plan["schedule"]) if through_sequence is None else through_sequence
+    if (
+        type(through) is not int
+        or not max(1, prefix) <= through <= len(plan["schedule"])
+        or (prefix < len(plan["schedule"]) and through <= prefix)
+    ):
+        raise ValueError("本次物理批次终点必须晚于完整前缀且不超过全 schedule")
     contract = {
         "schema_version": 1,
         "public_source_sha": runner["public_source_sha"],
         "plan_sha256": file_sha256(plan_path),
+        "master_sha256": plan["master"]["sha256"],
+        "merge_relative_directory": "merged/" + plan["master"]["sha256"],
+        "through_sequence": through,
         "plan_relative_path": plan_path.resolve().relative_to(bundle.resolve()).as_posix(),
         "bundle_root": plan["bundle_root"],
         "private_home": f"/tmp/sayacode-private/{PurePosixPath(plan['bundle_root']).name}",
@@ -274,6 +296,9 @@ def generate(
         "host_cohort": runner["host_cohort"],
         "evidence_release": runner["evidence_release"],
         "bindings": _artifact_bindings(bundle, plan["artifacts"]),
+        "resume_receipt": resume,
+        "resume_receipt_sha256": _hash(resume) if resume is not None else None,
+        "resume_helper_sha256": file_sha256(Path(study_resume.__file__)),
     }
     text = json.dumps(contract, ensure_ascii=False, separators=(",", ":"))
     execute_condition = "${{ inputs.execute_models && inputs.confirm_formal_scope && inputs.confirm_actions_budget }}"
@@ -322,50 +347,79 @@ def generate(
             ],
         }
     }
-    for index, entry in enumerate(plan["schedule"], 1):
-        previous = f"shard_{index - 1:04d}" if index > 1 else "review"
+    if resume is not None:
+        review_steps = jobs["review"]["steps"]
+        review_steps[-1] = {
+            "if": execute_condition,
+            "name": "原 Linux 路径核验恢复前缀，并重新枚举全部 run/job 历史",
+            "working-directory": "bench",
+            "shell": "bash",
+            "env": {
+                "GH_TOKEN": "${{ github.token }}",
+                "SAYACODE_STUDY_CONTRACT": text,
+                "SAYACODE_EVIDENCE_MANIFEST": initial_manifest_json,
+            },
+            "run": RESUME_REVIEW,
+        }
+        jobs["review"]["timeout-minutes"] = 60
+    for index in range(prefix + 1, through + 1):
+        entry = plan["schedule"][index - 1]
+        previous = f"shard_{index - 1:04d}" if index > prefix + 1 else "review"
         condition = (
             "always() && !cancelled() && inputs.execute_models && "
             "inputs.confirm_formal_scope && inputs.confirm_actions_budget && "
             f"needs.{previous}.result == 'success'"
         )
-        if index > 1:
+        if index > prefix + 1:
             condition += f" && needs.{previous}.outputs.continuation_allowed == 'true'"
         arguments = {
             "contract_json": text,
             "shard_id": entry["shard_id"],
             "mode": "shard",
+            "job_key": f"shard_{index:04d}",
             "evidence_manifest_json": initial_manifest_json
-            if index == 1
+            if index == prefix + 1
             else f"${{{{ needs.{previous}.outputs.evidence_manifest_json }}}}",
-            "previous_receipt_sha256": ""
-            if index == 1
+            "previous_receipt_sha256": (resume["last_receipt"]["sha256"] if resume else "")
+            if index == prefix + 1
             else f"${{{{ needs.{previous}.outputs.receipt_sha256 }}}}",
-            "previous_ledger_sha256": ""
-            if index == 1
+            "previous_ledger_sha256": (resume["ledger"]["sha256"] if resume else "")
+            if index == prefix + 1
             else f"${{{{ needs.{previous}.outputs.ledger_sha256 }}}}",
         }
         jobs[f"shard_{index:04d}"] = {
+            "name": f"shard_{index:04d}",
             "needs": [previous],
             "if": "${{ " + condition + " }}",
             "uses": "./.github/workflows/run-study-shard.yml",
             "with": arguments,
             "secrets": {"connection_keys_json": "${{ secrets.STUDY_CONNECTION_KEYS_JSON }}"},
         }
-    last = f"shard_{len(plan['schedule']):04d}"
-    jobs["merge"] = {
-        "needs": [last],
-        "if": "${{ always() && !cancelled() && needs." + last + ".result == 'success' }}",
-        "uses": "./.github/workflows/run-study-shard.yml",
-        "with": {
-            "contract_json": text,
-            "mode": "merge",
-            "shard_id": "",
-            "evidence_manifest_json": f"${{{{ needs.{last}.outputs.evidence_manifest_json }}}}",
-            "previous_receipt_sha256": f"${{{{ needs.{last}.outputs.receipt_sha256 }}}}",
-            "previous_ledger_sha256": f"${{{{ needs.{last}.outputs.ledger_sha256 }}}}",
-        },
-    }
+    last = f"shard_{through:04d}" if prefix < through else "review"
+    if through == len(plan["schedule"]):
+        jobs["merge"] = {
+            "name": "merge",
+            "needs": [last],
+            "if": "${{ always() && !cancelled() && inputs.execute_models && inputs.confirm_formal_scope && inputs.confirm_actions_budget && needs."
+            + last
+            + ".result == 'success' }}",
+            "uses": "./.github/workflows/run-study-shard.yml",
+            "with": {
+                "contract_json": text,
+                "mode": "merge",
+                "job_key": "merge",
+                "shard_id": "",
+                "evidence_manifest_json": initial_manifest_json
+                if last == "review"
+                else f"${{{{ needs.{last}.outputs.evidence_manifest_json }}}}",
+                "previous_receipt_sha256": resume["last_receipt"]["sha256"]
+                if last == "review" and resume
+                else f"${{{{ needs.{last}.outputs.receipt_sha256 }}}}",
+                "previous_ledger_sha256": resume["ledger"]["sha256"]
+                if last == "review" and resume
+                else f"${{{{ needs.{last}.outputs.ledger_sha256 }}}}",
+            },
+        }
     workflow = {
         "name": f"冻结研究 {master['phase']} {contract['plan_sha256'][:12]}",
         "run-name": "${{ inputs.execute_models && inputs.confirm_formal_scope && inputs.confirm_actions_budget && 'study "
@@ -403,6 +457,11 @@ def generate(
         "seed_manifest_sha256": file_sha256(seed_manifest),
         "seed_archive_sha256": initial_manifest["archive_sha256"],
         "shard_count": len(plan["schedule"]),
+        "dispatched_shard_count": through - prefix,
+        "resume_prefix_length": prefix,
+        "through_sequence": through,
+        "physical_batch_only": through < len(plan["schedule"]),
+        "native_resume_validation_performed": False,
         "planned_reserve_seconds": sum(row["reserve_seconds"] for row in plan["schedule"]),
         "actions_artifact_retention_days": 3,
         "storage_note": BILLING_BOUNDARY,
@@ -426,6 +485,23 @@ d = json.loads((Path(os.environ['RUNNER_TEMP'])/'repository.json').read_text(enc
 assert d.get('full_name') == 'saya-ch/sayacode-bench-runs'
 assert d.get('private') is True and d.get('visibility') == 'private'
 PY
+"""
+
+
+RESUME_REVIEW = """set -eu
+uv run --no-sync python -m scripts.generate_sharded_workflow restore --download-dir "$RUNNER_TEMP/resume-incoming"
+gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" > "$RUNNER_TEMP/study-history.json"
+mkdir "$RUNNER_TEMP/resume-jobs"
+python - <<'PY' > "$RUNNER_TEMP/resume-run-ids"
+import json, os
+for run_id in json.loads(os.environ['SAYACODE_STUDY_CONTRACT'])['resume_receipt']['prior_run_ids']:
+    assert type(run_id) is int and run_id > 0
+    print(run_id)
+PY
+while read -r run_id; do
+  gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?filter=all&per_page=100" > "$RUNNER_TEMP/resume-jobs/$run_id.json"
+done < "$RUNNER_TEMP/resume-run-ids"
+uv run --no-sync python -m scripts.generate_sharded_workflow resume-review --history "$RUNNER_TEMP/study-history.json" --jobs-directory "$RUNNER_TEMP/resume-jobs" --run-id "$GITHUB_RUN_ID"
 """
 
 
@@ -472,10 +548,70 @@ def load_contract(
         or contract["generator_sha256"] != file_sha256(Path(__file__))
         or contract.get("host_cohort") != runner["host_cohort"]
         or contract.get("evidence_release") != runner["evidence_release"]
+        or contract.get("master_sha256") != plan["master"]["sha256"]
+        or contract.get("merge_relative_directory") != "merged/" + plan["master"]["sha256"]
+        or contract.get("resume_helper_sha256") != file_sha256(Path(study_resume.__file__))
         or contract["bindings"] != _artifact_bindings(root, plan["artifacts"])
     ):
         raise ValueError("生成器、工件或模板已漂移")
     return contract, plan, master
+
+
+def verify_resume_contract(
+    contract_text: str, *, shard_id: str = "", mode: str = "review"
+) -> dict[str, Any] | None:
+    """review 与首个剩余片在无模型 Secret 步骤调用同一原生核验。"""
+    contract, plan, master = load_contract(contract_text)
+    resume = contract.get("resume_receipt")
+    if resume is None:
+        return None
+    if _hash(resume) != contract.get("resume_receipt_sha256"):
+        raise ValueError("恢复收据字节声明已改变")
+    if mode not in {"review", "shard", "merge"} or (mode != "shard" and shard_id):
+        raise ValueError("恢复核验模式不明确")
+    bundle = Path(plan["bundle_root"])
+    plan_path = _local(bundle, contract["plan_relative_path"])
+    runner = read_json(_mapped(plan["runner_policy"], PurePosixPath(plan["bundle_root"]), bundle))
+    study_resume._validate_resume(resume, plan_path, plan, master, runner, bundle)
+    if mode == "shard":
+        if resume["prefix_length"] == len(plan["schedule"]):
+            raise ValueError("完整前缀只能归并，不能再次派发 source")
+        if not any(
+            entry["shard_id"] == shard_id for entry in plan["schedule"][resume["prefix_length"] :]
+        ):
+            raise ValueError("恢复只能派发原前缀之后的试验")
+        if shard_id != plan["schedule"][resume["prefix_length"]]["shard_id"]:
+            return None
+    from sayacode_bench.shards import verify_resume_prefix
+
+    length = len(plan["schedule"]) if mode == "merge" else resume["prefix_length"]
+    native: dict[str, Any] = verify_resume_prefix(plan_path, length)
+    ancestor = native["last_receipt"]
+    # 恢复后最终归并核验全 N，并证明它仍从冻结的 k 收据延续，不能重验“k 后为空”。
+    for _ in range(length - resume["prefix_length"]):
+        ancestor = read_json(Path(ancestor["path"]))["previous_receipt"]
+    if ancestor != resume["last_receipt"] or (
+        length == resume["prefix_length"] and native["ledger"] != resume["ledger"]
+    ):
+        raise ValueError("原生恢复前缀与冻结收据不同")
+    return native
+
+
+def _actions_identity() -> dict[str, Any] | None:
+    # 普通 CI 也有 GITHUB_RUN_ID；只有正式 reusable job 显式提供本地 job key。
+    key = os.environ.get("SAYACODE_ACTIONS_JOB_KEY")
+    if not key:
+        return None
+    run_id = int(os.environ["GITHUB_RUN_ID"])
+    attempt = int(os.environ["GITHUB_RUN_ATTEMPT"])
+    if run_id <= 0 or attempt != 1 or re.fullmatch(r"shard_[0-9]{4}|merge", key) is None:
+        raise ValueError("Actions run/job 归属无效")
+    return {"run_id": run_id, "run_attempt": attempt, "job_key": key}
+
+
+def _merge_directory(plan: dict[str, Any]) -> Path:
+    destination: Path = Path(plan["bundle_root"]) / "merged" / plan["master"]["sha256"]
+    return destination
 
 
 def verify_previous(
@@ -532,6 +668,7 @@ def _cli(arguments: list[str], log: Path, *, deadline: float | None = None) -> i
     environment.pop("SAYACODE_STUDY_CONNECTION_KEYS_JSON", None)
     environment.pop("GH_TOKEN", None)
     environment.pop("GITHUB_TOKEN", None)
+    log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("wb") as stream:
         result = subprocess.run(
             [sys.executable, "-m", "sayacode_bench.cli", *arguments],
@@ -565,9 +702,15 @@ def execute(
     contract, plan, master = load_contract(contract_text)
     bundle = Path(plan["bundle_root"])
     entry = next(row for row in plan["schedule"] if row["shard_id"] == shard_id)
+    if contract.get("resume_receipt") is not None:
+        verify_resume_contract(contract_text, shard_id=shard_id, mode="shard")
     directory = bundle / "orchestration" / shard_id
     directory.mkdir(parents=True, exist_ok=False)
     status: dict[str, Any] = {
+        "plan_sha256": contract.get("plan_sha256"),
+        "shard_id": shard_id,
+        "actions_identity": _actions_identity(),
+        "physical_batch_complete": False,
         "model_dispatch_attempted": False,
         "receipt_complete": False,
         "continuation_allowed": False,
@@ -678,7 +821,7 @@ def execute(
             }
         )
         status["merge_cli_returncode"] = merge(
-            contract_text, output=bundle / "merged" / f"prefix-{entry['sequence']:04d}"
+            contract_text, output=_merge_directory(plan) / f"prefix-{entry['sequence']:04d}"
         )
         # 未完整前缀返回 1 是原 CLI 的既定语义；异常参数/身份返回 2 必须止损。
         if status["merge_cli_returncode"] not in {0, 1}:
@@ -701,6 +844,13 @@ def execute(
                 status["credential_cleanup_confirmed"] = False
                 status["continuation_allowed"] = False
                 status["error_type"] = type(exc).__name__
+        status["physical_batch_complete"] = bool(
+            status["receipt_complete"]
+            and status.get("native_cli_returncode") == 0
+            and status.get("credential_cleanup_confirmed") is True
+            and status["error_type"] is None
+            and entry["sequence"] == contract.get("through_sequence")
+        )
         write_json(directory / "dispatch.json", status, exclusive=True)
     return status
 
@@ -714,7 +864,7 @@ def merge(contract_text: str, *, output: Path | None = None) -> int:
     receipts = [path for path in receipts if path.is_file()]
     if not receipts:
         return 1
-    destination = output or bundle / "merged" / "final"
+    destination = output or _merge_directory(plan) / "final"
     arguments = [
         "merge-shards",
         "--plan",
@@ -724,7 +874,10 @@ def merge(contract_text: str, *, output: Path | None = None) -> int:
     ]
     for path in receipts:
         arguments += ["--receipt", str(path)]
-    return _cli(arguments, bundle / "orchestration" / f"merge-{destination.name}.log")
+    return _cli(
+        arguments,
+        bundle / "orchestration" / plan["master"]["sha256"] / f"merge-{destination.name}.log",
+    )
 
 
 def archive_bundle(contract_text: str, output: Path, *, shard_id: str) -> dict[str, Any]:
@@ -743,6 +896,8 @@ def archive_bundle(contract_text: str, output: Path, *, shard_id: str) -> dict[s
     result = {
         "schema_version": 1,
         "plan_sha256": contract["plan_sha256"],
+        "shard_id": shard_id,
+        "actions_identity": _actions_identity(),
         "archive_sha256": _archive_digest(archive),
         "archive_bytes": archive.stat().st_size,
         "receipt_sha256": status.get("receipt_sha256", ""),
@@ -752,6 +907,7 @@ def archive_bundle(contract_text: str, output: Path, *, shard_id: str) -> dict[s
         "host_cohort_fields": list(HOST_FIELDS),
         "host_cohort_exclusions": list(HOST_EXCLUSIONS),
         "continuation_allowed": status.get("continuation_allowed") is True,
+        "physical_batch_complete": status.get("physical_batch_complete") is True,
         "actions_artifact_retention_days": 3,
         "storage_note": BILLING_BOUNDARY,
         "contains_private_raw_evidence": True,
@@ -800,6 +956,29 @@ def main() -> int:
     for name in ("plan", "bundle-directory", "output"):
         generate_parser.add_argument("--" + name, type=Path, required=True)
     generate_parser.add_argument("--seed-manifest", type=Path, required=True)
+    generate_parser.add_argument("--resume-receipt", type=Path)
+    generate_parser.add_argument("--through-sequence", type=int)
+    freeze_parser = commands.add_parser("freeze-resume", help="离线冻结待 Linux 原生核验的恢复声明")
+    for name in (
+        "plan",
+        "bundle-directory",
+        "output",
+        "seed-manifest",
+        "archive-receipt",
+        "history",
+        "jobs-directory",
+    ):
+        freeze_parser.add_argument("--" + name, type=Path, required=True)
+    freeze_parser.add_argument("--prefix-length", type=int, required=True)
+    review_parser = commands.add_parser("resume-review", help="复核实时 Actions 历史及原生完整前缀")
+    review_parser.add_argument("--contract")
+    review_parser.add_argument("--history", type=Path, required=True)
+    review_parser.add_argument("--jobs-directory", type=Path, required=True)
+    review_parser.add_argument("--run-id", type=int, required=True)
+    verify_parser = commands.add_parser("resume-verify", help="无模型 Secret 复核首个剩余片")
+    verify_parser.add_argument("--contract")
+    verify_parser.add_argument("--shard-id", default="")
+    verify_parser.add_argument("--mode", choices=("shard", "merge"), required=True)
     for name in ("restore", "execute", "archive", "merge"):
         sub = commands.add_parser(name)
         sub.add_argument("--contract", default=None)
@@ -833,7 +1012,7 @@ def main() -> int:
                         {
                             "dispatch_allowed": False,
                             "reason": "history_unconfirmed_or_master_already_dispatched",
-                            "prefix_resume_supported": False,
+                            "explicit_prefix_resume_required": True,
                         }
                     )
                 )
@@ -846,9 +1025,52 @@ def main() -> int:
                 args.bundle_directory,
                 args.output,
                 seed_manifest=args.seed_manifest,
+                resume_receipt=args.resume_receipt,
+                through_sequence=args.through_sequence,
+            )
+            return 0
+        if args.command == "freeze-resume":
+            plan, master, runner = inspect_plan(args.plan, args.bundle_directory)
+            study_resume.freeze_resume_receipt(
+                args.plan,
+                args.bundle_directory,
+                args.output,
+                prefix_length=args.prefix_length,
+                seed_manifest=args.seed_manifest,
+                archive_receipt=args.archive_receipt,
+                history=args.history,
+                jobs_directory=args.jobs_directory,
+                plan=plan,
+                master=master,
+                runner=runner,
             )
             return 0
         text = args.contract or os.environ["SAYACODE_STUDY_CONTRACT"]
+        if args.command == "resume-review":
+            contract = json.loads(text)
+            resume = contract["resume_receipt"]
+            jobs = {
+                str(run_id): json.loads(
+                    (args.jobs_directory / f"{run_id}.json").read_text(encoding="utf-8")
+                )
+                for run_id in resume["prior_run_ids"]
+            }
+            study_resume._resume_history(
+                resume,
+                json.loads(args.history.read_text(encoding="utf-8")),
+                jobs,
+                current_run_id=args.run_id,
+            )
+            verify_resume_contract(text)
+            print(
+                json.dumps(
+                    {"native_prefix_verified": True, "prefix_length": resume["prefix_length"]}
+                )
+            )
+            return 0
+        if args.command == "resume-verify":
+            verify_resume_contract(text, shard_id=args.shard_id, mode=args.mode)
+            return 0
         if args.command == "restore":
             contract = json.loads(text)
             root = PurePosixPath(contract["bundle_root"])
@@ -891,6 +1113,7 @@ def main() -> int:
             archive_bundle(text, args.output, shard_id=args.shard_id)
         elif args.command == "merge":
             _, plan, _ = load_contract(text)
+            verify_resume_contract(text, mode="merge")
             verify_previous(plan, None, args.previous_receipt_sha256, args.previous_ledger_sha256)
             return merge(text)
         return 0

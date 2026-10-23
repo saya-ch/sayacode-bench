@@ -4,6 +4,7 @@
 
 ## 最新实际状态
 
+- v8 实现已完成 Windows／Python 3.13 全套 **1,068 通过、7 项按环境跳过**；Ruff、格式、20 个源码文件及 5 个编排脚本的类型检查通过。九份静态 workflow，以及部分批次／前缀恢复／仅归并三种实际生成 DAG 均通过 actionlint。新增合同覆盖跨阶段目录隔离、显式物理批次恢复和 Terminal 独立补充；这些新合同当前以离线行为验收为证据，尚未完成跨 VM 的真实模型恢复或 Terminal 资格执行。v8 保留原样本数、统计方法与 seed，并绑定恢复 helper、资格 workflow 和 Terminal 初选身份。
 - `1c4ed0bac9ffd55023875c517a327cf4869fd727` 的 [四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39808430484)，Windows 本地对应 886 项通过、4 项明确跳过。未提交的后续修改不能借用该结果。
 - 真实原生容器分片 smoke [39809148360](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39809148360) 通过：固定生产 wheel、真实 LangChain／LangGraph 图、两次 source、两次官方 pristine 重放和严格归并。模型来自本地 HTTP/SSE 合成替身，供应商调用为零；它不是 DeepSeek 或 SWE 能力成绩，也不是跨 VM 完整 DAG 的执行证明。
 - 两题云端生产校准 [39801497042](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39801497042) 已完成实际任务和独立重判：qutebrowser 通过，Ansible 未通过；两题三次 oracle／一次 nop 的资格门禁均通过。总计 71 次模型回调，其中 70 次报告用量、1 次 HTTP 503 未报告。两题均未创建子任务。整体 workflow 因费用汇总身份冲突失败，原现场保留，不重跑模型掩盖失败。[最小事实](../reports/cloud-model-calibration-20261023-v3.json)
@@ -11,11 +12,13 @@
 - 私有 draft Release 的本机真实上传／下载探针已通过服务端 digest 和整体 SHA 核验，使用三片合成材料；workflow token 的实际传输权限须由后续独立无模型 smoke 验证，不用本机 OAuth 探针替代。
 - 正式分片、原生 callback 缓存用量旁证、累计费用与公开发布复核正在完成新一轮实现验收。公开无模型资格入口与私有模型入口分开，正式 Secret 范围仍待用户确认。主要开发 48 次、最多最终 96 次及 Terminal 补充尚未开始，候选尚未选择。
 
-最新 Windows／Python 3.13 完整离线验收为 **1,012 通过、6 项明确跳过**：包括未启用的真实 Docker 测试、平台条件和未安装产品 LangChain 依赖的测试。原生产依赖环境的官方图用量测试另行通过；这不替代新的云端 Docker smoke。Ruff、格式、包内 MyPy、四个编排／资格脚本的显式包类型检查、九份工作流 actionlint 均通过。v7 协议新增分片、编排、资格入口与完整实现身份，10,000 次任务块 bootstrap、仓库簇敏感性、seed、样本数不变；旧协议不覆盖。
+v7 对应的 Windows／Python 3.13 完整离线验收为 **1,012 通过、6 项明确跳过**：包括未启用的真实 Docker 测试、平台条件和未安装产品 LangChain 依赖的测试。原生产依赖环境的官方图用量测试另行通过；这不替代新的云端 Docker smoke。Ruff、格式、包内 MyPy、四个编排／资格脚本的显式包类型检查、九份工作流 actionlint 均通过。v7 协议新增分片、编排、资格入口与完整实现身份，10,000 次任务块 bootstrap、仓库簇敏感性、seed、样本数不变；旧协议不覆盖。
 
 提交 `5fcc3ce48fa98cd65c98ea5f74c1b36d43c42c0e` 的[四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39899305422)。随后真实 smoke `39899372348` 在缓存完整性断言失败：两个 source 均实际匹配 2／2 次 callback，但合成 SSE 最终事件只给输出用量，锁定的 ChatAnthropic 因此得到输入 0 且无缓存详情。已由原始工件及官方事件转换器确认；修复仅调整测试桩最终 usage 并新增官方 parser 回归，observer 和完整性门禁不变。[失败事实](../reports/native-shard-smoke-fixture-failure-20261023-v2.json)
 
 首个公开资格 run `39899427125` 在任何 oracle／nop 前因实际宿主 ImageVersion 与固定值不同而停止，新增 controls 为 0，模型请求为 0；完整工件已保全并核对服务 digest。保持旧计划不变，另按实际已观察 cohort 建立 `primary-v7-host20261012`；新 run `39899824620` 已正常收尾首个控制批次，具体资格事实仍以保存的 sanity 和原生记录为准，不能仅凭 workflow 绿色宣称任务已经合格。[原拒绝事实](../reports/public-qualification-cohort-guard-20261023-v1.json)
+
+修复后的源码 `b55cfe57c5a75a4e302bd6fb5004a920a501e87f` 已通过[四环境 CI](https://github.com/saya-ch/sayacode-bench/actions/runs/39900411079)，真实 [smoke 39900455447](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39900455447) 也通过：两个 source 各匹配 2／2 次 callback，原生输入 64、输出 32、缓存读取 2、缓存创建 0，独立 pristine 均通过且容器资源清理确认。原生 workflow token 完成三片合成文件的上传、下载与全量 SHA 核验，服务端 uploader 为 `github-actions[bot]`。原始 ZIP 已完整保全并核对服务 digest。以上仍是合成服务的真实工程链路验证，不计 DeepSeek／SWE 成绩。[实际事实](../reports/native-shard-smoke-20261023-v3.json)
 
 ## 已有证据
 

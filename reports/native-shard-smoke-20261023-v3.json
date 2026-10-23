@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "kind": "real_docker_synthetic_native_usage_and_workflow_token_storage",
+  "github_run_id": 39900455447,
+  "github_url": "https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39900455447",
+  "public_source_sha": "b55cfe57c5a75a4e302bd6fb5004a920a501e87f",
+  "conclusion": "success",
+  "supplier_model_requests": 0,
+  "formal_benchmark_result": false,
+  "same_host_only": true,
+  "cross_vm_complete_dag_verified": false,
+  "source_runs": 2,
+  "independent_pristine_runs": 2,
+  "each_source_usage": {
+    "model_calls": 2,
+    "matched_calls": 2,
+    "input_tokens": 64,
+    "output_tokens": 32,
+    "cache_read_input_tokens": 2,
+    "cache_creation_input_tokens": 0,
+    "status": "complete"
+  },
+  "usage_is_synthetic": true,
+  "cleanup": {
+    "cleanup_confirmed": true,
+    "new_resources_remaining": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "owned_image_remaining": false
+  },
+  "workflow_token_storage": {
+    "schema_version": 1,
+    "synthetic_only": true,
+    "model_requests": 0,
+    "authentication": "github.token",
+    "source_sha256": "92ca43e3cd5af0cdb14c63d5552f2d736e89e2bc1d6d4f495b91bd7d7e876853",
+    "restored_sha256": "92ca43e3cd5af0cdb14c63d5552f2d736e89e2bc1d6d4f495b91bd7d7e876853",
+    "roundtrip_verified": true,
+    "boundary": "验证 workflow token 的分片传输；不是完整研究 DAG 或模型成绩"
+  },
+  "independent_service_asset_verification": {
+    "schema_version": 1,
+    "run_id": 39900455447,
+    "sha256": "92ca43e3cd5af0cdb14c63d5552f2d736e89e2bc1d6d4f495b91bd7d7e876853",
+    "synthetic_only": true,
+    "workflow_token_uploader_verified": true,
+    "parts": 3,
+    "all_service_digests_match_expected_payload": true,
+    "supplier_model_requests": 0
+  },
+  "original_artifact": {
+    "artifact_id": 12478044217,
+    "sha256": "30b2c5397b989d148e20dac59b64b2f919ed228270277755712da035a7fe4f0c",
+    "zip_size_bytes": 25311971,
+    "service_digest_match": true,
+    "selectively_extracted_files": 782,
+    "network_transfer_resumed": true,
+    "range_response_bytes": 4258531
+  },
+  "previous_fixture_failure_run": 39899372348,
+  "administrative_cancelled_run": {
+    "run_id": 39900437253,
+    "reason": "operator entered incorrect source SHA; cancelled before native trial",
+    "supplier_model_requests": 0
+  },
+  "boundary": "真实生产wheel、官方图、HTTP/SSE替身与原生source/pristine链；原生用量和workflow token传输均实际核验，不是DeepSeek效果分数或整个跨VM研究完成证明。"
+}

@@ -436,7 +436,7 @@ def test_execute_uses_native_cli_then_cleans_only_own_credentials(
     unrelated = tmp_path / "existing-private.json"
     unrelated.write_text("leave me", encoding="utf-8")
     entry = {"shard_id": "one", "sequence": 1, "reserve_seconds": 100}
-    plan = {"bundle_root": str(bundle), "schedule": [entry]}
+    plan = {"bundle_root": str(bundle), "schedule": [entry], "master": {"sha256": "f" * 64}}
     master = {
         "connections": ["remote"],
         "connection_profiles": {"remote": {"protocol": "anthropic_messages"}},

@@ -50,6 +50,16 @@
 
 `usage.model_calls` 是 LangChain callback 观察到的模型调用数，汇总主线程、子线程和父线程后续唤醒；按原生 run ID 去重。它不是 HTTP 请求数。`reported_calls`、`missing_usage_calls` 和 `damaged_audit_lines` 分别记录有完整用量的回调、用量缺失和损坏审计行。中断前已报告的 tokens 仍保留，未知费用保持 null。
 
+### 原生缓存旁证
+
+`agent/sayacode/usage-details.json` 使用 `langchain_callback_usage_v1` 采集器。它通过 LangChain 官方可继承的 callback context hook 观察生产模型，与原产品审计并存，不读取 checkpoint 补造当前调用统计，也不改写产品图。逐次 run ID、线程、结束状态、原生总量和缓存数字仅留在私有原件。
+
+规范化记录新增 `usage_details` 文件路径／SHA 与 `cache_usage` 汇总。宿主、分片恢复和费用发布都会重读旁证，并核对审计 SHA、逐次身份、调用覆盖与输入／输出／总量；不能只信汇总中的 `complete`。缺文件或原生字段时为 `unavailable`，冲突或非法计数时为 `invalid`。原始 `usage` 三项总数保持原义，不因缺缓存数字而补零或覆盖旧记录。
+
+Anthropic 原生输入不包含缓存读取／创建，LangChain 归一化总输入已包含它们。预算只从总输入中减去已确认的缓存读取，不能再把缓存叠加到总量。缓存创建包含普通及 TTL 字段；无已核单价的正创建量阻止新付费派发。失败请求没有 usage 时仍未知，callback 次数也不等于 SDK 内部 HTTP 尝试次数。[计价规则](billing.md)
+
+公开记录只导出白名单缓存摘要与文件哈希，不导出旁证路径、逐次调用、COT 或 checkpoint。费用与正式资格先在原件上复核，再脱敏；不能因发布层丢掉文件路径而重新计算出另一份成本。
+
 本次 Messages 接入由生产 `init_chat_model` 构造官方 `ChatAnthropic`，未另外实现接入协议。Profile 的 `model_retries` 只设置官方 `ModelRetryMiddleware`；固定 `langchain-anthropic==1.7.2` 中，模型客户端另有默认 `max_retries=2`。因此，配置 `model_retries=1` 时，部分可重试故障理论上可形成两次中间件调用、每次最多三次 SDK HTTP 尝试，合计最多六次。并非每类错误都会重试，反代内部行为也不包含在此上界内。当前没有精确 HTTP 请求计数或完整计费账本，不能据此声称“只请求了 N 次 API”或“重试完全关闭”。
 
 批次 `reported_token_limit` 只在派发下一个完整任务之前检查已经报告的 tokens。一个正在运行的任务可以超过该阈值，缺失用量也未被补造，所以它不是单任务硬上限或完整费用上限。任务时间上限仍由官方 Harbor 任务配置控制。
@@ -64,4 +74,8 @@
 
 官方任务的 `storage_mb=10240` 仍记录在声明中，但本地 Docker 后端没有实现对应磁盘硬配额，实际 `StorageOpt` 为空。因此，10 GiB 只表示官方任务要求，不能声称已经限制。资源记录明确标注 `storage_hard_limit_supported=false`。模型网关另有独立的 0.25 CPU／128 MiB 限制，不包含在主任务容器的上述限额内。
 
-任务配置固定了上游镜像 tag；`runtime.json` 记录当次实际解析出的不可变 image ID／RepoDigest，便于比较源运行与 pristine replay。当前不会自动把官方任务 tag 改写为 digest，也不自动保证跨机器、跨时间 tag 不漂移。正式汇总前应比较同一任务各次运行与重判的实际 digest；不一致应作为有效性问题处理。本地网络实现、磁盘配额、swap 和网关开销均与官方云环境存在边界，不宣称官方完整榜单的严格环境等价。
+任务配置保留上游镜像 tag；`runtime.json` 记录实际 image ID／RepoDigest。云端资格第一次解析 tag 后保存唯一 RepoDigest，续批及正式 runner 按该 digest 拉取并核 image ID、平台，不修改官方任务文件。SWE source／pristine 的实际资源仍分别核对。历史单阶段入口没有这套云端准备合同，不能因 tag 名相同就宣称跨机器没有漂移。
+
+云端 sanity 还携带 `qualification_host_cohort` 与 `qualification_host_scope`。后者记录公开仓库、固定源码、cloud-plan SHA 和宿主证据边界。CLI 冻结保留这些字段，分片冻结、恢复和生成器均核对正式 runner 的 `ImageOS / ImageVersion / RUNNER_ARCH`；已知云端 bundle 或已声明的云端字段缺损、漂移时，不能悄悄当作非云流程忽略。没有云端来源字段的既有非云记录不补造宿主信息。公开与私有宿主的总 CPU／内存不同，也不保证同一实体 CPU 或内核，官方容器限额照常核验。[执行合同](sharded-execution.md)
+
+本地网络实现、磁盘配额、swap 和网关开销均与官方云环境存在边界，不宣称官方完整榜单的严格环境等价。

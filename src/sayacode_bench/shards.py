@@ -555,6 +555,75 @@ def _stop_reason(
     return None
 
 
+MERGE_ONLY_STOP_REASONS = frozenset(
+    {"reported_token_threshold", "paid_estimate_stop_fraction_reached"}
+)
+
+
+def verify_resume_prefix(plan_path: Path, prefix_length: int) -> dict[str, Any]:
+    """在原 Linux 路径复核完整前缀；Windows 映射检查不能替代原生证据核验。"""
+    if platform.system() != "Linux" or platform.machine().lower() not in {"x86_64", "amd64"}:
+        raise ValueError("恢复前缀必须在原路径的 Linux/amd64 上核验")
+    plan, master, bundle = _load_plan(plan_path)
+    if (
+        bundle is None
+        or type(prefix_length) is not int
+        or not 1 <= prefix_length <= len(plan["schedule"])
+    ):
+        raise ValueError("恢复需要非空完整前缀及固定 bundle")
+    entry = plan["schedule"][prefix_length - 1]
+    path = bundle / "shards" / entry["shard_id"] / "shard-receipt.json"
+    receipt, ledger = _read_receipt(path, plan_path, plan, master, bundle)
+    stop = _stop_reason(master, ledger["phase_records"], ledger["paid_records"])
+    merge_only = prefix_length == len(plan["schedule"]) and stop in MERGE_ONLY_STOP_REASONS
+    policy, initial = study._paid_inputs(master)
+    if (
+        policy is not None
+        and not estimate_paid_usage(
+            [*initial, *ledger["paid_records"], *ledger["phase_records"]],
+            **study._budget_arguments(policy),
+        )["usage_complete"]
+    ):
+        raise ValueError("历史与本阶段用量必须全部确认，不能仅凭派发阈值归并")
+    if (
+        receipt.get("complete") is not True
+        or receipt.get("continuation_allowed") is not (stop is None)
+        or receipt.get("stop_reason") != stop
+        or ledger.get("unresolved_execution") is not False
+        or (stop is not None and not merge_only)
+    ):
+        raise ValueError("停止、费用未知或未完整前缀不允许恢复")
+    for row, scheduled in zip(ledger["phase_records"], plan["schedule"], strict=False):
+        directory = bundle / "shards" / scheduled["shard_id"]
+        attempt = read_json(directory / "attempt.json")
+        if attempt.get("plan_sha256") != file_sha256(plan_path) or any(
+            attempt.get(key) != scheduled[key] for key in ("sequence", "shard_id", "trial_key")
+        ):
+            raise ValueError("前缀 attempt 与原计划不一致")
+        expected_source = Path(row["source_job"] if "source_job" in row else row["job_dir"])
+        # 每物理片只有一次 source；未被收据覆盖的额外目录可能已消耗费用。
+        source_root = directory / "run/jobs"
+        if not source_root.is_dir() or set(source_root.iterdir()) != {expected_source}:
+            raise ValueError("前缀存在未被收据覆盖的 source 或缺少原件")
+        if (directory / "run/inflight.json").exists() or (directory / "inflight.json").exists():
+            raise ValueError("前缀仍有 inflight 现场")
+    for scheduled in plan["schedule"][prefix_length:]:
+        for directory in (
+            bundle / "shards" / scheduled["shard_id"],
+            bundle / "orchestration" / scheduled["shard_id"],
+            bundle / "orchestration" / (scheduled["shard_id"] + "-host"),
+        ):
+            if directory.exists() or directory.is_symlink():
+                raise ValueError("剩余片已有 attempt、source 或已启动现场，不允许重放")
+    return {
+        "prefix_length": prefix_length,
+        "last_receipt": _ref(path),
+        "ledger": receipt["ledger_after"],
+        "native_prefix_verified": True,
+        "merge_only": merge_only,
+    }
+
+
 async def run_shard(
     plan_path: Path,
     shard_id: str,

@@ -107,6 +107,10 @@ uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolatio
 
 跨 runner 使用完整 bundle、原始绝对路径、哈希绑定的前序 receipt 和累计账本，不复制聊天状态或重建评分器。真实网络、官方资源、宿主镜像 cohort、剩余时间和磁盘均在本 runner 核验。固定三加一资格支持按 control 分批，未知基础设施状态不会被当成 fixture 失败而机械排除。详见 [分片执行与恢复](docs/sharded-execution.md)。
 
+物理批次可以在完整分片边界结束，再用显式恢复收据继续原 schedule。Linux 在读取模型密钥前重新核验全部历史派发与完整前缀；未知在途、遗漏消耗或账本分叉会拒绝继续。跨阶段归并目录按 master 身份隔离，保留原始签收路径。[物理批次恢复](docs/physical-batch-resume.md)
+
+Terminal-Bench 使用独立的十二题、R1 补充合同，只沿用主 SWE 开发选出的配置。固定初选、三加一资格入口、主候选来源约束和独立报告均已接入；实际 Terminal 控制与模型试验仍待执行。[Terminal 补充研究](docs/terminal-supplement.md)
+
 私有工作流默认不执行模型。两题校准 Secret 与正式研究 Secret 分开授权；完整 raw bundle 经指定私有 draft Release 传递，上传成功后 Actions 仅保小型运行回执和宿主证据，失败仍保原始现场。无模型资格批次仅使用公开标准 runner。免费计算、存储和 API 消耗分别管理，账户 Actions 支出上限保持零美元，不把 100 元 API 预算当成 Actions 费用授权。
 
 ## 连接、证据与结果

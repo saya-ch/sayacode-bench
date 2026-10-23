@@ -172,6 +172,8 @@ def select_again(
     ).public_dict()
     if selected["catalog_sha256"] != initial["catalog_sha256"]:
         raise ValueError("完整候选池与初始选择身份不同")
+    if "study_role" in initial:
+        selected["study_role"] = initial["study_role"]
     groups = {task.task_id: task.leakage_group for task in catalog}
     for row in selected["exclusions"]:
         if groups[row["task_id"]] in rejected:

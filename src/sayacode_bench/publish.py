@@ -371,6 +371,7 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
             manifest,
             (
                 "phase",
+                "study_role",
                 "canonical_model",
                 "benchmark",
                 "revision",
@@ -429,6 +430,11 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
     receipt = manifest.get("candidate_receipt")
     if isinstance(receipt, dict):
         public_manifest["candidate_receipt_sha256"] = _digest(receipt.get("sha256"))
+    primary_dev = manifest.get("primary_dev_manifest")
+    if primary_dev is not None:
+        public_manifest["primary_dev_manifest"] = {
+            "sha256": _digest(_object(primary_dev).get("sha256"))
+        }
     public_manifest["raw_identity"] = {
         "manifest_sha256": file_sha256(manifest_path),
         "records_sha256": file_sha256(records_path),
