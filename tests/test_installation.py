@@ -64,9 +64,12 @@ async def test_tls_probe_only_repairs_certificate_errors_once(
     assert all("--proto-redir '=https'" in c and "--insecure" not in c for c in downloads)
     assert all("https://astral.sh/uv/0.12.5/install.sh" in c for c in downloads)
     if len(codes) == 2:
-        assert (evidence / "download-1.stderr.txt").read_text() == "完整TLS诊断\n"
+        assert (evidence / "download-1.stderr.txt").read_text(encoding="utf-8") == "完整TLS诊断\n"
         assert (
-            json.loads((evidence / "download-1.result.json").read_text())["return_code"] == codes[0]
+            json.loads((evidence / "download-1.result.json").read_text(encoding="utf-8"))[
+                "return_code"
+            ]
+            == codes[0]
         )
 
 
@@ -83,7 +86,7 @@ async def test_other_download_failures_do_not_upgrade_ca(tmp_path: Path, code: i
             Environment((code,)), PurePosixPath("/installed-agent/uv.sh"), evidence, dependencies
         )
     assert requested == [("curl",)]
-    state = json.loads((evidence / "bootstrap.json").read_text())
+    state = json.loads((evidence / "bootstrap.json").read_text(encoding="utf-8"))
     assert state["passed"] is False and state["ca_repair_attempted"] is False
 
 
@@ -100,7 +103,7 @@ async def test_repeated_certificate_failure_is_preserved_and_stops(tmp_path: Pat
         )
     assert requested == [("curl",), ("ca_certificates",)]
     assert (evidence / "download-2.stderr.txt").exists()
-    assert json.loads((evidence / "bootstrap.json").read_text())["passed"] is False
+    assert json.loads((evidence / "bootstrap.json").read_text(encoding="utf-8"))["passed"] is False
 
 
 async def test_official_ca_install_failure_is_not_swallowed(tmp_path: Path) -> None:
@@ -113,7 +116,7 @@ async def test_official_ca_install_failure_is_not_swallowed(tmp_path: Path) -> N
         await prepare_uv_installer(
             Environment((77,)), PurePosixPath("/installed-agent/uv.sh"), evidence, dependencies
         )
-    state = json.loads((evidence / "bootstrap.json").read_text())
+    state = json.loads((evidence / "bootstrap.json").read_text(encoding="utf-8"))
     assert state["phase"] == "ensure_ca" and state["passed"] is False
     assert not (evidence / "download-2.attempt.json").exists()
 
@@ -136,7 +139,7 @@ async def test_exec_exception_is_not_treated_as_certificate_failure(tmp_path: Pa
             Timeout(), PurePosixPath("/installed-agent/uv.sh"), evidence, dependencies
         )
     assert requested == [("curl",)]
-    result = json.loads((evidence / "download-1.result.json").read_text())
+    result = json.loads((evidence / "download-1.result.json").read_text(encoding="utf-8"))
     assert result["return_code"] is None and result["error_type"] == "TimeoutError"
 
 
@@ -184,6 +187,6 @@ async def test_runtime_checks_use_actual_agent_user_and_fail_closed(
         assert result["passed"] is True and result["agent_effective_uid"] == 1001
         assert result["configured_agent_user"] == "agent"
     assert all(user is None for _, user in environment.commands)
-    receipt = json.loads((tmp_path / "receipt.json").read_text())
+    receipt = json.loads((tmp_path / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["passed"] is (broken is None)
     assert receipt["model_execution_performed"] is False
