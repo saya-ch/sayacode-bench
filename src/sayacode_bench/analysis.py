@@ -12,7 +12,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .artifacts import fatal_stop_reason
+from .artifacts import fatal_stop_reason, implementation_identity
 from .resources import runtime_record_issues
 
 
@@ -146,6 +146,12 @@ def analyze_experiment(
     if not isinstance(raw_issues, list) or any(not isinstance(issue, str) for issue in raw_issues):
         raise ValueError("validity_issues 必须是字符串列表")
     issues = list(raw_issues)
+    if phase in {"dev", "holdout", "validation"}:
+        frozen_implementation = manifest.get("implementation")
+        if not isinstance(frozen_implementation, Mapping) or not frozen_implementation:
+            issues.append("implementation_identity_missing")
+        elif frozen_implementation != implementation_identity():
+            issues.append("implementation_identity_mismatch")
     if (
         phase in {"dev", "holdout", "validation"}
         and manifest.get("runtime_evidence_required") is not True
@@ -379,6 +385,7 @@ def select_development_candidate(
 
 def main() -> None:
     from .artifacts import report_manifest
+    from .study import phase_summary
 
     parser = argparse.ArgumentParser(description="按预注册清单汇总 Agent 评测")
     parser.add_argument("--manifest", required=True, type=Path)
@@ -393,7 +400,7 @@ def main() -> None:
         for line in args.records.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    result = analyze_experiment(manifest, records)
+    result = phase_summary(manifest, records)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

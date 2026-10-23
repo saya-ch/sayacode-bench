@@ -19,6 +19,8 @@ SAYACODE_BENCH_SMOKE_OUTPUT=<尚不存在的独占输出目录>
 
 测试会获取固定公开源码缓存，以原始字节复制其官方 `v2/tooling`。只将 `study.fetch_source` 映射为合成 task 目录，不 mock 生产 App、原生图、单次执行、replay 或 native validators。`benchmark` 字段仅用于选择既有 SWE pristine 适配路径，`phase=calibration`、合成 revision、scope 和不具备正式资格的断言阻止其被当作 SWE 成绩。
 
-真实执行环境尚需实测；代码和默认跳过不能当作 Docker 已通过。失败时保留完整原生现场和 stub 元数据，仅清理本次拥有的镜像 tag，不 prune 用户 Docker。
+真实执行已经留下独立证据：[第一次成功](../../../reports/native-shard-smoke-20261023-v1.json)、[缓存传播断言失败](../../../reports/native-shard-smoke-fixture-failure-20261023-v2.json)、[修正 HTTP 替身后成功](../../../reports/native-shard-smoke-20261023-v3.json)。第三次还验证了原生 workflow token 的私有 Release 上传与下载。默认跳过的本地测试不代表重新通过 Docker 验证；失败尝试保留完整现场，不能因后来成功而抹掉。
+
+失败时保留完整原生现场和 stub 元数据，仅清理本次拥有的镜像 tag，不 prune 用户 Docker。
 
 两个分片在同一 Linux 宿主内顺序执行。本 smoke 不覆盖跨虚拟机工件归档与恢复、GitHub DAG 调度或宿主 cohort 守门；这些仍需独立验证。

@@ -13,6 +13,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from .artifacts import file_sha256, read_json, report_manifest, write_json
 from .connections import CANONICAL_MODEL
+from .shards import qualification_host_cohort
 from .study import phase_summary
 from .worker import NATIVE_USAGE_REASONS
 
@@ -397,6 +398,12 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
             for key in ("sanity_sha256", "network_probe_sha256")
             if key in preflight
         }
+    cohort = qualification_host_cohort(manifest)
+    if cohort is not None:
+        public_manifest["qualification_host_cohort"] = cohort
+        if "qualification_host_scope" in manifest:
+            # 复用固定字段验证；实际资格源码与当前分析实现分别保留。
+            public_manifest["qualification_host_scope"] = dict(manifest["qualification_host_scope"])
     if "artifacts" in manifest:
         artifacts = _object(manifest["artifacts"])
         public_manifest["artifacts"] = {

@@ -1117,6 +1117,7 @@ async def test_second_connection_failure_at_last_trial_checks_five_attempt_windo
 async def test_normal_model_failure_and_last_resource_threshold_keep_complete_results(
     experiment: Any, monkeypatch: Any
 ) -> None:
+    experiment.manifest["implementation"] = study.implementation_identity()
     install_jobs(monkeypatch)
     original = study.run_official_trial
     observed = 0

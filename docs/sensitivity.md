@@ -11,7 +11,9 @@ python scripts/analyze_sensitivity.py --freeze-protocol `
   --output C:/evaluation-results/sensitivity-protocol-v1.json
 ```
 
-协议记录脚本、主分析、资格验证与预算模块的 SHA256，以及抽样单位。此命令不需要成绩文件。正式清单应引用该协议文件及其哈希，首次正式模型任务必须晚于协议冻结。修改脚本或其验证依赖后是新的统计身份，不能覆盖旧协议，或者查看成绩后悄悄换方法。
+协议记录脚本、主分析、资格验证与预算模块的 SHA256，以及抽样单位。此命令不需要成绩文件。首次正式模型任务必须晚于协议冻结；完整协议文件与执行清单一起归档。正式 `freeze` 保存的 `implementation` 也包含敏感性脚本 SHA，离线报告必须同时满足清单中的实现身份与显式传入的协议身份。新生成的协议不能给旧清单事后补授权。
+
+修改脚本或其验证依赖后是新的统计身份，不能覆盖旧协议，或者查看成绩后悄悄换方法。旧清单没有冻结实现身份时仍可作描述性回顾，不修改原始文件使其获得正式资格。
 
 CLI 固定 `seed=20261022`、`samples=10000`，没有选择其他参数的入口。函数中的仓库 bootstrap 辅助参数仅用于已知分布的人工测试，不是正式分析可调开关。软件版本和执行源码也应与正式运行归档一并保留。
 
@@ -78,10 +80,11 @@ J < 2 时不生成仓库簇区间。即使有 11 个仓库，簇数仍然很少�
 ```powershell
 python scripts/analyze_sensitivity.py --manifest frozen-study.json `
   --records C:/evaluation-results/study/records.jsonl `
+  --protocol C:/evaluation-results/sensitivity-protocol-v1.json `
   --output C:/evaluation-results/study/sensitivity.json
 ```
 
-输出文件拒绝覆盖。CLI 继承结果目录的 `abort.json`、`invalid.json`，并保留输入内容哈希；不导出输入文件的本机绝对路径或逐条原始内容。
+输出文件拒绝覆盖。CLI 继承结果目录的 `abort.json`、`invalid.json`，并保留清单、记录及显式协议的内容哈希；不导出输入文件的本机绝对路径或逐条原始内容。未传协议或协议与当前实现不一致时，记录 `analysis_protocol_missing`／`analysis_protocol_mismatch`，不给正式区间。清单实现缺失或不同也分别记录，不以当前代码身份替代旧身份。
 
 完整且满足既有最终资格的 `holdout/validation` 才能获得正式区间。缺任务、缺重复、未知结果、无效证据、配对连接不一致、开发或校准阶段均只输出 `descriptive_ineligible`，区间为 null。描述值不能冒充完整任务分母上的正式成绩。
 

@@ -94,7 +94,9 @@ def example(
 
 def test_validation_has_prespecified_absolute_task_interval(sensitivity: ModuleType) -> None:
     manifest, rows = example(phase="validation")
-    result = sensitivity.analyze_sensitivity(manifest, rows)
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
     baseline = result["configurations"]["baseline"]
     assert result["final_result_eligible"] is True
     assert baseline["task_macro_success_rate"] == 0.5
@@ -107,7 +109,9 @@ def test_validation_has_prespecified_absolute_task_interval(sensitivity: ModuleT
 
 def test_repository_macro_preserves_unequal_task_counts(sensitivity: ModuleType) -> None:
     manifest, rows = example()
-    result = sensitivity.analyze_sensitivity(manifest, rows)
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
     repos = result["configurations"]["candidate"]["repositories"]
     assert repos["repo-small"]["planned_tasks"] == 1
     assert repos["repo-small"]["task_macro_success_rate"] == 1
@@ -138,7 +142,9 @@ def test_twenty_four_task_validation_reports_24_units_not_72_attempts(
         for repeat in range(1, 4)
     ]
     complete_resource_fixture(manifest, rows)
-    result = sensitivity.analyze_sensitivity(manifest, rows)
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
     group = result["configurations"]["baseline"]
     assert result["tasks"] == 24 and result["repositories"] == 11
     assert group["observed_attempts"] == 72
@@ -150,8 +156,12 @@ def test_twenty_four_task_validation_reports_24_units_not_72_attempts(
 def test_repeating_same_results_does_not_inflate_task_or_cluster_sample_size(
     sensitivity: ModuleType,
 ) -> None:
-    first = sensitivity.analyze_sensitivity(*example(repeats=1))
-    repeated = sensitivity.analyze_sensitivity(*example(repeats=20))
+    first = sensitivity.analyze_sensitivity(
+        *example(repeats=1), frozen_protocol=sensitivity.protocol_identity()
+    )
+    repeated = sensitivity.analyze_sensitivity(
+        *example(repeats=20), frozen_protocol=sensitivity.protocol_identity()
+    )
     assert first["tasks"] == repeated["tasks"] == 4
     assert first["repositories"] == repeated["repositories"] == 2
     assert repeated["configurations"]["baseline"]["observed_attempts"] == 80
@@ -209,7 +219,9 @@ def test_one_repository_has_no_cluster_interval(sensitivity: ModuleType) -> None
     manifest, rows = example()
     for task in manifest["tasks"]:
         task["repository"] = "single-repo"
-    result = sensitivity.analyze_sensitivity(manifest, rows)
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
     cluster = result["paired_repository_sensitivity"]
     assert cluster["repositories"] == 1
     assert cluster["interval_95"] is None
@@ -235,7 +247,9 @@ def test_incomplete_unknown_or_ineligible_data_has_no_formal_intervals(
         rows[0]["endpoint"] = "different"
     else:
         manifest["phase"] = kind
-    result = sensitivity.analyze_sensitivity(manifest, rows)
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
     assert result["status"] == "descriptive_ineligible"
     assert result["final_result_eligible"] is False
     assert all(
@@ -250,7 +264,9 @@ def test_unknown_task_is_not_silently_dropped(sensitivity: ModuleType) -> None:
     manifest, rows = example()
     rows[0]["task_id"] = "not-in-manifest"
     with pytest.raises(ValueError, match="不在清单"):
-        sensitivity.analyze_sensitivity(manifest, rows)
+        sensitivity.analyze_sensitivity(
+            manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+        )
 
 
 @pytest.mark.parametrize("phase", ["validation", "holdout"])
@@ -267,7 +283,9 @@ def test_invalid_budget_evidence_cannot_restore_formal_interval(
         "prior_records": [],
         "price_snapshot": {"path": str(tmp_path / "missing-price.json"), "sha256": "a" * 64},
     }
-    result = sensitivity.analyze_sensitivity(manifest, rows)
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
     assert result["final_result_eligible"] is False
     assert "paid_budget_evidence_invalid" in result["validity_issues"]
     assert result["configurations"]["baseline"]["absolute_success_bootstrap"]["interval_95"] is None
@@ -279,8 +297,12 @@ def test_fixed_seed_is_order_independent_and_does_not_mutate_inputs(
 ) -> None:
     manifest, rows = example()
     original = deepcopy((manifest, rows))
-    first = sensitivity.analyze_sensitivity(manifest, rows)
-    second = sensitivity.analyze_sensitivity(manifest, list(reversed(rows)))
+    first = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
+    second = sensitivity.analyze_sensitivity(
+        manifest, list(reversed(rows)), frozen_protocol=sensitivity.protocol_identity()
+    )
     assert first == second
     assert (manifest, rows) == original
     assert first["parameters"] == {"samples": 10_000, "seed": 20261022}
@@ -337,3 +359,89 @@ def test_protocol_freeze_does_not_require_or_read_results(
     assert "records" not in frozen
     with pytest.raises(FileExistsError):
         sensitivity.main()
+
+
+@pytest.mark.parametrize("change", ["missing", "script", "samples", "implementation"])
+def test_missing_or_changed_prespecified_protocol_cannot_produce_formal_intervals(
+    sensitivity: ModuleType, change: str
+) -> None:
+    manifest, rows = example()
+    frozen = sensitivity.protocol_identity()
+    if change == "missing":
+        frozen = None
+    elif change == "samples":
+        frozen["samples"] = 100
+    else:
+        frozen["script_sha256" if change == "script" else "implementation_sha256"] = "0" * 64
+    original = deepcopy((manifest, rows, frozen))
+    result = sensitivity.analyze_sensitivity(manifest, rows, frozen_protocol=frozen)
+    assert result["protocol_verified"] is False
+    assert result["final_result_eligible"] is False
+    assert result["status"] == "descriptive_ineligible"
+    assert result["primary_task_difference_bootstrap"] is None
+    assert result["paired_repository_sensitivity"]["interval_95"] is None
+    assert all(
+        group["absolute_success_bootstrap"]["interval_95"] is None
+        for group in result["configurations"].values()
+    )
+    assert (manifest, rows, frozen) == original
+
+
+@pytest.mark.parametrize("file", ["analysis.py", "scripts/analyze_sensitivity.py"])
+def test_current_protocol_cannot_replace_an_old_manifest_implementation(
+    sensitivity: ModuleType, file: str
+):
+    manifest, rows = example()
+    manifest["implementation"][file] = "0" * 64
+    result = sensitivity.analyze_sensitivity(
+        manifest, rows, frozen_protocol=sensitivity.protocol_identity()
+    )
+    assert result["protocol_verified"] is True
+    assert result["final_result_eligible"] is False
+    assert "implementation_identity_mismatch" in result["validity_issues"]
+    assert result["primary_task_difference_bootstrap"] is None
+
+
+def test_frozen_implementation_binds_the_sensitivity_script(sensitivity: ModuleType):
+    identity = sensitivity.artifacts_module.implementation_identity()
+    assert identity["scripts/analyze_sensitivity.py"] == sensitivity.file_sha256(
+        Path(sensitivity.__file__)
+    )
+
+
+def test_cli_verifies_saved_protocol_and_keeps_all_inputs_read_only(
+    sensitivity: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    protocol_path = tmp_path / "protocol.json"
+    monkeypatch.setattr(
+        sys, "argv", ["sensitivity", "--freeze-protocol", "--output", str(protocol_path)]
+    )
+    assert sensitivity.main() == 0
+    manifest, rows = example()
+    manifest_path, records_path = tmp_path / "manifest.json", tmp_path / "records.jsonl"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    records_path.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+    sources = (manifest_path, records_path, protocol_path)
+    original = [path.read_bytes() for path in sources]
+    output = tmp_path / "report.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "sensitivity",
+            "--manifest",
+            str(manifest_path),
+            "--records",
+            str(records_path),
+            "--protocol",
+            str(protocol_path),
+            "--output",
+            str(output),
+        ],
+    )
+    assert sensitivity.main() == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["protocol_verified"] is True
+    assert result["final_result_eligible"] is True
+    assert result["inputs"]["protocol_sha256"] == sensitivity.file_sha256(protocol_path)
+    assert [path.read_bytes() for path in sources] == original

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sayacode_bench.artifacts import implementation_identity
+
 
 def runtime_evidence(*, image_id: str = "sha256:" + "a" * 64) -> dict[str, Any]:
     return {
@@ -31,6 +33,7 @@ def runtime_evidence(*, image_id: str = "sha256:" + "a" * 64) -> dict[str, Any]:
 def complete_resource_fixture(manifest: dict[str, Any], records: list[dict[str, Any]]) -> None:
     """给纯统计／签收用例补齐合成资源证据，不以省略正式策略来放行。"""
     manifest["runtime_evidence_required"] = True
+    manifest.setdefault("implementation", implementation_identity())
     manifest.setdefault("benchmark", "swe-bench-pro-v2")
     manifest["qualified_runtime_identities"] = {
         task["task_id"]: runtime_evidence() for task in manifest["tasks"]

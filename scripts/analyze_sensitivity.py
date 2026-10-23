@@ -109,11 +109,23 @@ def _cluster_bootstrap(
 def analyze_sensitivity(
     manifest: Mapping[str, Any],
     records: Iterable[Mapping[str, Any]],
+    *,
+    frozen_protocol: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """复用正式结果验证，描述值与满足最终条件的区间分别标明。"""
     samples, seed = SAMPLES, SEED
+    current_protocol = protocol_identity()
+    protocol_verified = frozen_protocol == current_protocol
+    checked_manifest = dict(manifest)
+    if manifest.get("phase") in {"dev", "holdout", "validation"} and not protocol_verified:
+        checked_manifest["validity_issues"] = [
+            *manifest.get("validity_issues", []),
+            "analysis_protocol_missing"
+            if frozen_protocol is None
+            else "analysis_protocol_mismatch",
+        ]
     # phase_summary 内部复用 analyze_experiment，并继承预算等已有正式资格检查。
-    result = study_module.phase_summary(dict(manifest), list(records))
+    result = study_module.phase_summary(checked_manifest, [dict(row) for row in records])
     task_repositories = {task["task_id"]: task["repository"] for task in manifest["tasks"]}
     eligible = result["final_result_eligible"] is True
     configurations = {}
@@ -202,7 +214,8 @@ def analyze_sensitivity(
         )
     return {
         "schema_version": 1,
-        "protocol": protocol_identity(),
+        "protocol": current_protocol,
+        "protocol_verified": protocol_verified,
         "parameters": {"samples": samples, "seed": seed},
         "phase": result["phase"],
         "tasks": result["tasks"],
@@ -231,12 +244,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--records", type=Path)
+    parser.add_argument(
+        "--protocol", type=Path, help="正式运行前已保存的统计协议；缺失时只作描述性分析"
+    )
     parser.add_argument("--freeze-protocol", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.freeze_protocol:
-        if args.manifest is not None or args.records is not None:
-            parser.error("协议冻结不读取 manifest 或成绩")
+        if args.manifest is not None or args.records is not None or args.protocol is not None:
+            parser.error("协议冻结不读取 manifest、成绩或旧协议")
         value = protocol_identity()
     else:
         if args.manifest is None or args.records is None:
@@ -247,11 +263,17 @@ def main() -> int:
             for line in args.records.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
-        value = analyze_sensitivity(manifest, records)
+        value = analyze_sensitivity(
+            manifest,
+            records,
+            frozen_protocol=read_json(args.protocol) if args.protocol is not None else None,
+        )
         value["inputs"] = {
             "manifest_sha256": file_sha256(args.manifest),
             "records_sha256": file_sha256(args.records),
         }
+        if args.protocol is not None:
+            value["inputs"]["protocol_sha256"] = file_sha256(args.protocol)
     write_json(args.output, value, exclusive=True)
     print(
         json.dumps(

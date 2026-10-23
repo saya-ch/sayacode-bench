@@ -127,13 +127,13 @@ SWE-bench Pro 保存实际交付补丁，在全新官方镜像中应用并重新
 
 ## 规范化统计接口
 
-`analyze_experiment(manifest, records, bootstrap_samples=10000, seed=20261022)` 不重判任务，只接受已核验外部结果。CLI：
+`analyze_experiment(manifest, records, bootstrap_samples=10000, seed=20261022)` 是统计函数，不重判任务，只接受已核验外部结果。正式对外报告入口统一经过 `phase_summary` 的费用证据校验；以下 CLI 与 `sayacode-bench report` 使用同一道门禁：
 
 ```powershell
 python -m sayacode_bench.analysis --manifest <冻结清单.json> --records <逐次结果.jsonl> --output <分析结果.json>
 ```
 
-manifest 必填：`phase`（`calibration/dev/holdout/validation`）、`frozen`、`canonical_model`、`configurations`、`baseline`、`candidate`（开发和单组 validation 阶段可空）、`repeats`、`tasks`（每项包含 `task_id/repository`；候选封存还需要 `leakage_group`）。`validity_issues` 记录配额中断、协议偏离或其他失效条件。`formal_comparison_eligible` 只用于双组 holdout，`formal_validation_eligible` 只用于完整单组最终验收；任一缺失或未知都使相应标志为 false。
+manifest 必填：`phase`（`calibration/dev/holdout/validation`）、`frozen`、`canonical_model`、`configurations`、`baseline`、`candidate`（开发和单组 validation 阶段可空）、`repeats`、`tasks`（每项包含 `task_id/repository`；候选封存还需要 `leakage_group`）。正式阶段还必须保留冻结的 `implementation` 并与当前分析实现一致，包括敏感性分析脚本；缺失或版本漂移只允许描述性汇总，不能给旧清单补写当前身份。`validity_issues` 记录配额中断、协议偏离或其他失效条件。`formal_comparison_eligible` 只用于双组 holdout，`formal_validation_eligible` 只用于完整单组最终验收；任一缺失或未知都使相应标志为 false。
 
 逐次结果必填：`task_id/configuration/repeat/status/success/verified/canonical_model/endpoint`。`repeat` 从 1 开始，`success` 为布尔值或 null；成功且状态完成仍需 `verified=true`，表示适用的官方验证和独立重放已经核实。运行失败可用 `success=false, verified=false` 记录端到端失败；运行完成但缺验证的结果保持未知。
 

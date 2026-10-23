@@ -1,5 +1,8 @@
 """核查统计边界，测试数据不是模型成绩。"""
 
+import json
+import subprocess
+import sys
 from copy import deepcopy
 
 import pytest
@@ -10,12 +13,14 @@ from sayacode_bench.analysis import (
     paired_bootstrap,
     select_development_candidate,
 )
+from sayacode_bench.artifacts import implementation_identity
 
 
 def manifest(*, phase="holdout", repeats=2):
     return {
         "phase": phase,
         "frozen": True,
+        "implementation": implementation_identity(),
         "canonical_model": "DeepSeek-V4.1-Flash",
         "configurations": ["reference", "revised"],
         "baseline": "reference",
@@ -428,3 +433,67 @@ def test_offline_formal_resource_policy_cannot_be_removed_or_disabled(phase, pol
         assert result["comparison"]["bootstrap"] is None
     if phase == "dev":
         assert select_development_candidate(plan, rows)["status"] == "incomplete"
+
+
+@pytest.mark.parametrize("phase", ["dev", "holdout", "validation"])
+@pytest.mark.parametrize("change", ["missing", "changed", "partial"])
+def test_frozen_implementation_required_for_formal_summary_and_candidate(phase, change):
+    plan, rows = resource_experiment(phase)
+    if change == "missing":
+        plan.pop("implementation")
+    elif change == "partial":
+        plan["implementation"].pop("analysis.py")
+    else:
+        plan["implementation"]["analysis.py"] = "0" * 64
+    original = deepcopy((plan, rows))
+    result = analyze_experiment(plan, rows, bootstrap_samples=100)
+    assert result["final_result_eligible"] is False
+    assert result["formal_comparison_eligible"] is False
+    assert result["formal_validation_eligible"] is False
+    assert any(issue.startswith("implementation_identity_") for issue in result["validity_issues"])
+    assert (plan, rows) == original
+    if result["comparison"] is not None:
+        assert result["comparison"]["bootstrap"] is None
+    if phase == "dev":
+        assert select_development_candidate(plan, rows)["status"] == "incomplete"
+
+
+def test_analysis_cli_preserves_invalid_financial_evidence(tmp_path):
+    plan, rows = resource_experiment()
+    plan["paid_budget"] = {
+        "limit_cny": 100,
+        "stop_fraction": 0.8,
+        "paid_endpoints": ["remote"],
+        "input_cny_per_million": 2,
+        "output_cny_per_million": 8,
+        "prior_records": [],
+        "price_snapshot": {"path": str(tmp_path / "missing-price.json"), "sha256": "a" * 64},
+    }
+    manifest_path, records_path = tmp_path / "manifest.json", tmp_path / "records.jsonl"
+    manifest_path.write_text(json.dumps(plan), encoding="utf-8")
+    records_path.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+    original = manifest_path.read_bytes(), records_path.read_bytes()
+    output = tmp_path / "analysis.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "sayacode_bench.analysis",
+            "--manifest",
+            str(manifest_path),
+            "--records",
+            str(records_path),
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr.decode("utf-8", errors="replace")
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["final_result_eligible"] is False
+    assert "paid_budget_evidence_invalid" in result["validity_issues"]
+    assert result["paid_budget"]["evidence_valid"] is False
+    assert result["comparison"]["bootstrap"] is None
+    assert (manifest_path.read_bytes(), records_path.read_bytes()) == original

@@ -7,6 +7,7 @@ from resource_samples import runtime_evidence
 
 from sayacode_bench import publish
 from sayacode_bench.analysis import analyze_experiment
+from sayacode_bench.artifacts import implementation_identity
 from sayacode_bench.publish import export_results, public_record, validate_public
 
 
@@ -210,6 +211,7 @@ def source_files(tmp_path, *, extra_manifest=None):
             {
                 "phase": "validation",
                 "frozen": True,
+                "implementation": implementation_identity(),
                 "canonical_model": "DeepSeek-V4.1-Flash",
                 "configurations": ["baseline"],
                 "baseline": "baseline",
@@ -224,6 +226,55 @@ def source_files(tmp_path, *, extra_manifest=None):
     records = raw / "records.jsonl"
     records.write_text(json.dumps(record()) + "\n", encoding="utf-8")
     return manifest, records
+
+
+def qualification_scope():
+    return {
+        "qualification_host_cohort": {
+            "ImageOS": "ubuntu24",
+            "ImageVersion": "20261012.334.1",
+            "RUNNER_ARCH": "X64",
+        },
+        "qualification_host_scope": {
+            "execution_repository": "saya-ch/sayacode-bench",
+            "public_source_sha": "5fcc3ce48fa98cd65c98ea5f74c1b36d43c42c0e",
+            "cloud_plan_sha256": "a" * 64,
+            "host_cohort_scope": ["ImageOS", "ImageVersion", "RUNNER_ARCH"],
+            "host_cohort_exclusions": [
+                "physical_cpu_identity",
+                "kernel_identity",
+                "provider_model_immutability",
+            ],
+            "host_hardware_boundary": "same image cohort; not identical hardware",
+        },
+    }
+
+
+def test_public_manifest_preserves_original_qualification_source_separately(tmp_path):
+    original = qualification_scope()
+    manifest, records = source_files(tmp_path, extra_manifest=original)
+    output = tmp_path / "public"
+    export_results(manifest, records, output)
+    published = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert published["implementation"] == implementation_identity()
+    for key, value in original.items():
+        assert published[key] == value
+
+
+@pytest.mark.parametrize("change", ["missing_cohort", "extra_field", "private_boundary"])
+def test_invalid_or_private_qualification_source_does_not_create_public_output(tmp_path, change):
+    original = qualification_scope()
+    if change == "missing_cohort":
+        original.pop("qualification_host_cohort")
+    elif change == "extra_field":
+        original["qualification_host_scope"]["private_note"] = "do not export"
+    else:
+        original["qualification_host_scope"]["host_hardware_boundary"] = "/home/private/run"
+    manifest, records = source_files(tmp_path, extra_manifest=original)
+    output = tmp_path / "public"
+    with pytest.raises(ValueError):
+        export_results(manifest, records, output)
+    assert not output.exists()
 
 
 @pytest.mark.parametrize(

@@ -4,14 +4,16 @@
 
 ## 最新实际状态
 
+- v10 在正式模型试验前补齐离线报告门禁：独立分析 CLI 与标准报告共用费用证据检查；清单冻结完整实现及敏感性脚本，显式协议缺失或不匹配时不给正式区间。公开导出分别保留原资格宿主／源码与当前分析实现。Windows／Python 3.13 全量 **1,096 通过、7 项环境跳过**，14 条为上游 `allow_internet` 弃用警告；Ruff、格式、20 个源码及 5 个脚本的 MyPy 通过。统计方法、样本规模、seed、原始试验资料及正在执行的资格标签不变；正式模型试验仍为零。
 - v9 修复了目录指纹的跨平台排序：相对路径组件按区分大小写的元组排序，保留旧 Linux 语义。SWE 642 题 catalog 与冻结值相同，6,436 项官方 checksum 全部通过；Terminal v2 选择保持原十四个 ID、seed、资源和排除规则。Windows 全套 **1,074 通过、7 项环境跳过**，Ruff、格式、包内及五个脚本类型检查通过。Terminal 首批 `39906586154` 在任何 control attempt 前因 catalog 身份不一致失败，原件已完整保全；该批不能算作模型或 fixture 不通过。[失败与修复证据](../reports/terminal-qualification-catalog-failure-20261023-v1.json)
 - v8 实现已完成 Windows／Python 3.13 全套 **1,068 通过、7 项按环境跳过**；Ruff、格式、20 个源码文件及 5 个编排脚本的类型检查通过。九份静态 workflow，以及部分批次／前缀恢复／仅归并三种实际生成 DAG 均通过 actionlint。新增合同覆盖跨阶段目录隔离、显式物理批次恢复和 Terminal 独立补充；这些新合同当前以离线行为验收为证据，尚未完成跨 VM 的真实模型恢复或 Terminal 资格执行。v8 保留原样本数、统计方法与 seed，并绑定恢复 helper、资格 workflow 和 Terminal 初选身份。
 - `1c4ed0bac9ffd55023875c517a327cf4869fd727` 的 [四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39808430484)，Windows 本地对应 886 项通过、4 项明确跳过。未提交的后续修改不能借用该结果。
 - 真实原生容器分片 smoke [39809148360](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39809148360) 通过：固定生产 wheel、真实 LangChain／LangGraph 图、两次 source、两次官方 pristine 重放和严格归并。模型来自本地 HTTP/SSE 合成替身，供应商调用为零；它不是 DeepSeek 或 SWE 能力成绩，也不是跨 VM 完整 DAG 的执行证明。
 - 两题云端生产校准 [39801497042](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39801497042) 已完成实际任务和独立重判：qutebrowser 通过，Ansible 未通过；两题三次 oracle／一次 nop 的资格门禁均通过。总计 71 次模型回调，其中 70 次报告用量、1 次 HTTP 503 未报告。两题均未创建子任务。整体 workflow 因费用汇总身份冲突失败，原现场保留，不重跑模型掩盖失败。[最小事实](../reports/cloud-model-calibration-20261023-v3.json)
 - 当前供应商账单展示区间的计费 token 与 70 次成功回调精确对齐，按展示数量和单价计算名义消耗约 0.61 元；现金为零来自代金券抵扣，不能记作零成本。503 原始用量仍未知，历史费用核销方式待用户选择。[费用边界](billing.md)
-- 私有 draft Release 的本机真实上传／下载探针已通过服务端 digest 和整体 SHA 核验，使用三片合成材料；workflow token 的实际传输权限须由后续独立无模型 smoke 验证，不用本机 OAuth 探针替代。
-- 正式分片、原生 callback 缓存用量旁证、累计费用与公开发布复核正在完成新一轮实现验收。公开无模型资格入口与私有模型入口分开，正式 Secret 范围仍待用户确认。主要开发 48 次、最多最终 96 次及 Terminal 补充尚未开始，候选尚未选择。
+- 私有 draft Release 的本机 OAuth 探针和原生 workflow token 探针分别通过服务端 digest、上传者和整体 SHA 核验。第三次真实 smoke 同时验证了生产图、两次 source／pristine 和完整缓存用量传播；HTTP 替身、合成用量、同宿主分片的边界保持不变。[第三次 smoke 事实](../reports/native-shard-smoke-20261023-v3.json)
+- 公开 SWE 资格前七批已核验 7 道任务合格、0 道排除；第七批为 `39907786320`，每批原始 ZIP 服务摘要、内层 tar 和原生结果均保全核验。计划仍为 8 道开发／24 道最终任务，不能把 7 道已合格任务当作完成。Terminal v9 首批 `39909795535` 已完成原件与原生结果核验，1 道任务三加一资格通过、0 道排除，第二批继续执行；旧 v8 零控制失败材料保留。上述计数是本次记录时的资格进度，均不调用模型。
+- 公开无模型资格入口与私有模型入口分开，正式 Secret 范围与历史费用核销方式仍待用户确认。主要开发 48 次、最多最终 96 次及 Terminal 模型补充尚未开始，候选尚未选择。
 
 v7 对应的 Windows／Python 3.13 完整离线验收为 **1,012 通过、6 项明确跳过**：包括未启用的真实 Docker 测试、平台条件和未安装产品 LangChain 依赖的测试。原生产依赖环境的官方图用量测试另行通过；这不替代新的云端 Docker smoke。Ruff、格式、包内 MyPy、四个编排／资格脚本的显式包类型检查、九份工作流 actionlint 均通过。v7 协议新增分片、编排、资格入口与完整实现身份，10,000 次任务块 bootstrap、仓库簇敏感性、seed、样本数不变；旧协议不覆盖。
 

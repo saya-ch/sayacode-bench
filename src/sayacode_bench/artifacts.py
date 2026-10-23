@@ -19,7 +19,7 @@ def implementation_identity() -> dict[str, str]:
     package = Path(__file__).parent
     files = {path.name: file_sha256(path) for path in sorted(package.glob("*.py"))}
     root = package.parent.parent
-    for name in ("pyproject.toml", "uv.lock"):
+    for name in ("pyproject.toml", "uv.lock", "scripts/analyze_sensitivity.py"):
         files[name] = file_sha256(root / name)
     return files
 
