@@ -5,7 +5,7 @@ import json
 import pytest
 from resource_samples import runtime_evidence
 
-from sayacode_bench import publish
+from sayacode_bench import publish, study
 from sayacode_bench.analysis import analyze_experiment
 from sayacode_bench.artifacts import implementation_identity
 from sayacode_bench.publish import export_results, public_record, validate_public
@@ -226,6 +226,103 @@ def source_files(tmp_path, *, extra_manifest=None):
     records = raw / "records.jsonl"
     records.write_text(json.dumps(record()) + "\n", encoding="utf-8")
     return manifest, records
+
+
+@pytest.fixture
+def epoch_manifest(tmp_path, monkeypatch):
+    """只测试白名单；原生阶段与金融证明由各自真实验证器测试。"""
+    from sayacode_bench.artifacts import file_sha256, write_json
+
+    def ref(name, value):
+        path = tmp_path / name
+        write_json(path, value)
+        return {"path": str(path), "sha256": file_sha256(path)}
+
+    protocol = ref(
+        "protocol.json", {"execution_protocol_version": 13, "statistical_protocol_sha256": "a" * 64}
+    )
+    analysis = ref("analysis-protocol.json", {"implementation_sha256": "a" * 64})
+    installed = ref(
+        "preflight.json",
+        {
+            "kind": "installation_preflight",
+            "source_sha": "b" * 40,
+            "complete": True,
+            "passed": True,
+            "private_body": {"api_key": "never-export", "path": "/tmp/private/raw"},
+        },
+    )
+    carry = ref(
+        "carry.json",
+        {
+            "kind": "d877_prefix4_pilot_carry_v1",
+            "incident": {
+                "public_source_sha": "c" * 40,
+                "old_master_sha256": "d" * 64,
+                "archive_sha256": "e" * 64,
+                "original_bundle_root": "/tmp/private/old",
+            },
+            "boundaries": {
+                "old_scores_reused": False,
+                "original_null_usage_preserved": True,
+                "private_note": "never-export",
+            },
+            "original_members": {"body": "private reasoning"},
+        },
+    )
+    monkeypatch.setattr(study, "validate_execution_inputs", lambda manifest: None)
+    monkeypatch.setattr(study, "_paid_inputs", lambda manifest: (manifest["paid_budget"], []))
+    return {
+        "execution_epoch": {
+            "id": "restart-v2",
+            "protocol": protocol,
+            "analysis_protocol": analysis,
+            "installation_preflight": installed,
+        },
+        "paid_budget": {"pilot_carry": carry},
+    }
+
+
+def test_epoch_whitelist_keeps_restart_identity_without_proof_bodies(epoch_manifest):
+    result = publish._public_execution_epoch(epoch_manifest)
+    text = json.dumps(result)
+    assert "never-export" not in text and "private" not in text
+    assert "original_members" not in text and "path" not in text
+    assert result["execution_protocol"]["version"] == 13
+    assert result["pilot_carry"]["pilot_master_sha256"] == "d" * 64
+    assert result["pilot_carry"]["old_scores_reused"] is False
+    assert result["pilot_carry"]["original_null_usage_preserved"] is True
+
+
+def test_epoch_is_linked_in_both_public_manifest_and_analysis(
+    tmp_path, monkeypatch, epoch_manifest
+):
+    monkeypatch.setattr(
+        publish, "phase_summary", lambda manifest, records: analyze_experiment(manifest, records)
+    )
+    manifest, records = source_files(tmp_path, extra_manifest=epoch_manifest)
+    output = tmp_path / "public"
+    report = export_results(manifest, records, output)
+    public = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert public["execution_epoch"] == report["execution_epoch"]
+    assert "不完整先导" in public["execution_epoch"]["scope"]
+    assert not report["final_result_eligible"]
+
+
+def test_changed_epoch_proof_cannot_create_public_output(tmp_path, monkeypatch, epoch_manifest):
+    monkeypatch.setattr(
+        publish, "phase_summary", lambda manifest, records: analyze_experiment(manifest, records)
+    )
+
+    def changed(manifest):
+        raise ValueError("原始预检或计量证据发生变化")
+
+    monkeypatch.setattr(study, "validate_execution_inputs", changed)
+    manifest, records = source_files(tmp_path, extra_manifest=epoch_manifest)
+    output = tmp_path / "public"
+    with pytest.raises(ValueError, match="证据发生变化"):
+        export_results(manifest, records, output)
+    assert not output.exists()
 
 
 def qualification_scope():

@@ -14,6 +14,7 @@ from harbor.agents.installed.base import BaseInstalledAgent, NonZeroAgentExitCod
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
+from .installation import prepare_uv_installer, verify_installed_runtime
 from .worker import audit_metrics, read_object, variant_profile, write_json
 
 ROOT = PurePosixPath("/installed-agent/sayacode")
@@ -61,7 +62,13 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
         return f"{ROOT}/venv/bin/sayacode --version"
 
     async def install(self, environment: BaseEnvironment) -> None:
-        await self.ensure_system_dependencies(environment, ("curl", "ca_certificates"))
+        evidence = self.logs_dir / "installation"
+        bootstrap = await prepare_uv_installer(
+            environment,
+            ROOT / "install-uv.sh",
+            evidence,
+            self.ensure_system_dependencies,
+        )
         await self.exec_as_root(
             environment, command=f"mkdir -p {ROOT} {PRIVATE}; chmod 700 {PRIVATE}"
         )
@@ -77,7 +84,6 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             environment,
             command=(
                 f"set -eu; export UV_PYTHON_INSTALL_DIR={ROOT}/python; "
-                f"curl -LsSf https://astral.sh/uv/0.12.5/install.sh -o {ROOT}/install-uv.sh; "
                 f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
                 f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; "
                 f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv; "
@@ -87,6 +93,14 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
                 f"{shlex.quote(str(ROOT / self.product_wheel.name))}; "
                 f"chmod -R a+rX {ROOT}"
             ),
+        )
+        await verify_installed_runtime(
+            environment,
+            ROOT,
+            evidence,
+            bootstrap,
+            wheel=self.product_wheel,
+            requirements=self.requirements_path,
         )
 
     async def _upload(

@@ -342,6 +342,55 @@ def public_record(record: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _public_execution_epoch(manifest: dict[str, Any]) -> dict[str, Any] | None:
+    """先在私有原件上重验，再仅公开重启身份，避免复制证明文件正文。"""
+    epoch = manifest.get("execution_epoch")
+    if epoch is None:
+        return None
+    from .study import _paid_inputs, validate_execution_inputs
+
+    validate_execution_inputs(manifest)
+    _paid_inputs(manifest)
+    epoch = _object(epoch)
+    protocol_ref = _object(epoch["protocol"])
+    analysis_ref = _object(epoch["analysis_protocol"])
+    installation_ref = _object(epoch["installation_preflight"])
+    carry_ref = _object(manifest["paid_budget"]["pilot_carry"])
+    protocol = read_json(Path(protocol_ref["path"]))
+    analysis = read_json(Path(analysis_ref["path"]))
+    installed = read_json(Path(installation_ref["path"]))
+    carry = read_json(Path(carry_ref["path"]))
+    incident, boundaries = _object(carry["incident"]), _object(carry["boundaries"])
+    result = {
+        "id": _scalar(epoch["id"], str),
+        "execution_protocol": {
+            "sha256": _digest(protocol_ref["sha256"]),
+            "version": _scalar(protocol["execution_protocol_version"], int),
+            "statistical_protocol_sha256": _digest(protocol["statistical_protocol_sha256"]),
+        },
+        "analysis_protocol": {
+            "sha256": _digest(analysis_ref["sha256"]),
+            "implementation_sha256": _digest(analysis["implementation_sha256"]),
+        },
+        "installation_preflight": {
+            "sha256": _digest(installation_ref["sha256"]),
+            **_fields(installed, ("kind", "source_sha"), str),
+            **_fields(installed, ("complete", "passed"), bool),
+        },
+        "pilot_carry": {
+            "sha256": _digest(carry_ref["sha256"]),
+            "kind": _scalar(carry["kind"], str),
+            "pilot_source_sha": _scalar(incident["public_source_sha"], str),
+            "pilot_master_sha256": _digest(incident["old_master_sha256"]),
+            "pilot_archive_sha256": _digest(incident["archive_sha256"]),
+            **_fields(boundaries, ("old_scores_reused", "original_null_usage_preserved"), bool),
+        },
+        "scope": "不完整先导单独保留；新研究不复用先导成绩，真实费用累计；空用量不构成零账单。",
+    }
+    validate_public(result)
+    return result
+
+
 def export_results(manifest_path: Path, records_path: Path, output: Path) -> dict[str, Any]:
     """新建独立发布目录；不把开发或中止批次升级为正式比较。"""
     if output.exists():
@@ -442,6 +491,10 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
         public_manifest["primary_dev_manifest"] = {
             "sha256": _digest(_object(primary_dev).get("sha256"))
         }
+    epoch = _public_execution_epoch(manifest)
+    if epoch is not None:
+        public_manifest["execution_epoch"] = epoch
+        report["execution_epoch"] = epoch
     public_manifest["raw_identity"] = {
         "manifest_sha256": file_sha256(manifest_path),
         "records_sha256": file_sha256(records_path),

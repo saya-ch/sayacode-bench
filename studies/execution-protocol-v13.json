@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "execution_epoch": "restart-v2",
+  "execution_protocol_version": 13,
+  "statistical_protocol": "sensitivity-protocol-v12.json",
+  "pilot_source_sha": "d8778bd41ed8adc9d7d09486fe5d59cdd4fd4469",
+  "pilot_master_sha256": "a90fb1e87df978df95d131abc20f666f86ccc0559bd4dd142984d3756324d876",
+  "pilot_classification": "不完整先导，三条已完成和一条安装失败均保留，不作为新研究成绩",
+  "installation_preflight": {
+    "swe_tasks": 32,
+    "terminal_tasks": 14,
+    "harbor_install_only": true,
+    "supplier_credentials_allowed": false,
+    "verifier_allowed": false
+  },
+  "primary_dev": {
+    "tasks": 8,
+    "configurations": [
+      "baseline",
+      "diagnostic",
+      "focused"
+    ],
+    "repeats": 2,
+    "trials": 48
+  },
+  "primary_final": {
+    "tasks": 24,
+    "repeats": 2
+  },
+  "terminal_final": {
+    "tasks": 12,
+    "repeats": 1
+  },
+  "accounting": {
+    "limit_cny": "100",
+    "stop_fraction": "0.8",
+    "pilot_model_cost_is_carried": true,
+    "historical_settlement_cny": "0.62",
+    "pre_agent_failure": "仅凭原生阶段和固定代码正面证据判定计量不适用，原用量保持 null",
+    "future_missing_model_usage": "停止新付费派发，不补零、不豁免"
+  },
+  "isolation": "新 master、plan、trial 身份独立；沿用原工作根仅为保全原绝对路径，不拼接先导成绩",
+  "statistical_protocol_sha256": "9094de11a031b7f0027a2c614a8ef92a374ac1df7750e10fb3cb87b597943a1a"
+}

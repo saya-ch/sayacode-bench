@@ -370,10 +370,27 @@ async def test_install_preserves_task_python_and_never_uploads_private_profile(
     tmp_path: Path,
 ) -> None:
     agent = make_agent(tmp_path)
-    environment = Environment()
 
-    async def dependencies(*args: Any) -> None:
-        return None
+    class InstallationEnvironment(Environment):
+        async def exec(self, command: str, **kwargs: Any) -> SimpleNamespace:
+            result = await super().exec(command, **kwargs)
+            if "sha256sum" in command:
+                result.stdout = "a" * 64 + "  installer\n"
+            elif command == "id -u":
+                result.stdout = "1000\n"
+            elif "sayacode --version" in command:
+                result.stdout = "SAYACODE 3.2.4\n"
+            elif " -c " in command:
+                result.stdout = "SAYACODE_IMPORT_OK\n"
+            elif "worker.py --help" in command:
+                result.stdout = "--profile --variant --instruction"
+            return result
+
+    environment = InstallationEnvironment()
+    requested = []
+
+    async def dependencies(env: Any, names: tuple[str, ...]) -> None:
+        requested.append(names)
 
     agent.ensure_system_dependencies = dependencies
     await agent.install(environment)
@@ -384,6 +401,10 @@ async def test_install_preserves_task_python_and_never_uploads_private_profile(
     assert "--no-deps" in commands
     assert "--system" not in commands
     assert all("profile" not in target for _, target in environment.uploads)
+    assert requested == [("curl",)]
+    assert sum(command.startswith("curl ") for command in environment.commands) == 1
+    assert "curl " not in next(c for c in environment.commands if "UV_PYTHON_INSTALL_DIR=" in c)
+    assert json.loads((agent.logs_dir / "installation/receipt.json").read_text())["passed"]
 
 
 def git_command(repo: Path, *args: str) -> bytes:

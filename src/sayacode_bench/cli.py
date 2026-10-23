@@ -21,7 +21,7 @@ from .locking import lock_candidate, validate_candidate_receipt
 from .selection import select_tasks, write_manifest
 from .shards import freeze_execution_plan, merge_shards, qualification_host_cohort, run_shard
 from .sources import SOURCES, build_catalog, fetch_source
-from .study import freeze_paid_budget, phase_summary, run_phase
+from .study import freeze_paid_budget, phase_summary, run_phase, validate_execution_inputs
 
 
 def _mapping(values: list[str]) -> dict[str, Path]:
@@ -90,6 +90,17 @@ async def sanity(manifest_path: Path, cache: Path, output: Path) -> dict[str, An
 
 
 def freeze(args: argparse.Namespace) -> dict[str, Any]:
+    epoch_paths = [
+        getattr(args, name, None)
+        for name in (
+            "execution_protocol",
+            "analysis_protocol",
+            "installation_preflight",
+            "pilot_carry",
+        )
+    ]
+    if any(epoch_paths) and not all(epoch_paths):
+        raise ValueError("新研究轮次必须同时声明执行协议、新分析身份、完整安装预检和先导费用收据")
     selection = read_json(args.selection)
     study_role = getattr(args, "study_role", "generic")
     if selection.get("study_role", study_role) != study_role:
@@ -190,14 +201,47 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         for identity in manifest["qualified_runtime_identities"].values()
     ):
         raise ValueError("评分门禁缺少实际镜像和平台身份，请重新执行真实门禁")
+    prior_records = list(getattr(args, "prior_records", None) or [])
+    if all(epoch_paths):
+        from .pilot_carry import validate_pilot_carry
+
+        protocol, analysis_protocol, installation, carry_path = epoch_paths
+        assert isinstance(protocol, Path)
+        assert isinstance(analysis_protocol, Path)
+        assert isinstance(installation, Path)
+        assert isinstance(carry_path, Path)
+        carry_ref = {
+            "path": str(carry_path.resolve(strict=True)),
+            "sha256": file_sha256(carry_path),
+        }
+        carry_refs = validate_pilot_carry(carry_ref)
+        if args.phase == "dev" and prior_records:
+            raise ValueError("新开发阶段只允许继承先导费用，不能复用先导成绩或其他开发记录")
+        prior_records.extend(Path(reference["path"]) for reference in carry_refs)
+        manifest["execution_epoch"] = {
+            "id": "restart-v2",
+            "protocol": {
+                "path": str(protocol.resolve(strict=True)),
+                "sha256": file_sha256(protocol),
+            },
+            "analysis_protocol": {
+                "path": str(analysis_protocol.resolve(strict=True)),
+                "sha256": file_sha256(analysis_protocol),
+            },
+            "installation_preflight": {
+                "path": str(installation.resolve(strict=True)),
+                "sha256": file_sha256(installation),
+            },
+        }
     paid_budget = freeze_paid_budget(
         limit_cny=getattr(args, "paid_limit_cny", None),
         stop_fraction=getattr(args, "paid_stop_fraction", 0.8),
         price_snapshot=getattr(args, "paid_price_snapshot", None),
-        prior_records=getattr(args, "prior_records", None),
+        prior_records=prior_records,
         historical_settlement=getattr(args, "historical_settlement", None),
         paid_endpoints=getattr(args, "paid_endpoint", None),
         connection_profiles=profiles,
+        pilot_carry=getattr(args, "pilot_carry", None),
     )
     if paid_budget is not None:
         manifest["paid_budget"] = paid_budget
@@ -209,6 +253,13 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
             "path": str(args.candidate_lock.resolve()),
             "sha256": receipt["receipt_sha256"],
         }
+        dev = read_json(Path(receipt["dev_manifest"]["path"]))
+        if manifest.get("execution_epoch") != dev.get("execution_epoch") or (
+            manifest.get("paid_budget", {}).get("pilot_carry")
+            != dev.get("paid_budget", {}).get("pilot_carry")
+        ):
+            raise ValueError("最终阶段必须继承同一新研究轮次、安装预检和先导费用证据")
+    validate_execution_inputs(manifest)
     write_json(args.output, manifest, exclusive=True)
     return manifest
 
@@ -272,6 +323,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     frozen.add_argument("--paid-stop-fraction", type=float, default=0.8)
     frozen.add_argument("--paid-price-snapshot", type=Path)
+    frozen.add_argument("--execution-protocol", type=Path, help="新研究轮次的独立执行协议")
+    frozen.add_argument("--analysis-protocol", type=Path, help="新轮次实际源码的完整分析身份")
+    frozen.add_argument("--installation-preflight", type=Path, help="完整四十六镜像安装预检收据")
+    frozen.add_argument("--pilot-carry", type=Path, help="保留先导原件的严格费用延续收据")
     frozen.add_argument(
         "--historical-settlement",
         type=Path,

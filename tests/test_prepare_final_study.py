@@ -22,7 +22,7 @@ SOURCE = "a" * 40
 @pytest.fixture
 def completed(tmp_path: Path, monkeypatch: Any) -> SimpleNamespace:
     bundle = tmp_path / "bundle"
-    inputs = bundle / "inputs"
+    inputs = bundle / "inputs/restart-v2"
     inputs.mkdir(parents=True)
     monkeypatch.setattr(module, "BUNDLE", bundle)
     master = {
@@ -36,7 +36,7 @@ def completed(tmp_path: Path, monkeypatch: Any) -> SimpleNamespace:
         "master": {"path": str(master_path), "sha256": file_sha256(master_path)},
         "schedule": [{"shard_id": f"dev-{index:04}"} for index in range(48)],
     }
-    plan_path = bundle / "primary-dev-plan.json"
+    plan_path = bundle / "primary-dev-v2-plan.json"
     write_json(plan_path, plan)
     runner = {"public_source_sha": SOURCE, "host_cohort": COHORT}
     monkeypatch.setattr(module, "inspect_plan", lambda *args: (plan, master, runner))
@@ -247,7 +247,8 @@ async def test_linux_full_dev_review_uses_real_inspect_and_cli_with_one_historic
         e.manifest["artifacts"]["variants"] = {
             label: file_sha256(path) for label, path in e.variants.items()
         }
-        e.manifest_path = e.inputs / "primary-dev.json"
+        (e.inputs / "restart-v2").mkdir()
+        e.manifest_path = e.inputs / "restart-v2/primary-dev.json"
         write_json(e.manifest_path, e.manifest)
         write_json(
             e.runner,
@@ -269,7 +270,7 @@ async def test_linux_full_dev_review_uses_real_inspect_and_cli_with_one_historic
                 "master_manifest_sha256": file_sha256(e.manifest_path),
             },
         )
-        e.plan_path = bundle / "primary-dev-plan.json"
+        e.plan_path = bundle / "primary-dev-v2-plan.json"
         e.plan = shards.freeze_execution_plan(
             e.manifest_path, e.runner, e.authorization, e.plan_path, bundle_root=bundle
         )

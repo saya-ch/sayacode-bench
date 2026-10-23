@@ -205,6 +205,7 @@ def freeze_execution_plan(
     if output_path.exists():
         raise FileExistsError("分片计划不可覆盖")
     master = read_json(manifest_path)
+    study.validate_execution_inputs(master)
     if master.get("frozen") is not True or master.get("canonical_model") != CANONICAL_MODEL:
         raise ValueError("需要已冻结的统一模型 master")
     if master.get("phase") not in {*_FORMAL, "calibration"}:
@@ -297,6 +298,7 @@ def _load_plan(path: Path) -> tuple[dict[str, Any], dict[str, Any], Path | None]
         raise ValueError("分片时限政策已漂移")
     bundle = Path(plan["bundle_root"]).resolve() if plan.get("bundle_root") else None
     master = read_json(_file(plan["master"], bundle))
+    study.validate_execution_inputs(master)
     runner = read_json(_file(plan["runner_policy"], bundle))
     _check_qualification_runner(master, runner)
     authorization = read_json(_file(plan["authorization"], bundle))

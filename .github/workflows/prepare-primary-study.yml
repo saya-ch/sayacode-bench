@@ -1,6 +1,6 @@
 # 仅部署到指定私有仓库；没有模型 Secret 输入，也不调用模型执行入口。
-name: 冻结正式主开发输入
-run-name: prepare primary study ${{ inputs.public_source_sha }}
+name: 冻结新轮次完整主开发输入
+run-name: prepare primary restart-v2 ${{ inputs.seed_manifest_file }} from ${{ inputs.public_source_sha }}
 on:
   workflow_dispatch:
     inputs:
@@ -8,16 +8,8 @@ on:
         description: 已审查并通过 CI 的公开完整源码 SHA
         type: string
         required: true
-      qualification_artifact_id:
-        description: 全部三十二题已完整核验的公开资格 main artifact ID
-        type: string
-        required: true
-      qualification_zip_sha256:
-        description: 该原始 ZIP 已验证的服务 SHA256
-        type: string
-        required: true
-      qualification_tar_sha256:
-        description: 该完整资格 bundle.tar.gz 已验证的 SHA256
+      seed_manifest_file:
+        description: 私有 artifacts 内含原先导、完整安装预检和费用延续的新 seed manifest 单文件名
         type: string
         required: true
       acknowledge_free_actions:
@@ -38,9 +30,7 @@ jobs:
     timeout-minutes: 45
     env:
       SOURCE_SHA: ${{ inputs.public_source_sha }}
-      QUALIFICATION_ID: ${{ inputs.qualification_artifact_id }}
-      QUALIFICATION_ZIP_SHA: ${{ inputs.qualification_zip_sha256 }}
-      QUALIFICATION_TAR_SHA: ${{ inputs.qualification_tar_sha256 }}
+      SEED_MANIFEST_FILE: ${{ inputs.seed_manifest_file }}
     steps:
       - name: 核实私有仓库、输入格式与首次尝试
         env:
@@ -50,16 +40,14 @@ jobs:
           set -eu
           test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$QUALIFICATION_ID" =~ ^[1-9][0-9]*$ ]]
-          [[ "$QUALIFICATION_ZIP_SHA" =~ ^[0-9a-f]{64}$ ]]
-          [[ "$QUALIFICATION_TAR_SHA" =~ ^[0-9a-f]{64}$ ]]
           mkdir -p "$RUNNER_TEMP/evidence"
           gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/evidence/repository.json"
           python - <<'PY'
-          import json,os
+          import json,os,re
           from pathlib import Path
           d=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_text())
           assert d['full_name']=='saya-ch/sayacode-bench-runs' and d['private'] is True and d['id']==1429748203
+          assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*\.json', os.environ['SEED_MANIFEST_FILE'])
           PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -92,17 +80,15 @@ jobs:
           SAYACODE_BENCH_DOCKER_TESTS: '1'
           SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
         run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
-      - name: 复核完整资格与授权，冻结四十八次开发及原累计预算
+      - name: 重开原资格和四十六项安装原件，冻结新四十八次及累计费用
         working-directory: bench
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           uv run --no-sync python -m scripts.prepare_primary_study \
-            --source-sha "$SOURCE_SHA" --qualification-artifact-id "$QUALIFICATION_ID" \
-            --qualification-zip-sha256 "$QUALIFICATION_ZIP_SHA" \
-            --qualification-tar-sha256 "$QUALIFICATION_TAR_SHA" \
-            --input-manifest ../execution/artifacts/formal-input-seed-manifest.json \
+            --source-sha "$SOURCE_SHA" \
+            --input-manifest "../execution/artifacts/$SEED_MANIFEST_FILE" \
             --preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json" \
             --output "$RUNNER_TEMP/evidence/prepared"

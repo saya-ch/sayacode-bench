@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+import yaml
 from test_fixture_qualification import catalog, native_result
 
 from sayacode_bench.artifacts import file_sha256
@@ -143,3 +144,52 @@ def test_previous_qualification_source_remains_fixed(qualified: SimpleNamespace)
     qualified.gate["qualification_host_scope"]["public_source_sha"] = "b" * 40
     with pytest.raises(ValueError, match="完整原定三十二题资格"):
         verify(qualified)
+
+
+def test_restart_seed_is_a_private_single_file(tmp_path: Path, monkeypatch: Any) -> None:
+    from sayacode_bench.artifacts import write_json
+
+    monkeypatch.setattr(module, "ROOT", tmp_path / "bench")
+    root = tmp_path / "execution/artifacts"
+    root.mkdir(parents=True)
+    path = root / "restart-v2-seed.json"
+    write_json(path, {"schema_version": 1, "offline": True})
+    assert module.private_seed_manifest(path)["offline"] is True
+    outside = tmp_path / "restart-v2-seed.json"
+    write_json(outside, {"offline": True})
+    with pytest.raises(ValueError, match="安全单文件"):
+        module.private_seed_manifest(outside)
+
+
+def test_restart_seed_cannot_follow_a_symbolic_link(tmp_path: Path, monkeypatch: Any) -> None:
+    monkeypatch.setattr(module, "ROOT", tmp_path / "bench")
+    root = tmp_path / "execution/artifacts"
+    root.mkdir(parents=True)
+    original = root / "original.json"
+    original.write_text("{}", encoding="utf-8")
+    link = root / "linked.json"
+    try:
+        link.symlink_to(original)
+    except OSError:
+        pytest.skip("当前系统未授权创建符号链接")
+    with pytest.raises(ValueError, match="安全单文件"):
+        module.private_seed_manifest(link)
+
+
+def test_restart_preparation_workflow_uses_bound_seed_without_supplier_secret() -> None:
+    path = module.ROOT / ".github/workflows/prepare-primary-study.yml"
+    text = path.read_text(encoding="utf-8")
+    workflow = yaml.load(text, Loader=yaml.BaseLoader)
+    inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+    assert set(inputs) == {"public_source_sha", "seed_manifest_file", "acknowledge_free_actions"}
+    assert "inputs.seed_manifest_file" in workflow["run-name"]
+    job = workflow["jobs"]["prepare"]
+    assert int(job["timeout-minutes"]) <= 60
+    assert "github.repository == 'saya-ch/sayacode-bench-runs'" in job["if"]
+    assert "STUDY_CONNECTION_KEYS_JSON" not in text and "secrets." not in text
+    commands = "\n".join(step.get("run", "") for step in job["steps"])
+    assert 'test "$GITHUB_RUN_ATTEMPT" = 1' in commands
+    assert "d['id']==1429748203" in commands
+    assert "cmp .github/workflows/prepare-primary-study.yml" in commands
+    assert '--input-manifest "../execution/artifacts/$SEED_MANIFEST_FILE"' in commands
+    assert "qualification-artifact-id" not in commands

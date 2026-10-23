@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +19,7 @@ from sayacode_bench.gates import validate_preflight
 from sayacode_bench.release_evidence import download_archive, upload_archive
 from sayacode_bench.shards import qualification_host_cohort
 from sayacode_bench.sources import SOURCES, TaskRecord
-from sayacode_bench.study import paid_budget_report
+from sayacode_bench.study import paid_budget_report, validate_statistical_continuity
 from scripts.analyze_sensitivity import protocol_identity
 from scripts.generate_sharded_workflow import restore_archive
 from scripts.prepare_cloud_runner import require_hosted_runner
@@ -63,6 +62,18 @@ def _cli(arguments: list[str], output: Path) -> None:
             check=True,
             timeout=180,
         )
+
+
+def private_seed_manifest(path: Path) -> dict[str, Any]:
+    """新 seed 只能来自已签收的私有仓库 artifacts 单文件。"""
+    directory = ROOT.parent / "execution/artifacts"
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.json", path.name)
+        or path.is_symlink()
+        or path.resolve(strict=True).parent != directory.resolve(strict=True)
+    ):
+        raise ValueError("新 seed manifest 必须是私有 artifacts 内的安全单文件")
+    return dict(read_json(path))
 
 
 def verify_primary_qualification(
@@ -122,6 +133,9 @@ def verify_primary_qualification(
 
 
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
+    """以完整先导包为保全基线，仅追加新轮次输入；不读取三天临时资格入口。"""
+    from sayacode_bench.study import validate_execution_inputs
+
     require_hosted_runner()
     if not re.fullmatch(r"[0-9a-f]{40}", args.source_sha):
         raise ValueError("需要明确的源码提交")
@@ -145,70 +159,67 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         or preparation.get("script_sha256") != file_sha256(ROOT / "scripts/prepare_cloud_runner.py")
     ):
         raise ValueError("当前宿主准备未确认")
-
-    artifact = _api(f"repos/{PUBLIC}/actions/artifacts/{args.qualification_artifact_id}")
-    run = _api(f"repos/{PUBLIC}/actions/runs/{artifact['workflow_run']['id']}")
-    if (
-        artifact.get("expired") is not False
-        or artifact.get("digest") != "sha256:" + args.qualification_zip_sha256
-        or run.get("head_sha") != QUALIFICATION_SOURCE
-        or run.get("run_attempt") != 1
-        or run.get("conclusion") != "success"
-        or run.get("display_title") != "qualification primary-v7-host20261012"
-    ):
-        raise ValueError("公开资格归档的运行或字节身份不符")
-    archive = output / "qualification.zip"
-    with archive.open("xb") as stream:
-        subprocess.run(
-            ["gh", "api", f"repos/{PUBLIC}/actions/artifacts/{args.qualification_artifact_id}/zip"],
-            stdout=stream,
-            check=True,
-            timeout=300,
-        )
-    if (
-        _sha(archive) != args.qualification_zip_sha256
-        or archive.stat().st_size != artifact["size_in_bytes"]
-    ):
-        raise ValueError("原始资格 ZIP 校验失败")
-    raw_tar = output / "qualification.tar.gz"
-    with zipfile.ZipFile(archive) as zipped:
-        names = [name for name in zipped.namelist() if name.endswith("bundle.tar.gz")]
-        if len(names) != 1:
-            raise ValueError("资格归档必须包含唯一 bundle")
-        with zipped.open(names[0]) as source, raw_tar.open("xb") as target:
-            shutil.copyfileobj(source, target)
-    restore_archive(raw_tar, QUALIFICATION, args.qualification_tar_sha256)
-    gate = read_json(QUALIFICATION / "qualification/sanity.json")
-    selection = read_json(QUALIFICATION / "qualification/selection.json")
-    verify_primary_qualification(selection, gate, read_json(args.probe), cohort)
-
-    inputs_manifest = read_json(args.input_manifest)
-    seed = download_archive(inputs_manifest, output_dir=output / "input-download", **RELEASE)
-    restore_archive(seed, BUNDLE, inputs_manifest["archive_sha256"])
-    inputs = BUNDLE / "inputs"
-    scope = read_json(inputs / "formal-authorization.json")
+    incoming = private_seed_manifest(args.input_manifest)
+    seed = download_archive(incoming, output_dir=output / "input-download", **RELEASE)
+    restore_archive(seed, BUNDLE, incoming["archive_sha256"])
+    preserved = {
+        path.relative_to(BUNDLE).as_posix(): file_sha256(path)
+        for path in BUNDLE.rglob("*")
+        if path.is_file()
+    }
+    shared, inputs = BUNDLE / "inputs", BUNDLE / "inputs/restart-v2"
+    scope = read_json(shared / "formal-authorization.json")
     if (
         scope.get("kind") != "user_authorized_formal_evaluation_scope"
         or scope.get("confirmation") != "均同意"
         or scope.get("repository_id") != repository["id"]
+        or scope.get("private_required") is not True
         or scope.get("actions_free_only") is not True
         or scope.get("actions_paid_spending_authorized") is not False
         or scope.get("primary_dev_trials") != 48
         or scope.get("cumulative_model_budget_cny") != "100"
         or scope.get("historical_settlement_sha256")
-        != file_sha256(inputs / "historical/settlement.json")
-        or "api_key" in read_json(inputs / "remote-profile.json")
+        != file_sha256(shared / "historical/settlement.json")
+        or "api_key" in read_json(shared / "remote-profile.json")
     ):
         raise ValueError("用户授权、历史核销或无凭据输入未确认")
-    for name in ("baseline.json", "diagnostic.json", "focused.json"):
-        shutil.copyfile(ROOT / "studies" / name, inputs / name)
-    protocol = ROOT / "studies/sensitivity-protocol-v12.json"
-    if read_json(protocol) != protocol_identity():
-        raise ValueError("预先冻结的分析协议与准备源码不符")
-    shutil.copyfile(protocol, inputs / "analysis-protocol.json")
-    price = ROOT / "studies/prices/siliconflow-deepseek-v4.1-flash-observed-cache-20261023-v3.json"
-    shutil.copyfile(price, inputs / "price.json")
+    origin = read_json(shared / "preparation-evidence.json")
+    if (
+        origin.get("qualification_archive_relative_path")
+        != "qualifications/primary-v7.bundle.tar.gz"
+    ):
+        raise ValueError("先导包缺少原始完整资格归档")
+    restore_archive(
+        BUNDLE / "qualifications/primary-v7.bundle.tar.gz",
+        QUALIFICATION,
+        origin["qualification_tar_sha256"],
+    )
+    gate = read_json(QUALIFICATION / "qualification/sanity.json")
+    selection = read_json(QUALIFICATION / "qualification/selection.json")
+    verify_primary_qualification(selection, gate, read_json(args.probe), cohort)
+    analysis_identity = protocol_identity()
+    validate_statistical_continuity(read_json(shared / "analysis-protocol.json"), analysis_identity)
+    for name in ("baseline", "diagnostic", "focused"):
+        if file_sha256(shared / (name + ".json")) != file_sha256(
+            ROOT / "studies" / (name + ".json")
+        ):
+            raise ValueError("先导之后不能更改三个预声明算法配置")
+    inputs.mkdir(exist_ok=True)
+    write_json(inputs / "analysis-protocol.json", analysis_identity, exclusive=True)
+    protocol = inputs / "execution-protocol.json"
+    source_protocol = ROOT / "studies/execution-protocol-v13.json"
+    if protocol.exists():
+        if protocol.read_bytes() != source_protocol.read_bytes():
+            raise ValueError("新执行协议与预先装配输入不同")
+    else:
+        shutil.copyfile(source_protocol, protocol)
     master = inputs / "primary-dev.json"
+    plan_path = BUNDLE / "primary-dev-v2-plan.json"
+    authorization = inputs / "primary-dev-authorization.json"
+    if any(
+        path.exists() for path in (master, plan_path, authorization, inputs / "runner-policy.json")
+    ):
+        raise ValueError("新轮次已有冻结计划，必须恢复原计划而非重新冻结")
     _cli(
         [
             "freeze",
@@ -229,57 +240,75 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             *[
                 item
                 for name in ("baseline", "diagnostic", "focused")
-                for item in ("--variant", f"{name}={inputs / (name + '.json')}")
+                for item in ("--variant", f"{name}={shared / (name + '.json')}")
             ],
             "--connection",
-            f"remote={inputs / 'remote-profile.json'}",
+            f"remote={shared / 'remote-profile.json'}",
             "--wheel",
-            str(inputs / "sayacode-3.2.4-py3-none-any.whl"),
+            str(shared / "sayacode-3.2.4-py3-none-any.whl"),
             "--requirements",
-            str(inputs / "product-requirements.txt"),
+            str(shared / "product-requirements.txt"),
             "--paid-limit-cny",
             "100",
             "--paid-stop-fraction",
             "0.8",
             "--paid-price-snapshot",
-            str(inputs / "price.json"),
+            str(shared / "price.json"),
             "--paid-endpoint",
             "remote",
             "--historical-settlement",
-            str(inputs / "historical/settlement.json"),
+            str(shared / "historical/settlement.json"),
+            "--execution-protocol",
+            str(protocol),
+            "--analysis-protocol",
+            str(inputs / "analysis-protocol.json"),
+            "--installation-preflight",
+            str(BUNDLE / "installations/restart-v2/preflight.json"),
+            "--pilot-carry",
+            str(inputs / "pilot-carry.json"),
             "--output",
             str(master),
         ],
         output / "freeze.log",
     )
-    master_value = read_json(master)
+    value = read_json(master)
+    validate_execution_inputs(value)
     if (
-        master_value["artifacts"]["product_wheel"]
+        value["artifacts"]["product_wheel"]
         != "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe"
-    ):
-        raise ValueError("生产 wheel 不同")
-    if (
-        master_value["artifacts"]["requirements"]
+        or value["artifacts"]["requirements"]
         != "9eab06fb395d7b9bb84e14bfea83b79b4ab66d904c941c3b1606d39ed9712073"
     ):
-        raise ValueError("生产依赖不同")
-    policy = {
-        "platform": "linux",
-        "architecture": "amd64",
-        "job_timeout_seconds": 21600,
-        "public_source_sha": args.source_sha,
-        "executor_workflow_sha256": file_sha256(ROOT / ".github/workflows/run-study-shard.yml"),
-        "evidence_release": RELEASE,
-        "host_cohort": cohort,
-    }
-    write_json(inputs / "runner-policy.json", policy, exclusive=True)
+        raise ValueError("新轮次生产 wheel 或依赖发生变化")
+    financial = paid_budget_report(value, [])
+    if (
+        financial["evidence_valid"] is not True
+        or financial["usage_complete"] is not True
+        or financial["stop_reason"] is not None
+        or financial["budget_consumed_cny"] != 0.95304296
+    ):
+        raise ValueError("先导三条费用和历史核销未完整、恰好一次延续")
     write_json(
-        inputs / "primary-dev-authorization.json",
+        inputs / "runner-policy.json",
+        {
+            "platform": "linux",
+            "architecture": "amd64",
+            "job_timeout_seconds": 21600,
+            "public_source_sha": args.source_sha,
+            "executor_workflow_sha256": file_sha256(ROOT / ".github/workflows/run-study-shard.yml"),
+            "evidence_release": RELEASE,
+            "host_cohort": cohort,
+        },
+        exclusive=True,
+    )
+    write_json(
+        authorization,
         {
             "authorized": True,
             "phase": "dev",
             "master_manifest_sha256": file_sha256(master),
-            "scope_authorization_sha256": file_sha256(inputs / "formal-authorization.json"),
+            "scope_authorization_sha256": file_sha256(shared / "formal-authorization.json"),
+            "pilot_carry": value["paid_budget"]["pilot_carry"],
         },
         exclusive=True,
     )
@@ -291,66 +320,57 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "--runner-policy",
             str(inputs / "runner-policy.json"),
             "--authorization",
-            str(inputs / "primary-dev-authorization.json"),
+            str(authorization),
             "--bundle-root",
             str(BUNDLE),
             "--output",
-            str(BUNDLE / "primary-dev-plan.json"),
+            str(plan_path),
         ],
         output / "plan.log",
     )
-    plan = read_json(BUNDLE / "primary-dev-plan.json")
-    if len(plan["schedule"]) != 48:
-        raise ValueError("开发 schedule 必须保持四十八次")
-    qualifications = BUNDLE / "qualifications"
-    qualifications.mkdir(exist_ok=False)
-    preserved_qualification = qualifications / "primary-v7.bundle.tar.gz"
-    shutil.copyfile(raw_tar, preserved_qualification)
-    if _sha(preserved_qualification) != args.qualification_tar_sha256:
-        raise ValueError("长期保全的原资格归档字节身份不同")
-    write_json(
-        inputs / "preparation-evidence.json",
-        {
-            "qualification_artifact": artifact,
-            "qualification_run_id": run["id"],
-            "qualification_tar_sha256": args.qualification_tar_sha256,
-            "qualification_archive_relative_path": preserved_qualification.relative_to(
-                BUNDLE
-            ).as_posix(),
-            "runner_preparation": preparation,
-            "network_probe": read_json(args.probe),
-            "model_trials_started": 0,
-            "script_sha256": file_sha256(Path(__file__)),
-        },
-        exclusive=True,
-    )
+    if len(read_json(plan_path)["schedule"]) != 48:
+        raise ValueError("新开发 schedule 必须保持完整四十八次")
+    if any(
+        not (BUNDLE / name).is_file() or file_sha256(BUNDLE / name) != digest
+        for name, digest in preserved.items()
+    ):
+        raise ValueError("新轮次装配改写了先导或预检原件")
+    assembly = {
+        "execution_epoch": "restart-v2",
+        "phase": "dev",
+        "formal_trials_planned": 48,
+        "new_epoch_model_trials_started": 0,
+        "pilot_trials_preserved": 4,
+        "input_members_preserved": len(preserved),
+        "input_inventory_sha256": hashlib.sha256(
+            json.dumps(preserved, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "master_sha256": file_sha256(master),
+        "plan_sha256": file_sha256(plan_path),
+        "source_sha": args.source_sha,
+        "bundle_root": str(BUNDLE),
+        "paid_budget": financial,
+        "input_archive_sha256": incoming["archive_sha256"],
+        "qualification_tar_sha256": origin["qualification_tar_sha256"],
+        "qualification_archive_relative_path": origin["qualification_archive_relative_path"],
+        "runner_preparation": preparation,
+        "network_probe": read_json(args.probe),
+        "script_sha256": file_sha256(Path(__file__)),
+    }
+    write_json(inputs / "preparation-evidence.json", assembly, exclusive=True)
+    write_json(output / "prepared-study.json", assembly, exclusive=True)
     prepared = output / "prepared-bundle.tar.gz"
     with tarfile.open(prepared, "w:gz", dereference=False) as stream:
         for path in sorted(BUNDLE.iterdir()):
             stream.add(path, arcname=path.name)
-    manifest = upload_archive(prepared, work_dir=output / "upload", **RELEASE)
-    write_json(output / "evidence-manifest.json", manifest, exclusive=True)
-    result = {
-        "phase": "dev",
-        "formal_trials_planned": 48,
-        "model_trials_started": 0,
-        "master_sha256": file_sha256(master),
-        "plan_sha256": file_sha256(BUNDLE / "primary-dev-plan.json"),
-        "source_sha": args.source_sha,
-        "bundle_root": str(BUNDLE),
-        "paid_budget": paid_budget_report(master_value, []),
-        "archive_sha256": manifest["archive_sha256"],
-    }
-    write_json(output / "prepared-study.json", result, exclusive=True)
-    return result
+    uploaded = upload_archive(prepared, work_dir=output / "upload", **RELEASE)
+    write_json(output / "evidence-manifest.json", uploaded, exclusive=True)
+    return {**assembly, "archive_sha256": uploaded["archive_sha256"]}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--qualification-artifact-id", required=True, type=int)
-    for name in ("qualification-zip-sha256", "qualification-tar-sha256"):
-        parser.add_argument("--" + name, required=True)
     for name in ("input-manifest", "preparation", "probe", "output"):
         parser.add_argument("--" + name, required=True, type=Path)
     args = parser.parse_args()

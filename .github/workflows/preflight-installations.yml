@@ -1,0 +1,352 @@
+# 精确私有 wheel 的安装预检：只使用 Harbor install_only，无供应商 Secret。
+# 完整现场保存在既有私有 Release，Actions 只保留交接；不自动重试或删除原件。
+name: 固定镜像无模型安装预检
+run-name: installation ${{ inputs.public_source_sha }} cases ${{ inputs.case_indices_json }}
+on:
+  workflow_dispatch:
+    inputs:
+      public_source_sha:
+        description: 已审阅公开源码完整 SHA
+        type: string
+        required: true
+      seed_manifest_file:
+        description: 私有 artifacts 目录内包含安装输入的 Release manifest 单文件名
+        type: string
+        required: true
+      case_indices_json:
+        description: 故障回归可选单项；完整预检必须覆盖原定全部 46 项
+        type: string
+        default: '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46]'
+        required: true
+      acknowledge_free_actions:
+        description: 仅使用免费 Actions，不提供模型 Secret 或执行模型
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: installation-preflight
+  cancel-in-progress: false
+env:
+  SOURCE_SHA: ${{ inputs.public_source_sha }}
+  SEED_MANIFEST_FILE: ${{ inputs.seed_manifest_file }}
+  CASE_INDICES_JSON: ${{ inputs.case_indices_json }}
+  BUNDLE_ROOT: /tmp/sayacode-studies/deepseek-v41-20261023
+jobs:
+  case:
+    if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        case_index: ${{ fromJSON(inputs.case_indices_json) }}
+    env:
+      CASE_INDEX: ${{ matrix.case_index }}
+    steps:
+      - name: 核实私有仓库、首次尝试和输入边界
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/evidence"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/evidence/repository.json"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          assert re.fullmatch(r'[0-9a-f]{40}',os.environ['SOURCE_SHA'])
+          assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*\.json',os.environ['SEED_MANIFEST_FILE'])
+          indices=json.loads(os.environ['CASE_INDICES_JSON'])
+          assert isinstance(indices,list) and 1<=len(indices)<=46
+          assert all(type(n) is int and 1<=n<=46 for n in indices)
+          assert len(set(indices))==len(indices)
+          assert int(os.environ['CASE_INDEX']) in indices
+          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_bytes())
+          assert value['id']==1429748203 and value['private'] is True
+          assert value['full_name']=='saya-ch/sayacode-bench-runs'
+          PY
+          printf 'CASE_DIRECTORY=%s/installations/restart-v2/case-%04d\n' "$BUNDLE_ROOT" "$CASE_INDEX" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 核对模板、冻结依赖和全新宿主准备
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code HEAD --
+          cmp .github/workflows/preflight-installations.yml ../execution/.github/workflows/preflight-installations.yml
+          uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - name: 校验下载原件并恢复固定输入
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import os
+          from pathlib import Path
+          from sayacode_bench.artifacts import read_json
+          from sayacode_bench.release_evidence import download_archive
+          from scripts.generate_sharded_workflow import restore_archive
+          manifest=read_json(Path('../execution/artifacts')/os.environ['SEED_MANIFEST_FILE'])
+          archive=download_archive(manifest,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',output_dir=Path(os.environ['RUNNER_TEMP'])/'incoming')
+          restore_archive(archive,Path(os.environ['BUNDLE_ROOT']),manifest['archive_sha256'])
+          if (Path(os.environ['BUNDLE_ROOT'])/'installations/restart-v2').exists():
+              raise ValueError('安装预检必须从没有本阶段输出的原始 seed 开始')
+          PY
+      - name: 当前宿主实际网络与清理探针
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 为四个并行任务保留受限备用归档空间
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run --no-sync python -m scripts.preflight_installation_storage reserve --output "$RUNNER_TEMP/evidence/storage-before.json"
+      - name: 原生 install_only；不执行 Agent 或 verifier
+        id: native
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          test ! -e "$CASE_DIRECTORY"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          value={key:os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','SOURCE_SHA','CASE_INDEX')}
+          with (Path(os.environ['RUNNER_TEMP'])/'evidence/native-attempt.json').open('x',encoding='utf-8') as stream:
+              json.dump(value,stream)
+          PY
+          env -u GH_TOKEN -u GITHUB_TOKEN -u SAYACODE_STUDY_CONNECTION_KEYS_JSON \
+            uv run --no-sync python -m scripts.preflight_installations run \
+            --inputs "$BUNDLE_ROOT/inputs/restart-v2/installation-inputs.json" \
+            --source-sha "$SOURCE_SHA" --case-index "$CASE_INDEX" --output "$CASE_DIRECTORY" \
+            --runner-preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json"
+      - name: 保存当项完整私有原件
+        id: archive
+        if: always() && (steps.native.outcome == 'success' || steps.native.outcome == 'failure')
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import json, os, shutil, tarfile
+          from pathlib import Path
+          from sayacode_bench.artifacts import write_json
+          from sayacode_bench.release_evidence import upload_archive
+          root=Path(os.environ['BUNDLE_ROOT'])
+          case=Path(os.environ['CASE_DIRECTORY'])
+          evidence=Path(os.environ['RUNNER_TEMP'])/'evidence'
+          attempt=json.loads((evidence/'native-attempt.json').read_bytes())
+          assert all(attempt[key]==os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','SOURCE_SHA','CASE_INDEX'))
+          if not case.is_dir() or not case.is_relative_to(root):
+              raise ValueError('未取得当项现场；保留 Actions 原始日志，不生成通过收据')
+          host=case/'host'
+          host.mkdir(exist_ok=True)
+          for path in evidence.glob('*.json'):
+              target=host/path.name
+              if target.exists():
+                  assert target.read_bytes()==path.read_bytes()
+              else:
+                  shutil.copyfile(path,target)
+          archive=Path(os.environ['RUNNER_TEMP'])/'case.tar.gz'
+          with tarfile.open(archive,'w:gz',dereference=False) as stream:
+              stream.add(case,arcname=case.relative_to(root))
+          manifest=upload_archive(archive,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',work_dir=Path(os.environ['RUNNER_TEMP'])/'release-upload')
+          write_json(evidence/'case-archive-manifest.json',manifest,exclusive=True)
+          receipt=case/'case-receipt.json'
+          if receipt.is_file():
+              shutil.copyfile(receipt,evidence/receipt.name)
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              output.write('archived=true\n')
+          PY
+      - name: Release 未确认时检查有界备用归档
+        id: fallback
+        if: always() && steps.archive.outcome == 'failure'
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          uv run --no-sync python -m scripts.preflight_installation_storage fallback \
+            --archive "$RUNNER_TEMP/case.tar.gz" --output "$RUNNER_TEMP/evidence/retention-fallback.json"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - name: 私有小型交接或未确认现场
+        if: always() && github.repository == 'saya-ch/sayacode-bench-runs'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: installation-case-${{ github.run_id }}-${{ matrix.case_index }}
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ steps.fallback.outputs.ready == 'true' && format('{0}/case.tar.gz', runner.temp) || format('{0}/no-raw-fallback', runner.temp) }}
+          retention-days: 3
+          if-no-files-found: warn
+  merge:
+    needs: case
+    if: always() && inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 核对首次运行和冻结模板
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          cmp .github/workflows/preflight-installations.yml ../execution/.github/workflows/preflight-installations.yml
+          uv sync --frozen
+          mkdir -p "$RUNNER_TEMP/evidence"
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: installation-case-${{ github.run_id }}-*
+          path: ${{ runner.temp }}/case-handoffs
+      - name: 恢复全部原始安装现场
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+          from sayacode_bench.artifacts import file_sha256, read_json
+          from sayacode_bench.release_evidence import download_archive
+          from scripts.generate_sharded_workflow import restore_archive
+          temporary=Path(os.environ['RUNNER_TEMP'])
+          root=Path(os.environ['BUNDLE_ROOT'])
+          seed=read_json(Path('../execution/artifacts')/os.environ['SEED_MANIFEST_FILE'])
+          archive=download_archive(seed,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',output_dir=temporary/'seed-download')
+          restore_archive(archive,root,seed['archive_sha256'])
+          if (root/'installations/restart-v2').exists():
+              raise ValueError('合并必须从没有本阶段输出的原始 seed 开始')
+          requested=json.loads(os.environ['CASE_INDICES_JSON'])
+          assert all(type(n) is int and 1<=n<=46 for n in requested)
+          assert len(requested)==len(set(requested))
+          handoffs=sorted((temporary/'case-handoffs').glob('installation-case-*'))
+          for index,handoff in enumerate(handoffs):
+              case_index=int(handoff.name.rsplit('-',1)[-1])
+              assert handoff.name==f'installation-case-{os.environ["GITHUB_RUN_ID"]}-{case_index}'
+              assert case_index in requested
+              if (handoff/'case-archive-manifest.json').is_file():
+                  manifest=read_json(handoff/'case-archive-manifest.json')
+                  archive=download_archive(manifest,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',output_dir=temporary/f'incoming-{index:03d}')
+                  digest=manifest['archive_sha256']
+              elif (handoff/'case.tar.gz').is_file():
+                  fallback=read_json(handoff/'retention-fallback.json')
+                  archive=handoff/'case.tar.gz'
+                  assert fallback['passed'] is True and fallback['fallback_ready'] is True
+                  assert archive.stat().st_size==fallback['archive']['size_in_bytes']<=10000000
+                  digest=fallback['archive']['sha256']
+                  assert file_sha256(archive)==digest
+              else:
+                  continue
+              restored=temporary/f'restored-case-{index:03d}'
+              restore_archive(archive,restored,digest)
+              relative=Path(f'installations/restart-v2/case-{case_index:04d}')
+              for member in restored.rglob('*'):
+                  name=member.relative_to(restored)
+                  if name!=relative and not name.is_relative_to(relative) and name not in relative.parents:
+                      raise ValueError('当项归档含越界成员')
+              source=restored/relative
+              destination=root/relative
+              if not source.is_dir() or source.is_symlink() or destination.exists():
+                  raise ValueError('当项现场缺失、链接或与 seed 冲突；不覆盖')
+              destination.parent.mkdir(parents=True,exist_ok=True)
+              shutil.move(str(source),str(destination))
+          PY
+      - name: 严格合并四十六项；部分回归仅保留诊断
+        id: merge
+        working-directory: bench
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root=Path(os.environ['BUNDLE_ROOT'])
+          receipts=[root/f'installations/restart-v2/case-{index:04d}/case-receipt.json' for index in json.loads(os.environ['CASE_INDICES_JSON'])]
+          output=root/'installations/restart-v2/preflight.json'
+          if output.exists():
+              raise FileExistsError('本次合并不能复用旧诊断')
+          result=subprocess.run([sys.executable,'-m','scripts.preflight_installations','merge','--inputs',str(root/'inputs/restart-v2/installation-inputs.json'),'--source-sha',os.environ['SOURCE_SHA'],'--case-receipts',*map(str,receipts),'--output',str(output)],check=False)
+          if result.returncode and sorted(json.loads(os.environ['CASE_INDICES_JSON']))==list(range(1,47)):
+              raise SystemExit(result.returncode)
+          if not output.is_file():
+              raise ValueError('原生安装合并没有保存诊断')
+          PY
+      - name: 保全合并诊断与全部原件
+        if: always()
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import os, shutil, tarfile
+          from pathlib import Path
+          from sayacode_bench.artifacts import write_json
+          from sayacode_bench.release_evidence import upload_archive
+          root=Path(os.environ['BUNDLE_ROOT'])
+          output=Path(os.environ['RUNNER_TEMP'])/'evidence'
+          receipt=root/'installations/restart-v2/preflight.json'
+          if not receipt.is_file():
+              raise ValueError('完整性诊断缺失，不能生成新 seed')
+          shutil.copyfile(receipt,output/'preflight.json')
+          archive=Path(os.environ['RUNNER_TEMP'])/'installation-bundle.tar.gz'
+          with tarfile.open(archive,'w:gz',dereference=False) as stream:
+              for path in sorted(root.iterdir()):
+                  stream.add(path,arcname=path.name)
+          manifest=upload_archive(archive,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',work_dir=Path(os.environ['RUNNER_TEMP'])/'release-upload')
+          write_json(output/'installation-seed-manifest.json',manifest,exclusive=True)
+          PY
+      - name: 私有合并交接
+        if: always() && github.repository == 'saya-ch/sayacode-bench-runs'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: installation-merge-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/evidence/*.json
+          retention-days: 3
+          if-no-files-found: warn

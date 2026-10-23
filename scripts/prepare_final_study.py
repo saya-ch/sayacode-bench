@@ -19,7 +19,7 @@ from sayacode_bench.locking import validate_candidate_receipt
 from sayacode_bench.release_evidence import download_archive, upload_archive
 from sayacode_bench.shards import qualification_host_cohort
 from sayacode_bench.sources import SOURCES, TaskRecord
-from sayacode_bench.study import paid_budget_report
+from sayacode_bench.study import paid_budget_report, validate_execution_inputs
 from scripts.analyze_sensitivity import protocol_identity
 from scripts.generate_sharded_workflow import inspect_plan, restore_archive
 from scripts.prepare_cloud_runner import require_hosted_runner
@@ -53,9 +53,10 @@ def review_completed(
     source_sha: str,
 ) -> tuple[dict[str, Any], Path]:
     """从原收据重归并到临时目录，核对旧完整 final 与累计记录；不改旧文件。"""
-    inputs = BUNDLE / "inputs"
-    plan_path = BUNDLE / (name + "-plan.json")
+    inputs = BUNDLE / "inputs/restart-v2"
+    plan_path = BUNDLE / (name + "-v2-plan.json")
     plan, master, runner = inspect_plan(plan_path, BUNDLE)
+    validate_execution_inputs(master)
     require(
         runner["public_source_sha"] == source_sha and runner["host_cohort"] == cohort,
         "来源源码或实际宿主 cohort 不一致",
@@ -124,7 +125,7 @@ def candidate_configuration(
     candidate_path: Path, dev: dict[str, Any], dev_results: Path
 ) -> tuple[str, list[str]]:
     """只读取原 SWE 签收，不允许通过阶段参数另选候选。"""
-    dev_path = BUNDLE / "inputs/primary-dev.json"
+    dev_path = BUNDLE / "inputs/restart-v2/primary-dev.json"
     candidate = read_json(candidate_path)
     require(
         candidate["dev_manifest"] == {"path": str(dev_path), "sha256": file_sha256(dev_path)}
@@ -252,16 +253,16 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     incoming = read_json(manifest_path)
     archive = download_archive(incoming, output_dir=output / "input-download", **RELEASE)
     restore_archive(archive, BUNDLE, incoming["archive_sha256"])
-    inputs = BUNDLE / "inputs"
+    shared, inputs = BUNDLE / "inputs", BUNDLE / "inputs/restart-v2"
     target_name = "primary-final" if stage == "primary_final" else "terminal-final"
     master_path = inputs / (target_name + ".json")
-    plan_path = BUNDLE / (target_name + "-plan.json")
+    plan_path = BUNDLE / (target_name + "-v2-plan.json")
     authorization_path = inputs / (target_name + "-authorization.json")
     require(
         not any(path.exists() for path in (master_path, plan_path, authorization_path)),
         "该阶段已有计划，不得重新冻结或覆盖，应显式恢复原计划",
     )
-    scope = read_json(inputs / "formal-authorization.json")
+    scope = read_json(shared / "formal-authorization.json")
     require(
         scope.get("kind") == "user_authorized_formal_evaluation_scope"
         and scope.get("confirmation") == "均同意"
@@ -274,14 +275,14 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         and scope.get("actions_paid_spending_authorized") is False
         and scope.get("cumulative_model_budget_cny") == "100"
         and scope.get("historical_settlement_sha256")
-        == file_sha256(inputs / "historical/settlement.json"),
+        == file_sha256(shared / "historical/settlement.json"),
         "免费 Actions 或累计预算授权不一致",
     )
     require(
         read_json(inputs / "analysis-protocol.json") == protocol_identity(),
-        "原分析协议与固定源码不同",
+        "新轮次分析身份与固定源码不同",
     )
-    require("api_key" not in read_json(inputs / "remote-profile.json"), "公开连接输入不得包含凭据")
+    require("api_key" not in read_json(shared / "remote-profile.json"), "公开连接输入不得包含凭据")
     origin = read_json(inputs / "preparation-evidence.json")
     require(
         origin.get("qualification_archive_relative_path")
@@ -330,7 +331,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
                 *[
                     item
                     for name in dev["configurations"]
-                    for item in ("--variant", f"{name}={inputs / (name + '.json')}")
+                    for item in ("--variant", f"{name}={shared / (name + '.json')}")
                 ],
                 "--output",
                 str(candidate_path),
@@ -338,6 +339,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             output / "lock-candidate.log",
         )
     phase, labels = candidate_configuration(candidate_path, dev, dev_results)
+    require(
+        dev.get("execution_epoch", {}).get("id") == "restart-v2",
+        "最终阶段只能使用新轮次完整开发结果",
+    )
+    validate_execution_inputs(dev)
     prior = [dev_results / "accounting-records.jsonl"]
     qualification = QUALIFICATION
     repeats = 2
@@ -431,7 +437,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "--network-probe",
             str(temporary / "evidence/network-probe.json"),
             "--seed",
-            "sayacode-" + target_name + "-20261023-v1",
+            "sayacode-" + target_name + "-20261023-v2",
             "--repeats",
             str(repeats),
             "--reported-token-limit",
@@ -439,25 +445,33 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             *[
                 item
                 for name in labels
-                for item in ("--variant", f"{name}={inputs / (name + '.json')}")
+                for item in ("--variant", f"{name}={shared / (name + '.json')}")
             ],
             "--connection",
-            f"remote={inputs / 'remote-profile.json'}",
+            f"remote={shared / 'remote-profile.json'}",
             "--wheel",
-            str(inputs / "sayacode-3.2.4-py3-none-any.whl"),
+            str(shared / "sayacode-3.2.4-py3-none-any.whl"),
             "--requirements",
-            str(inputs / "product-requirements.txt"),
+            str(shared / "product-requirements.txt"),
             "--paid-limit-cny",
             "100",
             "--paid-stop-fraction",
             "0.8",
             "--paid-price-snapshot",
-            str(inputs / "price.json"),
+            str(shared / "price.json"),
             "--paid-endpoint",
             "remote",
             "--historical-settlement",
-            str(inputs / "historical/settlement.json"),
+            str(shared / "historical/settlement.json"),
             *[item for path in prior for item in ("--prior-records", str(path))],
+            "--execution-protocol",
+            dev["execution_epoch"]["protocol"]["path"],
+            "--analysis-protocol",
+            dev["execution_epoch"]["analysis_protocol"]["path"],
+            "--installation-preflight",
+            dev["execution_epoch"]["installation_preflight"]["path"],
+            "--pilot-carry",
+            dev["paid_budget"]["pilot_carry"]["path"],
             "--candidate-lock",
             str(candidate_path),
             *role,
@@ -470,14 +484,19 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     expected_budget = {
         **dev["paid_budget"],
         "prior_records": [
-            {"path": str(path), "sha256": file_sha256(path)} for path in sorted(prior)
+            {"path": str(path), "sha256": file_sha256(path)}
+            for path in sorted(
+                {*prior, *(Path(ref["path"]) for ref in dev["paid_budget"]["prior_records"])}
+            )
         ],
     }
     require(
         master["paid_budget"] == expected_budget
-        and master["connection_profiles"] == dev["connection_profiles"],
+        and master["connection_profiles"] == dev["connection_profiles"]
+        and master["execution_epoch"] == dev["execution_epoch"],
         "跨阶段预算、价格或模型连接发生变化",
     )
+    validate_execution_inputs(master)
     financial = paid_budget_report(master, [])
     require(
         financial["evidence_valid"] is True
@@ -491,7 +510,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "authorized": True,
             "phase": phase,
             "master_manifest_sha256": file_sha256(master_path),
-            "scope_authorization_sha256": file_sha256(inputs / "formal-authorization.json"),
+            "scope_authorization_sha256": file_sha256(shared / "formal-authorization.json"),
         },
         exclusive=True,
     )
@@ -513,6 +532,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     )
     require(len(read_json(plan_path)["schedule"]) == count, "最终 schedule 不符合原定数量")
     assembly = {
+        "execution_epoch": "restart-v2",
         "stage": stage,
         "model_trials_started": 0,
         "formal_trials_planned": count,

@@ -152,6 +152,121 @@ def _budget_arguments(policy: dict[str, Any]) -> dict[str, Any]:
     return arguments
 
 
+def _checked_reference(reference: Any) -> Path:
+    """重开冻结的产品适配证据；不接受仅声明通过的布尔值。"""
+    if (
+        not isinstance(reference, dict)
+        or not isinstance(reference.get("path"), str)
+        or not isinstance(reference.get("sha256"), str)
+    ):
+        raise ValueError("新研究轮次的证据引用无效")
+    path = Path(reference["path"])
+    if path.is_symlink() or file_sha256(path) != reference["sha256"]:
+        raise ValueError("新研究轮次的原始证据发生变化")
+    return path.resolve(strict=True)
+
+
+def validate_execution_inputs(manifest: dict[str, Any]) -> None:
+    """新轮次同时绑定完整安装预检、先导计量及协议；不复用先导成绩。"""
+    epoch = manifest.get("execution_epoch")
+    policy = manifest.get("paid_budget")
+    if epoch is None:
+        if isinstance(policy, dict) and "pilot_carry" in policy:
+            raise ValueError("先导费用延续必须同时绑定新执行协议和安装预检")
+        return
+    if not isinstance(epoch, dict) or epoch.get("id") != "restart-v2":
+        raise ValueError("未知的新研究轮次")
+    expected = Path(__file__).resolve().parents[2] / "studies/execution-protocol-v13.json"
+    protocol = _checked_reference(epoch.get("protocol"))
+    if protocol.read_bytes() != expected.read_bytes():
+        raise ValueError("新执行协议与固定源码不一致")
+    contract = read_json(protocol)
+    statistics = expected.parent / "sensitivity-protocol-v12.json"
+    if file_sha256(statistics) != contract.get("statistical_protocol_sha256"):
+        raise ValueError("原 v12 统计协议的字节身份发生变化")
+    from scripts.analyze_sensitivity import protocol_identity
+
+    current_analysis = protocol_identity()
+    validate_statistical_continuity(read_json(statistics), current_analysis)
+    analysis = _checked_reference(epoch.get("analysis_protocol"))
+    if read_json(analysis) != current_analysis:
+        raise ValueError("新轮次分析身份与实际执行源码不一致")
+    if not isinstance(policy, dict) or "pilot_carry" not in policy:
+        raise ValueError("新研究轮次缺少先导费用延续证据")
+    if policy.get("limit_cny") != 100 or policy.get("stop_fraction") != 0.8:
+        raise ValueError("新轮次必须沿用同一百元累计预算和百分之八十停止阈值")
+    _validate_pilot_epoch_contract(manifest, policy)
+    benchmark, phase = manifest.get("benchmark"), manifest.get("phase")
+    task_count = 8 if phase == "dev" else 24 if benchmark == "swe-bench-pro-v2" else 12
+    expected_repeats = 2 if benchmark == "swe-bench-pro-v2" else 1
+    if (
+        benchmark not in {"swe-bench-pro-v2", "terminal-bench-2.1"}
+        or phase not in {"dev", "holdout", "validation"}
+        or benchmark == "terminal-bench-2.1"
+        and phase == "dev"
+        or len(manifest.get("tasks", [])) != task_count
+        or manifest.get("repeats") != expected_repeats
+        or phase == "dev"
+        and manifest.get("configurations") != ["baseline", "diagnostic", "focused"]
+    ):
+        raise ValueError("新轮次必须保留预声明的完整开发和最终阶段规模")
+    from .installation import validate_installation_preflight
+
+    installation_ref = epoch.get("installation_preflight")
+    _checked_reference(installation_ref)
+    assert isinstance(installation_ref, dict)
+    validate_installation_preflight(
+        installation_ref,
+        tasks=manifest.get("tasks"),
+        artifacts=manifest.get("artifacts"),
+        implementation=manifest.get("implementation"),
+    )
+
+
+def validate_statistical_continuity(original: dict[str, Any], current: dict[str, Any]) -> None:
+    """执行实现可在新轮次改变，统计方法及其实际代码必须保留原身份。"""
+    methods = (
+        "schema_version",
+        "script_sha256",
+        "analysis_sha256",
+        "validity_rules_sha256",
+        "budget_sha256",
+        "resource_rules_sha256",
+        "samples",
+        "seed",
+        "absolute_unit",
+        "cluster_unit",
+        "cluster_estimator",
+        "role",
+    )
+    if any(key not in original or original[key] != current.get(key) for key in methods):
+        raise ValueError("原 v12 统计、候选或计价方法发生变化")
+
+
+def _validate_pilot_epoch_contract(manifest: dict[str, Any], policy: dict[str, Any]) -> None:
+    """固定先导已由 carry 核原件；金融、连接和原配置只从该唯一来源继承。"""
+    from .pilot_carry import validate_pilot_carry
+
+    reference = policy["pilot_carry"]
+    carry_path = _checked_reference(reference)
+    validate_pilot_carry(reference)
+    carry = read_json(carry_path)
+    original = read_json(_checked_reference(carry["original_members"]["master"]))
+    excluded = {"prior_records", "pilot_carry"}
+    financial = {key: value for key, value in policy.items() if key not in excluded}
+    if financial != {
+        key: value for key, value in original["paid_budget"].items() if key not in excluded
+    }:
+        raise ValueError("原价格、历史核销、预算起点或金融规则不得在新轮次改变")
+    if manifest.get("connection_profiles") != original["connection_profiles"]:
+        raise ValueError("新轮次必须保留原模型连接和上下文配置")
+    actual, expected = manifest.get("artifacts", {}), original["artifacts"]
+    if any(actual.get(key) != expected[key] for key in ("product_wheel", "requirements")) or any(
+        expected["variants"].get(key) != value for key, value in actual.get("variants", {}).items()
+    ):
+        raise ValueError("新轮次必须保留原生产包、依赖和算法配置")
+
+
 def _check_budget_references(policy: dict[str, Any]) -> None:
     if policy.get("pricing_method") == "observed_cache_v1" and (
         policy.get("pricing_implementation_sha256")
@@ -167,6 +282,12 @@ def _check_budget_references(policy: dict[str, Any]) -> None:
         path = Path(reference["path"]).resolve(strict=True)
         if file_sha256(path) != reference.get("sha256"):
             raise ValueError("已冻结的价格或历史费用记录发生变化")
+    if "pilot_carry" in policy:
+        from .pilot_carry import validate_pilot_carry
+
+        carry = validate_pilot_carry(policy["pilot_carry"])
+        if not carry or any(reference not in policy["prior_records"] for reference in carry):
+            raise ValueError("先导已发生的模型费用没有完整延续")
     if "historical_settlement" in policy:
         read_historical_settlement(
             policy["historical_settlement"], paid_endpoints=tuple(policy["paid_endpoints"])
@@ -212,6 +333,7 @@ def _check_pricing_profiles(manifest: Mapping[str, Any], policy: Mapping[str, An
 
 
 def _paid_inputs(manifest: dict[str, Any]) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    validate_execution_inputs(manifest)
     policy = manifest.get("paid_budget")
     if policy is None:
         return None, []
@@ -243,6 +365,7 @@ def freeze_paid_budget(
     historical_settlement: Path | None = None,
     paid_endpoints: list[str] | None = None,
     connection_profiles: Mapping[str, Mapping[str, Any]] | None = None,
+    pilot_carry: Path | None = None,
 ) -> dict[str, Any] | None:
     """只冻结显式授权的金额；价格和全部先前阶段记录以路径及内容哈希绑定。"""
     if limit_cny is None:
@@ -250,6 +373,7 @@ def freeze_paid_budget(
             price_snapshot is not None
             or prior_records
             or historical_settlement is not None
+            or pilot_carry is not None
             or paid_endpoints
             or stop_fraction != 0.8
         ):
@@ -314,6 +438,9 @@ def freeze_paid_budget(
             "path": str(settlement_path),
             "sha256": file_sha256(settlement_path),
         }
+    if pilot_carry is not None:
+        path = pilot_carry.resolve(strict=True)
+        policy["pilot_carry"] = {"path": str(path), "sha256": file_sha256(path)}
     if observed:
         requirements = snapshot.get("connection_requirements")
         aliases = policy["paid_endpoints"]
@@ -332,7 +459,16 @@ def freeze_paid_budget(
             pricing_implementation_sha256=snapshot["pricing_implementation_sha256"],
             connection_bindings={alias: dict(requirements) for alias in aliases},
         )
-    _paid_inputs({"paid_budget": policy, "connection_profiles": connection_profiles})
+    # 冻结金融输入时协议和安装预检由 CLI 一并核验；这里先核全部原财务引用。
+    _check_pricing_profiles({"connection_profiles": connection_profiles}, policy)
+    _check_budget_references(policy)
+    budget_reason(
+        [],
+        [row for reference in references for row in _records(Path(reference["path"]))],
+        limit_cny=policy["limit_cny"],
+        stop_fraction=policy["stop_fraction"],
+        **_budget_arguments(policy),
+    )
     return policy
 
 
@@ -351,6 +487,7 @@ def paid_budget_report(
     assert isinstance(policy, dict) and prior_records is not None
     evidence_valid = True
     try:
+        validate_execution_inputs(manifest)
         _check_pricing_profiles(manifest, policy)
         _check_budget_references(policy)
     except (OSError, ValueError):
@@ -379,10 +516,19 @@ def paid_budget_report(
 
 
 def _paid_stop_reason(
-    policy: dict[str, Any] | None, records: list[dict[str, Any]], prior: list[dict[str, Any]]
+    policy: dict[str, Any] | None,
+    records: list[dict[str, Any]],
+    prior: list[dict[str, Any]],
+    *,
+    manifest: dict[str, Any] | None = None,
 ) -> str | None:
     if policy is None:
         return None
+    if manifest is not None:
+        try:
+            validate_execution_inputs(manifest)
+        except (OSError, ValueError, KeyError, TypeError):
+            return "execution_epoch_evidence_changed"
     try:
         _check_budget_references(policy)
     except (OSError, ValueError):
@@ -479,6 +625,7 @@ def _prepare(
 ) -> tuple[dict[str, Any], Path, Path]:
     output = output.resolve()
     manifest = read_json(manifest_path)
+    validate_execution_inputs(manifest)
     if manifest.get("canonical_model") != CANONICAL_MODEL or manifest.get("frozen") is not True:
         raise ValueError("先冻结统一模型和研究清单，再开始真实试验")
     if set(variants) != set(manifest["configurations"]):
@@ -624,9 +771,9 @@ async def run_phase(
             if shutil.disk_usage(output.anchor).free < 12 * 1024**3:
                 record_stop(output, "insufficient_disk_headroom")
                 break
-            reason = _paid_stop_reason(policy, records, prior_records) or check_budget(
-                records, reported_token_limit=int(manifest["reported_token_limit"])
-            )
+            reason = _paid_stop_reason(
+                policy, records, prior_records, manifest=manifest
+            ) or check_budget(records, reported_token_limit=int(manifest["reported_token_limit"]))
             if reason:
                 record_stop(output, reason)
                 break
@@ -727,7 +874,7 @@ async def run_phase(
             if fatal:
                 record_stop(output, fatal)
                 break
-            reason = _paid_stop_reason(policy, records, prior_records)
+            reason = _paid_stop_reason(policy, records, prior_records, manifest=manifest)
             if reason and item != remaining[-1]:
                 record_stop(output, reason)
                 break
