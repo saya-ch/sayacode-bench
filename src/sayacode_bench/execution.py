@@ -143,6 +143,32 @@ def _terminal_failure_types(path: Path) -> list[str]:
     return sorted({value for values in latest.values() for value in values})
 
 
+def _cache_usage(trial_dir: Path, usage: dict[str, Any]) -> dict[str, Any]:
+    """只调用容器同一纯验证函数；cache 不可用不改变原 token 总数或成绩。"""
+    from .worker import validate_native_usage_details
+
+    details = trial_dir / "agent/sayacode/usage-details.json"
+    audit = trial_dir / "agent/sayacode/audit.jsonl"
+    payload: dict[str, Any] = {}
+    if details.is_file():
+        try:
+            payload = _read_object(details) or {"invalid_sidecar": True}
+        except (OSError, UnicodeError, ValueError):
+            payload = {"invalid_sidecar": True}
+    summary = validate_native_usage_details(payload, audit)
+    if summary.get("status") == "complete" and any(
+        type(usage.get(key)) is not int or summary.get(key) != usage[key]
+        for key in ("model_calls", "input_tokens", "output_tokens", "total_tokens")
+    ):
+        summary = {
+            **summary,
+            "status": "invalid",
+            "reason": "worker_usage_mismatch",
+            "coverage_complete": False,
+        }
+    return summary
+
+
 def normalize_trial_result(
     trial: TrialResult,
     trial_dir: Path,
@@ -248,6 +274,8 @@ def normalize_trial_result(
         **usage_values,
         "usage_complete": complete_usage,
         "usage": usage,
+        "cache_usage": _cache_usage(trial_dir, usage),
+        "usage_details": _file_identity(trial_dir / "agent/sayacode/usage-details.json"),
         "task_count": worker.get("task_count"),
         "child_roles": worker.get("child_roles"),
         "terminal_http_statuses": worker.get("terminal_http_statuses", []),

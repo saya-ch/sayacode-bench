@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "script_sha256": "bc3d88cc280eb251cb75ebfd9899548a0fde3ec9eaf3875908d2e0795bec7888",
+  "analysis_sha256": "f760085417f5e6bbdd9d32f5c8213dfa5031d98c0754c620c527cb7711849559",
+  "validity_rules_sha256": "8c6fdf77f6e5d5cbd6ed891779794b795c9c0f61d7506786415324012bceee19",
+  "validation_sha256": "ce9628890392e6da65a6ed1f4b09ef24d52fb84d19503d17da0b24ce5e851e03",
+  "budget_sha256": "9c921d754e29ea923a9621a435556a525c90c52e39df69abe860ed6239898811",
+  "resource_rules_sha256": "e66fafcc632e121c8268ceb0227b9c5d489207f68a6d7cb6e8a5c442c01f7489",
+  "shard_execution_sha256": "0d567ae4907089ef6b0dd27e7106d6f2560de8dc8e79513edc5e8112fd36d7c0",
+  "implementation_sha256": "5f704a69601ef5b9bbeb7af38aafb250ea8e43ec8f2ffe91104ed85bcad0d2d1",
+  "orchestration_sha256": "9433d8b5ecca0ed38b722705eee868cd9a3426e669a0d2744884b60315870db3",
+  "qualification_sha256": "503a70e2df708bb7cea676b20ef4564ef937e4195af2d2e5a0fae41fb03098c0",
+  "cloud_qualification_sha256": "e3e8791739cdb70020a20d5e7096e792f2b33cb8f99063ffbf20f78e63e9f11b",
+  "executor_workflow_sha256": "6b4cc79b6fae71cb27786b934ac44e1484518c865f166a89721df85f3d0d503c",
+  "samples": 10000,
+  "seed": 20261022,
+  "absolute_unit": "task mean across planned repeats; resample tasks",
+  "cluster_unit": "whole repository; retain all tasks and their repeat means",
+  "cluster_estimator": "task-macro delta with varying sampled cluster sizes",
+  "role": "prespecified sensitivity; never replaces primary task bootstrap"
+}

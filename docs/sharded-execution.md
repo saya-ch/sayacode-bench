@@ -48,6 +48,10 @@
 
 资格入口以原始完整候选池、seed、修复组规则和固定上限进行选样。只有固定三次 oracle 和一次 nop 都原生收尾、实际镜像／平台／CPU／内存／swap 有效，才允许把不通过的任务标为 fixture 失败并机械替补。
 
+无模型资格批次仅在公开 `saya-ch/sayacode-bench` 的标准 Linux runner 执行，不读取供应商 Secret、私有生产工件、用户数据或模型轨迹。公开归档包含官方公开 MIT 任务、固定选择、oracle／nop 日志及资源与宿主元数据。首批核对完整 Actions 历史；已有同 study 的记录，即使失败，也必须显式恢复完整前序 artifact，不能忘传历史后重新开始。
+
+公开标准宿主为 4 CPU／16 GiB，私有模型宿主为 2 CPU／8 GiB。二者不是同一实体硬件；任务容器仍采用官方 CPU、内存和 swap 原值，并逐次核验。公开资格的宿主镜像 cohort 随正式清单保存，与模型 runner 的三个 cohort 字段核对。公开标准 runner 的计算不消耗私有分钟，但工件存储和平台条款仍需分别管理。
+
 未执行、基础设施错误、缺失原生证据、评分未知或资源不符，均是 incomplete。此时停止 cohort，不排除修复组。批次达到 `--max-new-controls` 也只是正常暂停，不等于任务失败。
 
 ```bash
@@ -67,6 +71,11 @@ GitHub 编排需要在 `runner_policy.json` 固定：
   "job_timeout_seconds": 21600,
   "public_source_sha": "<已审阅的完整公开源码提交>",
   "executor_workflow_sha256": "<run-study-shard.yml 的真实 SHA256>",
+  "evidence_release": {
+    "repository": "saya-ch/sayacode-bench-runs",
+    "release_id": 420920737,
+    "release_tag": "research-evidence-20261022"
+  },
   "host_cohort": {
     "ImageOS": "ubuntu24",
     "ImageVersion": "<实际准备记录中的固定版本>",
@@ -104,20 +113,21 @@ sayacode-bench plan-shards \
 
 额外的跨阶段费用记录通过 `--paid-records` 显式绑定，不能用它替换 master 冻结的 prior，也不能把同范围内校准费用删掉重新获得预算。
 
-将完整 seed tar 保存在私有执行仓库，或上传到同一私有仓库的指定 Actions run 后，生成待审阅 DAG：
+将完整 seed tar 通过 `release_evidence.upload_archive()` 上传到 runner policy 指定的既有私有 draft Release。核对每片服务端 digest、ID、大小和完整归档 SHA 后，将适配器返回的小型 manifest 保存为 JSON，生成待审阅 DAG：
 
 ```bash
 python -m scripts.generate_sharded_workflow generate \
   --plan "$LOCAL_BUNDLE/plan.json" \
   --bundle-directory "$LOCAL_BUNDLE" \
   --output reviewed-study.yml \
-  --seed-sha256 "$SEED_SHA256" \
-  --seed-file artifacts/study-seed.tar.gz
+  --seed-manifest "$LOCAL_SEED_MANIFEST"
 ```
 
-使用已有私有 artifact 时，将 `--seed-file` 换成 `--seed-artifact NAME --seed-run-id ID`。生成文件绑定 plan、schedule、public source、静态模板、生成器和 seed SHA；所有 job 使用显式 `needs`，不借 matrix 的并发限制推断顺序。
+这是唯一的正式 seed 入口，不将大型 tar 提交到 Git，也不保留 Actions artifact 的另一套正式引导路径。生成文件绑定 plan、schedule、public source、静态模板、生成器、Release manifest 和完整 seed SHA；所有 job 使用显式 `needs`，不借 matrix 的并发限制推断顺序。Release 在派发前由用户侧准备，工作流不能自行创建或改为公开。
 
 三个派发确认项默认都为 false：实际执行、完整阶段 scope、Actions 额度。正式密钥使用单独的 `STUDY_CONNECTION_KEYS_JSON`，按冻结连接别名映射；不会暗中复用仅获两题授权的 `SILICONFLOW_API_KEY`。凭据只进入实际执行步骤和 bundle 外的临时 profile。
+
+首片还核对指定私有仓库的原生 Actions 历史与固定 master 身份。再次 dispatch 是新的 run，即使 attempt 仍为 1，也不能从最初 seed 重置试验和费用。已有同 master 的执行、历史缺失或身份不确定时拒绝新首批。自动续派和跨 dispatch 的恢复尚不由工作流代办，须审阅已有完整 prefix 与累计消耗后另行处理，不能直接点重新运行。
 
 ## 账本、失效与候选签收
 
@@ -133,9 +143,11 @@ python -m scripts.generate_sharded_workflow generate \
 
 ## 原始证据与免费配额
 
-完整 raw bundle 每片累积，私有 artifact 默认保留三天。代码不裁剪原始对话、不自动删除云 artifact；500 MB 免费存储与免费分钟不能被假定足以完成全部研究。原始 COT、配置和会话轨迹不进入公开报告。
+完整 raw bundle 每片累积，通过固定私有 draft Release 传递；每个文件按不超过 1 GiB 切片，使用 SHA 命名并核实服务端 digest，不覆盖已有 asset。Release 身份、私有性或完整 SHA 不符时停止，下载后仍由原恢复入口校验 tar 与冻结路径。
 
-应及时下载原始 ZIP，核对服务提供的 artifact digest，再核验解包文件。只有原始证据已实际保全并核实后，才单独管理旧 artifact 生命周期。API 预算与 Actions 费用分别受限，任何未知费用、未知用量和缺片都保留为未知。
+Release 上传确认成功后，Actions 只保存小型 host、manifest、receipt 和汇总；上传失败或结果未知时，收尾仍保存当片原始现场。Actions 工件默认保留三天，代码不裁剪原始对话、不自动删除云 artifact。Release assets 当前未列入 Actions artifacts／Packages 存储池，但这不是永久免费承诺；计算分钟与平台条款继续受限。原始 COT、配置和会话轨迹不进入公开报告。
+
+应及时下载原始 ZIP，核对服务提供的 artifact digest，再核验解包文件。只有原始证据已实际保全并核实后，才单独管理旧 artifact 生命周期。API 预算与 Actions 费用分别受限，账户支出上限维持零美元；任何未知费用、未知用量和缺片都保留为未知。固定 100 元授权范围已发生的消耗持续累计，不能因切换存储或派发位置重新获得预算。
 
 ## 完成标准
 

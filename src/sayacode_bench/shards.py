@@ -41,6 +41,7 @@ _REFERENCES = (
     "raw_job_result",
     "raw_trial_result",
     "worker_result",
+    "usage_details",
     "runtime",
     "network_isolation",
     "patch",
@@ -48,6 +49,56 @@ _REFERENCES = (
     "replay_runtime",
     "replay_network_isolation",
 )
+
+
+def qualification_host_cohort(document: Mapping[str, Any]) -> dict[str, str] | None:
+    """云端资格宿主不可在正式执行时改选；旧非云路径不补造宿主信息。"""
+    if "qualification_host_cohort" not in document:
+        if "qualification_host_scope" in document:
+            raise ValueError("云端资格缺少固定宿主 cohort")
+        return None
+    cohort = document["qualification_host_cohort"]
+    fields = ("ImageOS", "ImageVersion", "RUNNER_ARCH")
+    if (
+        not isinstance(cohort, dict)
+        or set(cohort) != set(fields)
+        or any(
+            not isinstance(value, str) or not value or value != value.strip()
+            for value in cohort.values()
+        )
+        or cohort.get("RUNNER_ARCH") != "X64"
+    ):
+        raise ValueError("资格宿主 cohort 必须为完整 ImageOS/ImageVersion/X64")
+    if "qualification_host_scope" in document:
+        scope = document["qualification_host_scope"]
+        if (
+            not isinstance(scope, dict)
+            or set(scope)
+            != {
+                "execution_repository",
+                "public_source_sha",
+                "cloud_plan_sha256",
+                "host_cohort_scope",
+                "host_cohort_exclusions",
+                "host_hardware_boundary",
+            }
+            or scope.get("execution_repository") != "saya-ch/sayacode-bench"
+            or scope.get("host_cohort_scope") != list(fields)
+            or not isinstance(scope.get("host_hardware_boundary"), str)
+            or not scope["host_hardware_boundary"].strip()
+            or re.fullmatch(r"[0-9a-f]{40}", str(scope.get("public_source_sha"))) is None
+            or _SHA.fullmatch(str(scope.get("cloud_plan_sha256"))) is None
+            or scope.get("host_cohort_exclusions")
+            != ["physical_cpu_identity", "kernel_identity", "provider_model_immutability"]
+        ):
+            raise ValueError("云端资格的公开来源或宿主证据边界无效")
+    return dict(cohort)
+
+
+def _check_qualification_runner(master: Mapping[str, Any], runner: Mapping[str, Any]) -> None:
+    qualified = qualification_host_cohort(master)
+    if qualified is not None and runner.get("host_cohort") != qualified:
+        raise ValueError("正式 runner 宿主 cohort 必须与资格检查完全相同")
 
 
 def _hash(value: Any) -> str:
@@ -177,6 +228,7 @@ def freeze_execution_plan(
     ):
         raise ValueError("冻结输入与计划必须位于固定 bundle")
     runner = read_json(runner_policy_path)
+    _check_qualification_runner(master, runner)
     if runner.get("platform") != "linux" or runner.get("architecture") != "amd64":
         raise ValueError("正式 runner 政策必须固定 Linux/amd64")
     authorization = read_json(authorization_path)
@@ -238,6 +290,7 @@ def _load_plan(path: Path) -> tuple[dict[str, Any], dict[str, Any], Path | None]
     bundle = Path(plan["bundle_root"]).resolve() if plan.get("bundle_root") else None
     master = read_json(_file(plan["master"], bundle))
     runner = read_json(_file(plan["runner_policy"], bundle))
+    _check_qualification_runner(master, runner)
     authorization = read_json(_file(plan["authorization"], bundle))
     if (
         master.get("frozen") is not True
@@ -318,6 +371,17 @@ def _record_evidence(
     ):
         if native.get(field) != row.get(field):
             raise ValueError(f"source 原生证据与记录冲突：{field}")
+    if "cache_usage" in row or "usage_details" in row:
+        for field in ("cache_usage", "usage_details"):
+            if native[field] != row.get(field):
+                raise ValueError(f"source 原生 cache 旁证与记录冲突：{field}")
+    elif (
+        native["usage_details"]["sha256"] is not None
+        or native["cache_usage"].get("status") != "unavailable"
+        or native["cache_usage"].get("reason") != "sidecar_missing"
+    ):
+        # 旧记录无旁证时只接受真正缺失；不回写旧 source，也不补造零 cache。
+        raise ValueError("旧 source 没有记录当前存在或冲突的 cache 旁证")
     if row.get("status") != "patch_apply_failed" and native["status"] != row.get("status"):
         raise ValueError("source 执行状态冲突")
     if row.get("verified") is True and master["benchmark"] == "swe-bench-pro-v2":
@@ -486,9 +550,7 @@ def _stop_reason(
             [*initial, *extra],
             limit_cny=policy["limit_cny"],
             stop_fraction=policy["stop_fraction"],
-            paid_endpoints=tuple(policy["paid_endpoints"]),
-            input_cny_per_million=policy["input_cny_per_million"],
-            output_cny_per_million=policy["output_cny_per_million"],
+            **study._budget_arguments(policy),
         )
     return None
 
@@ -748,9 +810,24 @@ def merge_shards(plan_path: Path, receipt_paths: Sequence[Path], output: Path) -
         **master,
         "validity_issues": sorted(set([*master.get("validity_issues", []), *issues])),
     }
-    _, initial = study._paid_inputs(master)
+    try:
+        _, initial = study._paid_inputs(master)
+    except (OSError, ValueError, KeyError, TypeError):
+        # 引用失配时不能采纳被修改的历史费用；原任务事实仍保留并明确阻止签收。
+        initial = []
+        issues.append("paid_budget_evidence_invalid")
+        merged_manifest["validity_issues"] = sorted(
+            set([*merged_manifest["validity_issues"], *issues])
+        )
     extra = _initial_paid(plan, bundle)
     summary = study.phase_summary(merged_manifest, rows, prior_records=[*initial, *extra])
+    financial_issues = {
+        value for value in summary.get("validity_issues", []) if value.startswith("paid_")
+    }
+    issues.extend(financial_issues)
+    merged_manifest["validity_issues"] = sorted(
+        set([*merged_manifest["validity_issues"], *financial_issues])
+    )
     output.mkdir(parents=True, exist_ok=False)
     _write_rows(output / "records.jsonl", rows)
     _write_rows(output / "accounting-records.jsonl", [*initial, *extra, *rows])

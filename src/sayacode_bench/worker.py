@@ -12,9 +12,12 @@ import signal
 import stat
 import subprocess
 import tempfile
+import threading
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 PROFILE_OVERRIDES = frozenset(
     {
@@ -29,6 +32,263 @@ PROFILE_OVERRIDES = frozenset(
         "native_tool_search_tools",
     }
 )
+
+_USAGE_COLLECTOR = "langchain_callback_usage_v1"
+_USAGE_TOTALS = ("input_tokens", "output_tokens", "total_tokens")
+_CACHE_KEYS = (
+    "cache_read",
+    "cache_creation",
+    "ephemeral_5m_input_tokens",
+    "ephemeral_1h_input_tokens",
+)
+_USAGE_CONTEXT: ContextVar[Any] = ContextVar("sayacode_bench_native_usage", default=None)
+_USAGE_HOOK_REGISTERED = False
+NATIVE_USAGE_REASONS = frozenset(
+    (
+        "sidecar_missing audit_unavailable coverage_or_details_missing audit_invalid audit_conflict "
+        "sidecar_schema_invalid audit_identity_mismatch sidecar_calls_invalid observer_conflict "
+        "thread_identity_mismatch usage_field_invalid usage_total_mismatch audit_usage_mismatch "
+        "cache_field_invalid cache_creation_conflict cache_exceeds_input usage_evidence_invalid "
+        "worker_usage_mismatch"
+    ).split()
+)
+
+
+def validate_native_usage_details(payload: dict[str, Any], audit_path: Path) -> dict[str, Any]:
+    """只核原生数字与逐次 callback 身份；此函数不导入 LangChain。"""
+    result: dict[str, Any] = dict.fromkeys(
+        (
+            "audit_sha256",
+            "model_calls",
+            *_USAGE_TOTALS,
+            "cache_read_input_tokens",
+            "cache_creation_input_tokens",
+        )
+    )
+    result.update(
+        collector=_USAGE_COLLECTOR,
+        status="unavailable",
+        reason="sidecar_missing",
+        matched_calls=0,
+        coverage_complete=False,
+    )
+    if not payload:
+        return result
+    try:
+        data = audit_path.read_bytes()
+        result["audit_sha256"] = hashlib.sha256(data).hexdigest()
+        audit: dict[str, dict[str, Any]] = {}
+        for line in data.splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line.decode("utf-8-sig"))
+            if not isinstance(row, dict):
+                raise ValueError("audit_invalid")
+            if row.get("event") not in {"model.started", "model.completed", "model.failed"}:
+                continue
+            run_id = row.get("run_id")
+            if not isinstance(run_id, str) or not run_id:
+                raise ValueError("audit_invalid")
+            item = audit.setdefault(run_id, {"thread_id": row.get("thread_id"), "usage": None})
+            if item["thread_id"] != row.get("thread_id"):
+                raise ValueError("audit_conflict")
+            if row["event"] == "model.completed":
+                usage = (row.get("details") or {}).get("usage")
+                if item["usage"] is not None and item["usage"] != usage:
+                    raise ValueError("audit_conflict")
+                item["usage"] = usage
+        result["model_calls"] = len(audit)
+        if payload.get("schema_version") != 1 or payload.get("collector") != _USAGE_COLLECTOR:
+            raise ValueError("sidecar_schema_invalid")
+        if payload.get("audit_sha256") != result["audit_sha256"]:
+            raise ValueError("audit_identity_mismatch")
+        calls = payload.get("calls")
+        if not isinstance(calls, list):
+            raise ValueError("sidecar_calls_invalid")
+        seen: set[str] = set()
+        totals = dict.fromkeys(_USAGE_TOTALS, 0)
+        cached = created = 0
+        unavailable = not audit or bool(payload.get("collector_unavailable"))
+        for call in calls:
+            if not isinstance(call, dict) or not isinstance(call.get("run_id"), str):
+                raise ValueError("sidecar_calls_invalid")
+            run_id = call["run_id"]
+            if run_id in seen or call.get("conflict"):
+                raise ValueError("observer_conflict")
+            seen.add(run_id)
+            source = audit.get(run_id)
+            if source is None:
+                unavailable = True
+                continue
+            if call.get("thread_id") not in {None, source["thread_id"]}:
+                raise ValueError("thread_identity_mismatch")
+            usage = call.get("usage")
+            if call.get("event") != "completed" or not isinstance(usage, dict):
+                unavailable = True
+                continue
+            if usage.get("invalid"):
+                raise ValueError("usage_field_invalid")
+            if any(key not in usage or usage[key] is None for key in _USAGE_TOTALS):
+                unavailable = True
+                continue
+            if any(type(usage[key]) is not int or usage[key] < 0 for key in _USAGE_TOTALS):
+                raise ValueError("usage_field_invalid")
+            if usage["total_tokens"] != usage["input_tokens"] + usage["output_tokens"]:
+                raise ValueError("usage_total_mismatch")
+            original = source["usage"]
+            if not isinstance(original, dict) or any(
+                key not in original or original[key] is None for key in _USAGE_TOTALS
+            ):
+                unavailable = True
+                continue
+            if any(
+                type(original[key]) is not int or original[key] != usage[key]
+                for key in _USAGE_TOTALS
+            ):
+                raise ValueError("audit_usage_mismatch")
+            result["matched_calls"] += 1
+            for key in _USAGE_TOTALS:
+                totals[key] += usage[key]
+            details = usage.get("input_token_details")
+            if not isinstance(details, dict):
+                unavailable = True
+                continue
+            if any(
+                value is not None and (type(value) is not int or value < 0)
+                for value in details.values()
+            ):
+                raise ValueError("cache_field_invalid")
+            generic = details.get("cache_creation")
+            ttl = sum(details.get(key) or 0 for key in _CACHE_KEYS[2:])
+            if generic and ttl and generic != ttl:
+                raise ValueError("cache_creation_conflict")
+            writes = ttl or generic
+            if writes is not None:
+                created += writes
+            read = details.get("cache_read")
+            if read is None or writes is None:
+                unavailable = True
+                continue
+            if read + writes > usage["input_tokens"]:
+                raise ValueError("cache_exceeds_input")
+            cached += read
+        if created:
+            result["cache_creation_input_tokens"] = created
+        if seen != set(audit) or result["matched_calls"] != len(audit):
+            unavailable = True
+        if audit and result["matched_calls"] == len(audit):
+            result.update({key: totals[key] for key in _USAGE_TOTALS})
+        if unavailable:
+            result["reason"] = "coverage_or_details_missing"
+        else:
+            result.update(
+                status="complete",
+                reason=None,
+                coverage_complete=True,
+                cache_read_input_tokens=cached,
+                cache_creation_input_tokens=created,
+            )
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        result.update(reason="audit_unavailable")
+    except (ValueError, TypeError, AttributeError) as exc:
+        result.update(
+            status="invalid",
+            reason=str(exc) if str(exc) in NATIVE_USAGE_REASONS else "usage_evidence_invalid",
+        )
+    return result
+
+
+@contextmanager
+def observe_native_usage() -> Iterator[Any]:
+    """通过官方可继承 context hook 旁观全部模型，不修改产品 callback。"""
+    global _USAGE_HOOK_REGISTERED
+    calls: dict[str, dict[str, Any]] = {}
+    lock = threading.Lock()
+    unavailable = False
+    token = None
+    try:
+        from langchain_core.callbacks import BaseCallbackHandler
+        from langchain_core.tracers.context import register_configure_hook
+
+        class Observer(BaseCallbackHandler):  # type: ignore[misc]
+            def on_chat_model_start(
+                self,
+                serialized: Any,
+                messages: Any,
+                *,
+                run_id: Any,
+                metadata: Any = None,
+                **kwargs: Any,
+            ) -> None:
+                with lock:
+                    calls[str(run_id)] = {
+                        "run_id": str(run_id),
+                        "thread_id": (metadata or {}).get("thread_id"),
+                        "event": "started",
+                        "usage": None,
+                    }
+
+            def on_llm_end(self, response: Any, *, run_id: Any, **kwargs: Any) -> None:
+                try:
+                    raw = response.generations[0][0].message.usage_metadata
+                    usage = (
+                        {key: raw[key] for key in _USAGE_TOTALS if key in raw}
+                        if isinstance(raw, dict)
+                        else None
+                    )
+                    if usage is not None:
+                        details = raw.get("input_token_details")
+                        if isinstance(details, dict):
+                            usage["input_token_details"] = {
+                                key: details[key] for key in _CACHE_KEYS if key in details
+                            }
+                        numbers = [usage.get(key) for key in _USAGE_TOTALS] + list(
+                            usage.get("input_token_details", {}).values()
+                        )
+                        if any(
+                            value is not None and (type(value) is not int or value < 0)
+                            for value in numbers
+                        ):
+                            usage = {"invalid": True}
+                except (AttributeError, IndexError, TypeError):
+                    usage = None
+                with lock:
+                    item = calls.setdefault(str(run_id), {"run_id": str(run_id), "thread_id": None})
+                    if item.get("event") == "completed" and item.get("usage") != usage:
+                        item["conflict"] = True
+                    item.update(event="completed", usage=usage)
+
+            def on_llm_error(self, error: BaseException, *, run_id: Any, **kwargs: Any) -> None:
+                with lock:
+                    calls.setdefault(
+                        str(run_id), {"run_id": str(run_id), "thread_id": None}
+                    ).update(event="failed", usage=None)
+
+        if not _USAGE_HOOK_REGISTERED:
+            register_configure_hook(_USAGE_CONTEXT, inheritable=True)
+            _USAGE_HOOK_REGISTERED = True
+        token = _USAGE_CONTEXT.set(Observer())
+    except ImportError:
+        unavailable = True
+
+    def snapshot(audit_path: Path) -> dict[str, Any]:
+        with lock:
+            payload = {
+                "schema_version": 1,
+                "collector": _USAGE_COLLECTOR,
+                "collector_unavailable": unavailable,
+                "audit_sha256": hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                if audit_path.is_file()
+                else None,
+                "calls": list(calls.values()),
+            }
+        return {**payload, **validate_native_usage_details(payload, audit_path)}
+
+    try:
+        yield snapshot
+    finally:
+        if token is not None:
+            _USAGE_CONTEXT.reset(token)
 
 
 def write_json(path: Path, data: Any) -> None:
@@ -476,6 +736,11 @@ def stop_worker(pid_path: Path, grace: float = 12.0) -> int:
 
 
 async def run(args: argparse.Namespace) -> int:
+    with observe_native_usage() as snapshot:
+        return await _run(args, snapshot)
+
+
+async def _run(args: argparse.Namespace, usage_snapshot: Any) -> int:
     """调用生产应用并等待完整任务族；SIGTERM 只控制生命周期。"""
     from langgraph.runtime import RunControl
     from sayacode.agent import AgentRuntime
@@ -623,6 +888,10 @@ async def run(args: argparse.Namespace) -> int:
             except Exception as exc:
                 result["checkpoint_export_error"] = type(exc).__name__
     result.update(audit_metrics(logs / "audit.jsonl"))
+    try:
+        write_json(logs / "usage-details.json", usage_snapshot(logs / "audit.jsonl"))
+    except (OSError, ValueError, TypeError) as exc:
+        result["usage_details_error"] = type(exc).__name__
     result.update(
         duration_seconds=round(time.perf_counter() - start, 3),
         variant_id=variant.get("id"),

@@ -1,7 +1,7 @@
 """从冻结计划生成原生 Actions 串行 DAG；云端辅助命令只调用现有研究 CLI。
 
-本文件不会授权正式试验。完整 bundle 包含原始私有证据，逐片快照会增长；
-三天保留不意味着免费额度充足，也不允许脚本自动删除云端 artifact。
+本文件不会授权正式试验。完整原始 bundle 交给固定私有 draft Release；
+Actions 仅保本片原始数据三天。账户零美元预算不变，不承诺永久免费。
 """
 
 from __future__ import annotations
@@ -23,6 +23,12 @@ from typing import Any
 
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
 from sayacode_bench.execution import paired_order
+from sayacode_bench.release_evidence import (
+    BILLING_BOUNDARY,
+    _manifest,
+    download_archive,
+    upload_archive,
+)
 
 EXECUTION_REPOSITORY = "saya-ch/sayacode-bench-runs"
 PUBLIC_REPOSITORY = "saya-ch/sayacode-bench"
@@ -37,6 +43,68 @@ STORAGE_NOTE = (
 )
 HOST_FIELDS = ("ImageOS", "ImageVersion", "RUNNER_ARCH")
 HOST_EXCLUSIONS = ("physical_cpu_identity", "kernel_identity", "provider_model_immutability")
+MAX_MANIFEST_CHARACTERS = 48_000
+
+
+def _release(value: Any) -> dict[str, Any]:
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"repository", "release_id", "release_tag"}
+        or value["repository"] != EXECUTION_REPOSITORY
+        or type(value["release_id"]) is not int
+        or value["release_id"] <= 0
+        or not isinstance(value["release_tag"], str)
+        or not value["release_tag"].strip()
+        or any(char in value["release_tag"] for char in "\r\n\0")
+    ):
+        raise ValueError("需要冻结的私有 draft Release 身份")
+    return dict(value)
+
+
+def _manifest_json(value: dict[str, Any], release: dict[str, Any]) -> str:
+    _manifest(value, **_release(release))
+    text = json.dumps(value, ensure_ascii=True, separators=(",", ":"), allow_nan=False)
+    if len(text) > MAX_MANIFEST_CHARACTERS:
+        raise ValueError("Release manifest 超过安全的 Actions 单行输出范围")
+    return text
+
+
+def guard_study_dispatch(history: Any, master_sha256: str, run_id: int) -> None:
+    """同一 master 不从空账本重派发；失败也保留，未实现的新 prefix 恢复明确拒绝。"""
+    if (
+        not SHA.fullmatch(master_sha256)
+        or type(run_id) is not int
+        or run_id <= 0
+        or not isinstance(history, list)
+        or not history
+    ):
+        raise ValueError("正式派发身份或 Actions 历史未确认")
+    rows: list[dict[str, Any]] = []
+    totals = []
+    for page in history:
+        if (
+            not isinstance(page, dict)
+            or type(page.get("total_count")) is not int
+            or not isinstance(page.get("workflow_runs"), list)
+        ):
+            raise ValueError("Actions 历史分页未确认")
+        totals.append(page["total_count"])
+        rows.extend(page["workflow_runs"])
+    if any(
+        not isinstance(row, dict)
+        or type(row.get("id")) is not int
+        or row["id"] <= 0
+        or not isinstance(row.get("display_title"), str)
+        for row in rows
+    ):
+        raise ValueError("Actions 原生运行身份未确认")
+    if totals != [len(rows)] * len(totals) or len({row["id"] for row in rows}) != len(rows):
+        raise ValueError("Actions 历史覆盖不完整或存在冲突")
+    title = f"study {master_sha256}"
+    if not any(row["id"] == run_id and row["display_title"] == title for row in rows):
+        raise ValueError("Actions 历史缺少当前正式运行")
+    if any(row["id"] != run_id and row["display_title"] == title for row in rows):
+        raise ValueError("同 master 已有正式派发；不得从空账本重启，显式 prefix 恢复尚未实现")
 
 
 def _host_cohort(value: Any) -> dict[str, str]:
@@ -105,6 +173,12 @@ def inspect_plan(
     master = read_json(_mapped(plan["master"], original, bundle))
     runner = read_json(_mapped(plan["runner_policy"], original, bundle))
     _host_cohort(runner.get("host_cohort"))
+    from sayacode_bench.shards import qualification_host_cohort
+
+    qualified_cohort = qualification_host_cohort(master)
+    if qualified_cohort is not None and qualified_cohort != runner["host_cohort"]:
+        raise ValueError("正式 runner 与公开资格的宿主镜像 cohort 不同")
+    _release(runner.get("evidence_release"))
     authorization = read_json(_mapped(plan["authorization"], original, bundle))
     if (
         master.get("frozen") is not True
@@ -180,23 +254,14 @@ def generate(
     bundle: Path,
     output: Path,
     *,
-    seed_sha256: str,
-    seed_file: str = "",
-    seed_artifact: str = "",
-    seed_run_id: str = "",
+    seed_manifest: Path,
 ) -> dict[str, Any]:
     """只生成可审阅文件，不访问 GitHub、Docker、凭据或模型。"""
     if output.exists() or output.with_suffix(".receipt.json").exists():
         raise FileExistsError("生成工作流不可覆盖")
-    if not SHA.fullmatch(seed_sha256):
-        raise ValueError("seed tar 必须有完整 SHA256")
-    if seed_file:
-        _relative(seed_file)
-        if seed_artifact or seed_run_id:
-            raise ValueError("seed file 与私有 artifact 二选一")
-    elif not LABEL.fullmatch(seed_artifact) or not seed_run_id.isdigit() or int(seed_run_id) <= 0:
-        raise ValueError("需要私有执行仓库的 seed artifact 和原 run ID")
     plan, master, runner = inspect_plan(plan_path, bundle)
+    initial_manifest = read_json(seed_manifest)
+    initial_manifest_json = _manifest_json(initial_manifest, runner["evidence_release"])
     contract = {
         "schema_version": 1,
         "public_source_sha": runner["public_source_sha"],
@@ -207,9 +272,11 @@ def generate(
         "executor_workflow_sha256": file_sha256(TEMPLATE),
         "generator_sha256": file_sha256(Path(__file__)),
         "host_cohort": runner["host_cohort"],
+        "evidence_release": runner["evidence_release"],
         "bindings": _artifact_bindings(bundle, plan["artifacts"]),
     }
     text = json.dumps(contract, ensure_ascii=False, separators=(",", ":"))
+    execute_condition = "${{ inputs.execute_models && inputs.confirm_formal_scope && inputs.confirm_actions_budget }}"
     jobs: dict[str, Any] = {
         "review": {
             "runs-on": "ubuntu-24.04",
@@ -220,7 +287,38 @@ def generate(
                     "env": {"GH_TOKEN": "${{ github.token }}"},
                     "shell": "bash",
                     "run": PRIVATE_GUARD,
-                }
+                },
+                {
+                    "if": execute_condition,
+                    "uses": CHECKOUT,
+                    "with": {
+                        "repository": PUBLIC_REPOSITORY,
+                        "ref": runner["public_source_sha"],
+                        "path": "bench",
+                        "persist-credentials": False,
+                    },
+                },
+                {
+                    "if": execute_condition,
+                    "uses": "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e",
+                    "with": {
+                        "version": "0.12.5",
+                        "python-version": "3.13.12",
+                        "enable-cache": False,
+                    },
+                },
+                {"if": execute_condition, "working-directory": "bench", "run": "uv sync --frozen"},
+                {
+                    "if": execute_condition,
+                    "name": "核验同 master 的首次正式派发，预览不占正式身份",
+                    "working-directory": "bench",
+                    "shell": "bash",
+                    "env": {
+                        "GH_TOKEN": "${{ github.token }}",
+                        "MASTER_SHA": plan["master"]["sha256"],
+                    },
+                    "run": 'set -eu\ngh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" > "$RUNNER_TEMP/study-history.json"\nuv run --no-sync python -m scripts.generate_sharded_workflow dispatch-guard --history "$RUNNER_TEMP/study-history.json" --master-sha256 "$MASTER_SHA" --run-id "$GITHUB_RUN_ID"',
+                },
             ],
         }
     }
@@ -237,14 +335,9 @@ def generate(
             "contract_json": text,
             "shard_id": entry["shard_id"],
             "mode": "shard",
-            "input_archive_sha256": seed_sha256
+            "evidence_manifest_json": initial_manifest_json
             if index == 1
-            else f"${{{{ needs.{previous}.outputs.archive_sha256 }}}}",
-            "input_artifact": seed_artifact
-            if index == 1
-            else f"${{{{ needs.{previous}.outputs.artifact_name }}}}",
-            "input_run_id": seed_run_id if index == 1 else "${{ github.run_id }}",
-            "seed_file": seed_file if index == 1 else "",
+            else f"${{{{ needs.{previous}.outputs.evidence_manifest_json }}}}",
             "previous_receipt_sha256": ""
             if index == 1
             else f"${{{{ needs.{previous}.outputs.receipt_sha256 }}}}",
@@ -268,15 +361,18 @@ def generate(
             "contract_json": text,
             "mode": "merge",
             "shard_id": "",
-            "input_artifact": f"${{{{ needs.{last}.outputs.artifact_name }}}}",
-            "input_run_id": "${{ github.run_id }}",
-            "input_archive_sha256": f"${{{{ needs.{last}.outputs.archive_sha256 }}}}",
+            "evidence_manifest_json": f"${{{{ needs.{last}.outputs.evidence_manifest_json }}}}",
             "previous_receipt_sha256": f"${{{{ needs.{last}.outputs.receipt_sha256 }}}}",
             "previous_ledger_sha256": f"${{{{ needs.{last}.outputs.ledger_sha256 }}}}",
         },
     }
     workflow = {
         "name": f"冻结研究 {master['phase']} {contract['plan_sha256'][:12]}",
+        "run-name": "${{ inputs.execute_models && inputs.confirm_formal_scope && inputs.confirm_actions_budget && 'study "
+        + plan["master"]["sha256"]
+        + "' || 'review study "
+        + plan["master"]["sha256"]
+        + "' }}",
         "on": {
             "workflow_dispatch": {
                 "inputs": {
@@ -289,7 +385,7 @@ def generate(
                 }
             }
         },
-        "permissions": {"contents": "read", "actions": "read"},
+        "permissions": {"contents": "write", "actions": "read"},
         "concurrency": {"group": "sayacode-study-global", "cancel-in-progress": False},
         "jobs": jobs,
     }
@@ -304,11 +400,12 @@ def generate(
         "executor_workflow_sha256": contract["executor_workflow_sha256"],
         "generator_sha256": contract["generator_sha256"],
         "workflow_sha256": file_sha256(output),
-        "seed_sha256": seed_sha256,
+        "seed_manifest_sha256": file_sha256(seed_manifest),
+        "seed_archive_sha256": initial_manifest["archive_sha256"],
         "shard_count": len(plan["schedule"]),
         "planned_reserve_seconds": sum(row["reserve_seconds"] for row in plan["schedule"]),
-        "artifact_retention_days": 3,
-        "storage_note": STORAGE_NOTE,
+        "actions_artifact_retention_days": 3,
+        "storage_note": BILLING_BOUNDARY,
         "execution_authorized_by_generation": False,
         "host_cohort_enforced": True,
         "host_cohort_fields": list(HOST_FIELDS),
@@ -374,6 +471,7 @@ def load_contract(
         or contract["executor_workflow_sha256"] != file_sha256(TEMPLATE)
         or contract["generator_sha256"] != file_sha256(Path(__file__))
         or contract.get("host_cohort") != runner["host_cohort"]
+        or contract.get("evidence_release") != runner["evidence_release"]
         or contract["bindings"] != _artifact_bindings(root, plan["artifacts"])
     ):
         raise ValueError("生成器、工件或模板已漂移")
@@ -432,6 +530,8 @@ async def prepare_image(master: dict[str, Any], entry: dict[str, Any]) -> dict[s
 def _cli(arguments: list[str], log: Path, *, deadline: float | None = None) -> int:
     environment = dict(os.environ)
     environment.pop("SAYACODE_STUDY_CONNECTION_KEYS_JSON", None)
+    environment.pop("GH_TOKEN", None)
+    environment.pop("GITHUB_TOKEN", None)
     with log.open("wb") as stream:
         result = subprocess.run(
             [sys.executable, "-m", "sayacode_bench.cli", *arguments],
@@ -652,12 +752,26 @@ def archive_bundle(contract_text: str, output: Path, *, shard_id: str) -> dict[s
         "host_cohort_fields": list(HOST_FIELDS),
         "host_cohort_exclusions": list(HOST_EXCLUSIONS),
         "continuation_allowed": status.get("continuation_allowed") is True,
-        "artifact_retention_days": 3,
-        "storage_note": STORAGE_NOTE,
+        "actions_artifact_retention_days": 3,
+        "storage_note": BILLING_BOUNDARY,
         "contains_private_raw_evidence": True,
         "cloud_artifact_deletion_performed": False,
     }
-    write_json(output / "bundle-manifest.json", result, exclusive=True)
+    receipt_path = output / "archive-receipt.json"
+    write_json(receipt_path, {**result, "transfer_status": "pending"}, exclusive=True)
+    try:
+        manifest = upload_archive(
+            archive, **_release(contract["evidence_release"]), work_dir=output / "release-parts"
+        )
+        write_json(output / "evidence-manifest.json", manifest, exclusive=True)
+        manifest_json = _manifest_json(manifest, contract["evidence_release"])
+        result["transfer_status"] = "completed"
+    except Exception as exc:
+        write_json(
+            receipt_path, {**result, "transfer_status": "failed", "error_type": type(exc).__name__}
+        )
+        raise
+    write_json(receipt_path, result)
     destination = os.environ.get("GITHUB_OUTPUT")
     if destination:
         with Path(destination).open("a", encoding="utf-8") as stream:
@@ -669,6 +783,7 @@ def archive_bundle(contract_text: str, output: Path, *, shard_id: str) -> dict[s
             ):
                 value = result[key]
                 stream.write(f"{key}={str(value).lower() if isinstance(value, bool) else value}\n")
+            stream.write("evidence_manifest_json=" + manifest_json + "\n")
     return result
 
 
@@ -677,19 +792,19 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    guard_parser = commands.add_parser("dispatch-guard", help="拒绝同 master 从空账本再次正式派发")
+    guard_parser.add_argument("--history", type=Path, required=True)
+    guard_parser.add_argument("--master-sha256", required=True)
+    guard_parser.add_argument("--run-id", type=int, required=True)
     generate_parser = commands.add_parser("generate")
     for name in ("plan", "bundle-directory", "output"):
         generate_parser.add_argument("--" + name, type=Path, required=True)
-    generate_parser.add_argument("--seed-sha256", required=True)
-    generate_parser.add_argument("--seed-file", default="")
-    generate_parser.add_argument("--seed-artifact", default="")
-    generate_parser.add_argument("--seed-run-id", default="")
+    generate_parser.add_argument("--seed-manifest", type=Path, required=True)
     for name in ("restore", "execute", "archive", "merge"):
         sub = commands.add_parser(name)
         sub.add_argument("--contract", default=None)
         if name == "restore":
-            sub.add_argument("--archive", type=Path, required=True)
-            sub.add_argument("--sha256", required=True)
+            sub.add_argument("--download-dir", type=Path, required=True)
         if name in {"execute", "archive"}:
             sub.add_argument("--shard-id", required=True)
         if name == "execute":
@@ -705,15 +820,32 @@ def main() -> int:
             sub.add_argument("--previous-ledger-sha256", required=True)
     args = parser.parse_args()
     try:
+        if args.command == "dispatch-guard":
+            try:
+                guard_study_dispatch(
+                    json.loads(args.history.read_text(encoding="utf-8")),
+                    args.master_sha256,
+                    args.run_id,
+                )
+            except (OSError, ValueError, TypeError):
+                print(
+                    json.dumps(
+                        {
+                            "dispatch_allowed": False,
+                            "reason": "history_unconfirmed_or_master_already_dispatched",
+                            "prefix_resume_supported": False,
+                        }
+                    )
+                )
+                return 2
+            print(json.dumps({"dispatch_allowed": True, "master_sha256": args.master_sha256}))
+            return 0
         if args.command == "generate":
             generate(
                 args.plan,
                 args.bundle_directory,
                 args.output,
-                seed_sha256=args.seed_sha256,
-                seed_file=args.seed_file,
-                seed_artifact=args.seed_artifact,
-                seed_run_id=args.seed_run_id,
+                seed_manifest=args.seed_manifest,
             )
             return 0
         text = args.contract or os.environ["SAYACODE_STUDY_CONTRACT"]
@@ -731,7 +863,12 @@ def main() -> int:
             )
             if current != contract["public_source_sha"]:
                 raise ValueError("public source SHA 不同")
-            restore_archive(args.archive, Path(contract["bundle_root"]), args.sha256)
+            manifest = json.loads(os.environ["SAYACODE_EVIDENCE_MANIFEST"])
+            _manifest_json(manifest, contract["evidence_release"])
+            archive = download_archive(
+                manifest, **_release(contract["evidence_release"]), output_dir=args.download_dir
+            )
+            restore_archive(archive, Path(contract["bundle_root"]), manifest["archive_sha256"])
             load_contract(text)
         elif args.command == "execute":
             value = execute(

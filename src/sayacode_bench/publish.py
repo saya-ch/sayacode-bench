@@ -14,11 +14,13 @@ from urllib.parse import parse_qsl, urlsplit
 from .artifacts import file_sha256, read_json, report_manifest, write_json
 from .connections import CANONICAL_MODEL
 from .study import phase_summary
+from .worker import NATIVE_USAGE_REASONS
 
 _EVIDENCE = (
     "raw_job_result",
     "raw_trial_result",
     "worker_result",
+    "usage_details",
     "replay_raw_trial_result",
     "patch",
     "runtime",
@@ -248,6 +250,44 @@ def _profile(value: Any) -> dict[str, Any]:
     return result
 
 
+def _cache_summary(value: Any) -> dict[str, Any]:
+    """只公开验证后的有限摘要；逐 run 身份、响应与路径不进入发布物。"""
+    source = _object(value)
+    if source.get("collector") != "langchain_callback_usage_v1" or source.get("status") not in {
+        "complete",
+        "unavailable",
+        "invalid",
+    }:
+        raise ValueError("cache 旁证来源或状态无效")
+    reason = source.get("reason")
+    if reason is not None and (not isinstance(reason, str) or reason not in NATIVE_USAGE_REASONS):
+        raise ValueError("cache 原因必须为安全状态枚举")
+    result = {
+        "collector": source["collector"],
+        "status": source["status"],
+        "reason": reason,
+        "audit_sha256": _digest(source.get("audit_sha256")),
+    }
+    for key in (
+        "model_calls",
+        "matched_calls",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "cache_read_input_tokens",
+        "cache_creation_input_tokens",
+    ):
+        if key in source:
+            number = _scalar(source[key], int)
+            if number is not None and number < 0:
+                raise ValueError("cache 计数不能为负数")
+            result[key] = number
+    if type(source.get("coverage_complete")) is not bool:
+        raise ValueError("cache 覆盖状态必须为布尔值")
+    result["coverage_complete"] = source["coverage_complete"]
+    return result
+
+
 def public_record(record: dict[str, Any]) -> dict[str, Any]:
     """保留可重算统计和证据哈希；任意新增私有字段默认不进入发布物。"""
     if record.get("canonical_model") != CANONICAL_MODEL:
@@ -289,6 +329,8 @@ def public_record(record: dict[str, Any]) -> dict[str, Any]:
     )
     if "cost_usd" in usage:
         result["usage"]["cost_usd"] = _scalar(usage["cost_usd"], float)
+    if "cache_usage" in record:
+        result["cache_usage"] = _cache_summary(record["cache_usage"])
     evidence = {}
     for key in _EVIDENCE:
         value = record.get(key)
@@ -310,7 +352,8 @@ def export_results(manifest_path: Path, records_path: Path, output: Path) -> dic
     sanitized = [public_record(row) for row in records]
     report = {
         key: value
-        for key, value in phase_summary(manifest, sanitized).items()
+        # 金融旁证必须在私有原始路径仍存在时重验；公开层随后只保留白名单与哈希。
+        for key, value in phase_summary(manifest, records).items()
         if key in _REPORT_FIELDS
     }
     budget = report.get("paid_budget")

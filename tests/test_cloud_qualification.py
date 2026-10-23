@@ -51,6 +51,9 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> SimpleNamespace:
         preparation,
         {
             "passed": True,
+            "repository": module.PUBLIC_REPOSITORY,
+            "role": "public_official_controls_host_preparation",
+            "controls_only": True,
             "runner_image": COHORT,
             "script_sha256": file_sha256(module.ROOT / "scripts/prepare_cloud_runner.py"),
         },
@@ -163,7 +166,7 @@ def test_first_batch_restore_next_batch_and_final_selection_keep_native_paths(
     assert final["complete"] is True
     assert final["model_requests"] == 0 and final["formal_execution_authorized"] is False
     assert final["cloud_artifact_deletion_performed"] is False
-    assert "500 MB" in final["storage_note"]
+    assert "不消耗私有 2000" in final["storage_note"]
     assert Path(final["selection_path"]).is_file() and Path(final["sanity_path"]).is_file()
 
 
@@ -361,7 +364,7 @@ def test_partial_is_distinct_from_qualification_success_in_exit_contract(
     error: str | None,
     expected: int,
 ) -> None:
-    monkeypatch.setattr(module, "require_hosted_runner", lambda: None)
+    monkeypatch.setattr(module, "require_public_repository", lambda _: None)
     monkeypatch.setattr(module, "verify_source", lambda *_: None)
     monkeypatch.setattr(module, "bundle_root", lambda _: tmp_path / "new")
     monkeypatch.setattr(module, "initialize", lambda *_: {})
@@ -414,6 +417,8 @@ def test_partial_is_distinct_from_qualification_success_in_exit_contract(
             "probe.json",
             "--deadline-epoch",
             "19800",
+            "--repository-metadata",
+            "public-repo.json",
             "--first-batch-history",
             str(history),
             "--run-number",
@@ -423,13 +428,13 @@ def test_partial_is_distinct_from_qualification_success_in_exit_contract(
     assert module.main() == expected
 
 
-def test_template_is_manual_private_pinned_no_model_secret_or_automatic_next_batch() -> None:
+def test_template_is_manual_public_only_pinned_without_model_secret_or_automatic_next_batch() -> (
+    None
+):
     text = module.WORKFLOW.read_text(encoding="utf-8")
     value = yaml.load(text, Loader=yaml.BaseLoader)
     assert set(value["on"]) == {"workflow_dispatch"}
-    assert (
-        value["on"]["workflow_dispatch"]["inputs"]["acknowledge_free_actions"]["default"] == "false"
-    )
+    assert value["on"]["workflow_dispatch"]["inputs"]["acknowledge_execution"]["default"] == "false"
     assert value["on"]["workflow_dispatch"]["inputs"]["max_new_controls"]["default"] == "4"
     assert value["jobs"]["qualify"]["timeout-minutes"] == "360"
     steps = value["jobs"]["qualify"]["steps"]
@@ -444,6 +449,11 @@ def test_template_is_manual_private_pinned_no_model_secret_or_automatic_next_bat
     assert text.count("gh api") == 3 and "--paginate --slurp" in text
     assert value["run-name"] == "qualification ${{ inputs.study_id }}"
     assert value["concurrency"]["group"] == "qualification-${{ inputs.study_id }}"
+    assert value["permissions"] == {"contents": "read", "actions": "read"}
+    assert "github.repository == 'saya-ch/sayacode-bench'" in value["jobs"]["qualify"]["if"]
+    assert "saya-ch/sayacode-bench-runs" not in text
+    assert text.count("d.get('private') is False") == 2
+    assert "--controls-only" in text
 
 
 def test_current_entry_failure_cannot_inherit_previous_batch_continuation(
@@ -476,7 +486,7 @@ def test_source_failure_records_only_this_invocation_and_preserves_prior_report(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     report = tmp_path / "entry.json"
-    monkeypatch.setattr(module, "require_hosted_runner", lambda: None)
+    monkeypatch.setattr(module, "require_public_repository", lambda _: None)
     monkeypatch.setattr(module, "bundle_root", lambda _: tmp_path / "unused")
 
     def fail(*_: Any) -> None:
@@ -505,6 +515,8 @@ def test_source_failure_records_only_this_invocation_and_preserves_prior_report(
             "probe.json",
             "--deadline-epoch",
             "19800",
+            "--repository-metadata",
+            "public-repo.json",
             "--entry-report",
             str(report),
         ],
@@ -577,3 +589,60 @@ def test_real_module_entrypoint_works_without_pytest_pythonpath() -> None:
     assert "run" in result.stdout and "archive" in result.stdout
     assert "ModuleNotFoundError" not in result.stderr
     assert "python -m scripts.qualify_cloud" in module.WORKFLOW.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "project",
+    [
+        {"full_name": "saya-ch/sayacode-bench-runs", "private": True, "visibility": "private"},
+        {"full_name": "saya-ch/sayacode-bench", "private": True, "visibility": "private"},
+        {"full_name": "another/public", "private": False, "visibility": "public"},
+    ],
+)
+def test_public_qualification_rejects_private_model_or_wrong_repository_before_upload(
+    tmp_path: Path, monkeypatch: Any, project: dict[str, Any]
+) -> None:
+    monkeypatch.setattr(module, "require_hosted_runner", lambda **_: None)
+    metadata = tmp_path / "repository.json"
+    write_json(metadata, project)
+    with pytest.raises(ValueError):
+        module.require_public_repository(metadata)
+
+
+def test_public_qualification_accepts_only_explicit_public_controls_host(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    calls = []
+    monkeypatch.setattr(module, "require_hosted_runner", lambda **kwargs: calls.append(kwargs))
+    metadata = tmp_path / "repository.json"
+    write_json(
+        metadata, {"full_name": module.PUBLIC_REPOSITORY, "private": False, "visibility": "public"}
+    )
+    module.require_public_repository(metadata)
+    assert calls == [{"controls_only": True}]
+
+
+def test_public_archive_refuses_private_or_model_bundle(
+    experiment: SimpleNamespace, tmp_path: Path
+) -> None:
+    path = experiment.bundle / "inputs/cloud-plan.json"
+    plan = read_json(path)
+    plan["execution_repository"] = "saya-ch/sayacode-bench-runs"
+    write_json(path, plan)
+    with pytest.raises(ValueError, match="私有或模型"):
+        module.pack_bundle(experiment.bundle, tmp_path / "must-not-upload")
+    assert not (tmp_path / "must-not-upload").exists()
+
+
+def test_public_artifact_scope_contains_only_fixed_official_material(
+    experiment: SimpleNamespace,
+) -> None:
+    plan = experiment.plan
+    assert plan["execution_repository"] == module.PUBLIC_REPOSITORY
+    assert plan["public_artifact_scope"] == list(module.PUBLIC_ARTIFACT_SCOPE)
+    assert plan["model_requests_planned"] == 0 and plan["formal_execution_authorized"] is False
+    assert not {"product_wheel", "profile", "paid_budget", "private_home"} & set(plan)
+    assert (
+        "4 CPU/16 GiB" in plan["host_hardware_boundary"]
+        and "2 CPU/8 GiB" in plan["host_hardware_boundary"]
+    )

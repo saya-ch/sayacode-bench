@@ -18,27 +18,33 @@ from sayacode_bench.artifacts import write_json
 PREINSTALLED_TOOLCHAINS = (Path("/usr/local/lib/android"), Path("/usr/share/dotnet"))
 
 
-def require_hosted_runner() -> None:
+def require_hosted_runner(*, controls_only: bool = False) -> None:
+    expected = "saya-ch/sayacode-bench" if controls_only else "saya-ch/sayacode-bench-runs"
     if (
-        platform.system() != "Linux"
+        type(controls_only) is not bool
+        or platform.system() != "Linux"
         or os.environ.get("GITHUB_ACTIONS") != "true"
         or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
         or os.environ.get("RUNNER_OS") != "Linux"
-        or os.environ.get("GITHUB_REPOSITORY") != "saya-ch/sayacode-bench-runs"
+        or os.environ.get("GITHUB_REPOSITORY") != expected
     ):
-        raise ValueError("仅允许指定私有仓库的全新 GitHub Linux 托管 VM")
+        raise ValueError("仅允许当前调用场景指定仓库的全新 GitHub Linux 托管 VM")
 
 
-def prepare(output: Path) -> dict[str, Any]:
+def prepare(output: Path, *, controls_only: bool = False) -> dict[str, Any]:
     """不调用模型、不修改镜像；保存宿主准备前后真实空闲空间。"""
-    require_hosted_runner()
+    require_hosted_runner(controls_only=controls_only)
     temporary = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
     output = output.resolve()
     if not output.is_relative_to(temporary) or output == temporary:
         raise ValueError("宿主准备记录必须位于本 job 临时目录")
     evidence: dict[str, Any] = {
         "schema_version": 1,
-        "role": "ephemeral_host_preparation_not_task_environment_change",
+        "role": "public_official_controls_host_preparation"
+        if controls_only
+        else "ephemeral_host_preparation_not_task_environment_change",
+        "repository": os.environ["GITHUB_REPOSITORY"],
+        "controls_only": controls_only,
         "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "runner_image": {
             key: os.environ.get(key) for key in ("ImageOS", "ImageVersion", "RUNNER_ARCH")
@@ -82,9 +88,14 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--controls-only",
+        action="store_true",
+        help="仅公开资格控制的宿主准备，不授权模型或数据发布",
+    )
     args = parser.parse_args()
     try:
-        prepare(args.output)
+        prepare(args.output, controls_only=args.controls_only)
         return 0
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         # 不打印底层命令正文、环境或任意本机路径。

@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "kind": "two_task_cloud_resource_and_model_calibration",
+  "github_run_id": 39801497042,
+  "github_url": "https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39801497042",
+  "public_source_sha": "9f470753d3b129327c0f6af0e9981b0590ead69a",
+  "overall_workflow_conclusion": "failure",
+  "phase": "calibration",
+  "formal_benchmark_result": false,
+  "candidate_selected": false,
+  "canonical_model": "DeepSeek-V4.1-Flash",
+  "tasks": [
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "status": "completed",
+      "record_complete": true,
+      "verified": true,
+      "success": true,
+      "original_reward": 1.0,
+      "replay_reward": 1.0,
+      "duration_seconds": 497.186613,
+      "usage_complete": true,
+      "input_tokens": 925914,
+      "output_tokens": 18600,
+      "task_count": 0,
+      "child_roles": [],
+      "runtime_comparison": {
+        "same_image": true,
+        "same_platform": true,
+        "same_resources": true
+      },
+      "request_sha256": "6054029db1529be3d038e66e30390b2d5e5715ea19d7d594c36ec0766037b390",
+      "model_usage": {
+        "model_calls": 34,
+        "reported_calls": 34,
+        "missing_usage_calls": 0,
+        "damaged_audit_lines": 0,
+        "total_tokens": 944514
+      },
+      "fixture": "qutebrowser",
+      "controls_passed": true,
+      "controls_complete": true,
+      "control_oracle_runs": 3,
+      "control_nop_runs": 1,
+      "cleanup_confirmed": true,
+      "records_sha256": "69e39fa9eda9c84b2bd393cbceb6a55d3d421435835a61d639a65c9eb23c32e3"
+    },
+    {
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "status": "completed",
+      "record_complete": true,
+      "verified": true,
+      "success": false,
+      "original_reward": 0.0,
+      "replay_reward": 0.0,
+      "duration_seconds": 838.904671,
+      "usage_complete": false,
+      "input_tokens": 1058058,
+      "output_tokens": 20147,
+      "task_count": 0,
+      "child_roles": [],
+      "runtime_comparison": {
+        "same_image": true,
+        "same_platform": true,
+        "same_resources": true
+      },
+      "request_sha256": "7b03121a7fba67e9479bb98b05ef216f2a25f9991052717aaa620dbdd753e02f",
+      "model_usage": {
+        "model_calls": 37,
+        "reported_calls": 36,
+        "missing_usage_calls": 1,
+        "damaged_audit_lines": 0,
+        "total_tokens": 1078205
+      },
+      "fixture": "ansible",
+      "controls_passed": true,
+      "controls_complete": true,
+      "control_oracle_runs": 3,
+      "control_nop_runs": 1,
+      "cleanup_confirmed": true,
+      "records_sha256": "abf491c9a7a3bd24b0b7db1fb0d2fcaa7314601210ff57e095e6d02f5e1c46c9"
+    }
+  ],
+  "accounting_failure": {
+    "cross_vm_source_path_collision": true,
+    "different_request_sha256": true,
+    "failed_callback_status": 503,
+    "failed_callback_missing_usage": 1,
+    "failure_usage_filled_with_zero": false,
+    "original_records_rewritten": false
+  },
+  "billing_observation": {
+    "observed_at_utc": "2026-10-22T16:23:48.853633+00:00",
+    "budget_start_utc": "2026-10-22T13:24:34Z",
+    "rows_in_budget_scope": 60,
+    "supplier_billed_quantities": {
+      "cached_input": {
+        "tokens": 1871744,
+        "unit_rate_cny_per_k_tokens": "0.00004"
+      },
+      "uncached_input": {
+        "tokens": 112228,
+        "unit_rate_cny_per_k_tokens": "0.002"
+      },
+      "output": {
+        "tokens": 38747,
+        "unit_rate_cny_per_k_tokens": "0.008"
+      }
+    },
+    "calculated_nominal_cny_from_displayed_units_and_rates": "0.60930176",
+    "successful_callback_input_tokens": 1983972,
+    "successful_callback_output_tokens": 38747,
+    "billed_input_equals_successful_callback_input": true,
+    "billed_output_equals_successful_callback_output": true,
+    "per_failure_zero_charge_guarantee": false
+  },
+  "boundaries": [
+    "两道既有固定校准题各一次，不是代表性 benchmark 分母，不估计完整榜单成功率。",
+    "实际生产 wheel、原生 Harbor source 与独立 pristine 结果保留；整体 workflow 失败不抹除已完成任务及判分事实。",
+    "未观察到子任务，不声称 multi-agent 收益。",
+    "账单核对是当前展示区间数量与标价核对，不是每次失败请求免费保证或发票。",
+    "原始对话、COT、Store、私有配置和账单标识不进入本报告。"
+  ]
+}

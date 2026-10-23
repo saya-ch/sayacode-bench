@@ -88,6 +88,25 @@ def _verify_variant_files(
     return result
 
 
+def _financially_confirmed(manifest: dict[str, Any], rows: list[dict[str, Any]]) -> None:
+    if manifest.get("paid_budget") is None:
+        return
+    # 函数内导入避免 study 的最终候选复核形成模块循环。
+    from .study import paid_budget_report
+
+    try:
+        report = paid_budget_report(manifest, rows)
+        confirmed = (
+            report is not None
+            and report.get("evidence_valid") is True
+            and report.get("usage_complete") is True
+        )
+    except (OSError, ValueError, KeyError, TypeError):
+        confirmed = False
+    if not confirmed:
+        raise ValueError("开发费用证据无效或用量未知，不能签收候选")
+
+
 def lock_candidate(
     dev_manifest_path: Path,
     records_path: Path,
@@ -106,6 +125,7 @@ def lock_candidate(
     if any((records_path.parent / name).exists() for name in ("abort.json", "invalid.json")):
         raise ValueError("开发批次已中止或失效，不能锁定候选")
     rows = _records(records_path)
+    _financially_confirmed(manifest, rows)
     selection = select_development_candidate(manifest, rows)
     if selection.get("status") != "selected" or selection.get("selected") is None:
         raise ValueError("开发结果缺失、未知或不可比较，不能锁定候选")
@@ -162,7 +182,9 @@ def validate_candidate_receipt(
         (sources["dev_records"].parent / name).exists() for name in ("abort.json", "invalid.json")
     ):
         raise ValueError("候选开发批次已中止或失效")
-    selection = select_development_candidate(manifest, _records(sources["dev_records"]))
+    rows = _records(sources["dev_records"])
+    _financially_confirmed(manifest, rows)
+    selection = select_development_candidate(manifest, rows)
     if selection.get("status") != "selected" or selection != receipt.get("selection"):
         raise ValueError("候选选择与冻结开发结果不一致")
     if (

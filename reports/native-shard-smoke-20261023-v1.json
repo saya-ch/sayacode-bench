@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "kind": "real_docker_native_shard_synthetic_smoke",
+  "github_run_id": 39809148360,
+  "github_url": "https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39809148360",
+  "public_source_sha": "1c4ed0bac9ffd55023875c517a327cf4869fd727",
+  "conclusion": "success",
+  "production_wheel_sha256": "7892afcd50bd0ee786ed3ea5ba73015af32da11cd3eeff5474ce7e64d039dffe",
+  "supplier_model_requests": 0,
+  "synthetic_http_sse": true,
+  "synthetic_usage": true,
+  "same_host_only": true,
+  "cross_vm_dag_verified": false,
+  "source_runs": 2,
+  "independent_pristine_runs": 2,
+  "strict_merge_complete": true,
+  "official_fixture_benchmark": false,
+  "formal_benchmark_result": false,
+  "cleanup": {
+    "cleanup_confirmed": true,
+    "new_resources_remaining": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "owned_image_remaining": false
+  },
+  "original_artifact_verification": {
+    "artifact_id": 12439561685,
+    "zip_size_bytes": 25295054,
+    "sha256": "7cf42b30c73b8af656ffa9ad3aee60856f6e04ab40271b2551d02d48409aed8a",
+    "service_digest_match": true,
+    "extracted_files_verified": 11183
+  },
+  "boundary": "固定生产 wheel、真实 LangChain/LangGraph、真实文件工具、Harbor与官方PatchReplayAgent；本地合成 HTTP模型，不是 DeepSeek 或SWE能力分数。后续缓存callback变更须新smoke。"
+}

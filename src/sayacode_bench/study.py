@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal
@@ -133,14 +134,29 @@ def _records(path: Path) -> list[dict[str, Any]]:
 def _budget_arguments(policy: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(policy.get("paid_endpoints"), list):
         raise ValueError("付费连接必须为冻结的别名列表")
-    return {
+    arguments = {
         "paid_endpoints": tuple(policy["paid_endpoints"]),
         "input_cny_per_million": policy["input_cny_per_million"],
         "output_cny_per_million": policy["output_cny_per_million"],
     }
+    if policy.get("pricing_method") == "observed_cache_v1":
+        arguments.update(
+            pricing_method="observed_cache_v1",
+            cache_read_cny_per_million=policy["cache_read_cny_per_million"],
+        )
+    elif policy.get("pricing_method") not in {None, "full_input_peak_v1"}:
+        raise ValueError("未知的冻结计价方法")
+    return arguments
 
 
 def _check_budget_references(policy: dict[str, Any]) -> None:
+    if policy.get("pricing_method") == "observed_cache_v1" and (
+        policy.get("pricing_implementation_sha256")
+        != file_sha256(Path(__file__).with_name("budget.py"))
+        or policy.get("cache_semantics") != "input_includes_cache_read_and_creation_v1"
+        or policy.get("cache_evidence_collector") != "langchain_callback_usage_v1"
+    ):
+        raise ValueError("已冻结的缓存计价实现或语义发生变化")
     references = [policy["price_snapshot"], *policy["prior_records"]]
     for reference in references:
         if not isinstance(reference, dict) or not isinstance(reference.get("path"), str):
@@ -148,6 +164,44 @@ def _check_budget_references(policy: dict[str, Any]) -> None:
         path = Path(reference["path"]).resolve(strict=True)
         if file_sha256(path) != reference.get("sha256"):
             raise ValueError("已冻结的价格或历史费用记录发生变化")
+    if policy.get("pricing_method") == "observed_cache_v1":
+        snapshot = read_json(Path(policy["price_snapshot"]["path"]))
+        if (
+            snapshot.get("pricing_method") != "observed_cache_v1"
+            or any(
+                binding != snapshot.get("connection_requirements")
+                for binding in policy.get("connection_bindings", {}).values()
+            )
+            or policy.get("cache_read_cny_per_million")
+            != snapshot["conservative_estimation"].get("cache_read_cny_per_million")
+        ):
+            raise ValueError("缓存价格或连接绑定与已冻结快照不同")
+
+
+def _check_pricing_profiles(manifest: Mapping[str, Any], policy: Mapping[str, Any]) -> None:
+    if policy.get("pricing_method") != "observed_cache_v1":
+        return
+    profiles = manifest.get("connection_profiles")
+    bindings = policy.get("connection_bindings")
+    if (
+        not isinstance(profiles, Mapping)
+        or not isinstance(bindings, Mapping)
+        or set(bindings) != set(policy["paid_endpoints"])
+    ):
+        raise ValueError("观测缓存价格缺少真实付费连接绑定")
+    for alias, binding in bindings.items():
+        profile = profiles.get(alias)
+        if (
+            not isinstance(profile, Mapping)
+            or {
+                key: str(profile.get(key, "")).rstrip("/")
+                if key == "base_url"
+                else profile.get(key)
+                for key in ("protocol", "base_url", "model_id")
+            }
+            != binding
+        ):
+            raise ValueError("实际连接协议、地址或模型与冻结价格不一致")
 
 
 def _paid_inputs(manifest: dict[str, Any]) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
@@ -156,6 +210,7 @@ def _paid_inputs(manifest: dict[str, Any]) -> tuple[dict[str, Any] | None, list[
         return None, []
     if not isinstance(policy, dict) or not isinstance(policy.get("prior_records"), list):
         raise ValueError("paid_budget 必须包含冻结的历史记录列表")
+    _check_pricing_profiles(manifest, policy)
     _check_budget_references(policy)
     prior = [
         row for reference in policy["prior_records"] for row in _records(Path(reference["path"]))
@@ -179,6 +234,7 @@ def freeze_paid_budget(
     price_snapshot: Path | None = None,
     prior_records: list[Path] | None = None,
     paid_endpoints: list[str] | None = None,
+    connection_profiles: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """只冻结显式授权的金额；价格和全部先前阶段记录以路径及内容哈希绑定。"""
     if limit_cny is None:
@@ -197,6 +253,9 @@ def freeze_paid_budget(
     if str(snapshot.get("model_id", "")).split("/")[-1] != CANONICAL_MODEL:
         raise ValueError("价格快照与研究模型不同")
     prices = snapshot["conservative_estimation"]
+    observed = snapshot.get("pricing_method") == "observed_cache_v1"
+    if snapshot.get("pricing_method") not in {None, "full_input_peak_v1", "observed_cache_v1"}:
+        raise ValueError("不支持的价格快照计价方法")
     if not isinstance(prices, dict) or prices.get("cache_discount_applied") is not False:
         raise ValueError("本研究必须使用忽略缓存优惠的固定高档费率")
     tariffs = snapshot.get("rates")
@@ -212,6 +271,15 @@ def freeze_paid_budget(
         row["input_cny_per_million"] for row in checked
     ) or prices["output_cny_per_million"] != max(row["output_cny_per_million"] for row in checked):
         raise ValueError("保守估价必须采用快照中的最高输入和输出单价")
+    if observed and (
+        prices.get("cache_read_cny_per_million") != max(row["input_cache_hit"] for row in tariffs)
+        or snapshot.get("cache_write_price") is not None
+        or snapshot.get("cache_semantics") != "input_includes_cache_read_and_creation_v1"
+        or snapshot.get("cache_evidence_collector") != "langchain_callback_usage_v1"
+        or snapshot.get("pricing_implementation_sha256")
+        != file_sha256(Path(__file__).with_name("budget.py"))
+    ):
+        raise ValueError("观测缓存计价必须冻结最高读取费率、原生语义与当前实现")
     references = []
     for prior in sorted({item.resolve(strict=True) for item in prior_records or []}):
         references.append({"path": str(prior), "sha256": file_sha256(prior)})
@@ -226,7 +294,25 @@ def freeze_paid_budget(
         "prior_records": references,
         "provider_enforced_currency_cap": False,
     }
-    _paid_inputs({"paid_budget": policy})
+    if observed:
+        requirements = snapshot.get("connection_requirements")
+        aliases = policy["paid_endpoints"]
+        if (
+            not isinstance(requirements, dict)
+            or set(requirements) != {"protocol", "base_url", "model_id"}
+            or not isinstance(connection_profiles, Mapping)
+        ):
+            raise ValueError("观测缓存快照必须声明实际协议、地址和模型，且提供连接配置")
+        policy.update(
+            pricing_method="observed_cache_v1",
+            cache_read_cny_per_million=prices["cache_read_cny_per_million"],
+            cache_creation_cny_per_million=None,
+            cache_semantics=snapshot["cache_semantics"],
+            cache_evidence_collector=snapshot["cache_evidence_collector"],
+            pricing_implementation_sha256=snapshot["pricing_implementation_sha256"],
+            connection_bindings={alias: dict(requirements) for alias in aliases},
+        )
+    _paid_inputs({"paid_budget": policy, "connection_profiles": connection_profiles})
     return policy
 
 
@@ -245,6 +331,7 @@ def paid_budget_report(
     assert isinstance(policy, dict) and prior_records is not None
     evidence_valid = True
     try:
+        _check_pricing_profiles(manifest, policy)
         _check_budget_references(policy)
     except (OSError, ValueError):
         evidence_valid = False
@@ -313,9 +400,20 @@ def phase_summary(
                 "provider_enforced_currency_cap": False,
             }
         summary["paid_budget"] = budget
-        if budget and not budget["evidence_valid"]:
+        if budget and (
+            not budget["evidence_valid"]
+            or manifest["paid_budget"].get("pricing_method") == "observed_cache_v1"
+            and not budget["usage_complete"]
+        ):
             summary["validity_issues"] = sorted(
-                set([*summary["validity_issues"], "paid_budget_evidence_invalid"])
+                set(
+                    [
+                        *summary["validity_issues"],
+                        "paid_budget_evidence_invalid"
+                        if not budget["evidence_valid"]
+                        else "paid_usage_incomplete",
+                    ]
+                )
             )
             for field in (
                 "formal_comparison_eligible",

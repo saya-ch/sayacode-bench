@@ -19,7 +19,7 @@ from .execution import run_official_trial
 from .gates import TASK_IDENTITIES, validate_preflight
 from .locking import lock_candidate, validate_candidate_receipt
 from .selection import select_tasks, write_manifest
-from .shards import freeze_execution_plan, merge_shards, run_shard
+from .shards import freeze_execution_plan, merge_shards, qualification_host_cohort, run_shard
 from .sources import SOURCES, build_catalog, fetch_source
 from .study import freeze_paid_budget, phase_summary, run_phase
 
@@ -96,6 +96,18 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("必须声明基线、正重复数和正用量阈值")
     tasks = selection["dev" if args.phase == "dev" else "holdout"]
     gate = read_json(args.sanity)
+    qualified_cohort = qualification_host_cohort(gate)
+    cloud_plan_path = args.sanity.parent.parent / "inputs/cloud-plan.json"
+    if cloud_plan_path.exists():
+        cloud_plan = read_json(cloud_plan_path)
+        if (
+            qualified_cohort is None
+            or qualified_cohort != cloud_plan.get("host_cohort")
+            or cloud_plan.get("phase") != "cloud_fixture_qualification"
+            or gate.get("qualification_host_scope", {}).get("cloud_plan_sha256")
+            != file_sha256(cloud_plan_path)
+        ):
+            raise ValueError("云端资格门禁缺少与原始 cloud-plan 一致的宿主来源")
     probe = read_json(args.network_probe)
     validate_preflight(
         gate, probe, benchmark=tasks[0]["benchmark"], revision=tasks[0]["revision"], tasks=tasks
@@ -145,6 +157,10 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         "validity_issues": [],
         "scope": "固定公开子集和本地网络实现，不宣称官方完整榜单成绩",
     }
+    if qualified_cohort is not None:
+        manifest["qualification_host_cohort"] = qualified_cohort
+        if "qualification_host_scope" in gate:
+            manifest["qualification_host_scope"] = gate["qualification_host_scope"]
     if any(
         not isinstance(identity, dict)
         or identity.get("available") is not True
@@ -158,6 +174,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         price_snapshot=getattr(args, "paid_price_snapshot", None),
         prior_records=getattr(args, "prior_records", None),
         paid_endpoints=getattr(args, "paid_endpoint", None),
+        connection_profiles=profiles,
     )
     if paid_budget is not None:
         manifest["paid_budget"] = paid_budget

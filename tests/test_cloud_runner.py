@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import platform
+import shutil
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -15,7 +18,7 @@ from scripts import prepare_cloud_runner as runner
 
 @pytest.fixture
 def hosted(tmp_path: Path, monkeypatch: Any) -> Path:
-    monkeypatch.setattr(runner.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
     for key, value in {
         "GITHUB_ACTIONS": "true",
         "RUNNER_ENVIRONMENT": "github-hosted",
@@ -46,7 +49,7 @@ def test_other_hosts_refused_before_writing(
 
 
 def test_actual_windows_cannot_be_enabled_by_environment(hosted: Path, monkeypatch: Any) -> None:
-    monkeypatch.setattr(runner.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
     with pytest.raises(ValueError):
         runner.prepare(hosted / "evidence.json")
 
@@ -72,8 +75,8 @@ def test_only_named_toolchains_removed_and_actual_space_recorded(
         calls.append(arguments[-1])
         Path(arguments[-1]).rmdir()
 
-    monkeypatch.setattr(runner.subprocess, "run", remove)
-    monkeypatch.setattr(runner.shutil, "disk_usage", lambda _: SimpleNamespace(free=123456))
+    monkeypatch.setattr(subprocess, "run", remove)
+    monkeypatch.setattr(shutil, "disk_usage", lambda _: SimpleNamespace(free=123456))
     output = hosted / "evidence/runner.json"
     result = runner.prepare(output)
     assert result["passed"] is True
@@ -91,7 +94,7 @@ def test_removal_failure_leaves_partial_evidence(hosted: Path, monkeypatch: Any)
     def fail(*args: Any, **kwargs: Any) -> None:
         raise OSError("host preparation failed")
 
-    monkeypatch.setattr(runner.subprocess, "run", fail)
+    monkeypatch.setattr(subprocess, "run", fail)
     output = hosted / "evidence.json"
     with pytest.raises(OSError):
         runner.prepare(output)
@@ -112,3 +115,23 @@ def test_every_cloud_job_prepares_before_any_image_input() -> None:
         "/usr/local/lib/android",
         "/usr/share/dotnet",
     )
+
+
+def test_public_controls_use_same_prepare_helper_and_private_default_stays_closed(
+    hosted: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setenv("GITHUB_REPOSITORY", "saya-ch/sayacode-bench")
+    monkeypatch.setattr(runner, "PREINSTALLED_TOOLCHAINS", ())
+    with pytest.raises(ValueError):
+        runner.prepare(hosted / "default-refused.json")
+    result = runner.prepare(hosted / "public.json", controls_only=True)
+    assert result["repository"] == "saya-ch/sayacode-bench"
+    assert result["controls_only"] is True
+    assert result["role"] == "public_official_controls_host_preparation"
+    assert result["passed"] is True
+
+
+def test_private_repo_cannot_impersonate_public_controls(hosted: Path) -> None:
+    with pytest.raises(ValueError):
+        runner.prepare(hosted / "wrong-role.json", controls_only=True)
+    assert not (hosted / "wrong-role.json").exists()

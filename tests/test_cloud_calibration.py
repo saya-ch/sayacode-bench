@@ -678,6 +678,27 @@ def test_workflow_private_guard_frozen_source_and_safe_defaults() -> None:
     assert text.count("python-version: '3.13.12'") == 3
 
 
+def test_fresh_vm_result_paths_cannot_alias_paid_executions() -> None:
+    """不同 VM 的 RUNNER_TEMP 相同，输出身份仍须区分 run 与题目。"""
+    text = (ROOT / ".github/workflows/cloud-calibration.yml").read_text(encoding="utf-8")
+    workflow = yaml.load(text, Loader=yaml.BaseLoader)
+    records = []
+    for run_id in ("1001", "1002"):
+        for job in ("qutebrowser", "ansible"):
+            scripts = [step.get("run", "") for step in workflow["jobs"][job]["steps"]]
+            script = next(value for value in scripts if "calibrate_cloud.py run" in value)
+            assert '--output "$RUNNER_TEMP/evidence/model/$GITHUB_RUN_ID/$GITHUB_JOB"' in script
+            path = f"/home/runner/work/_temp/evidence/model/{run_id}/{job}/run/jobs/source"
+            records.append(usage(path))
+    estimate = cloud.estimate_paid_usage(records)
+    assert estimate["paid_model_calls"] == 4
+    assert estimate["usage_complete"] is True
+    assert (
+        '--cloud-prior-records "$RUNNER_TEMP/prior-cloud/model/$GITHUB_RUN_ID/qutebrowser/run/records.jsonl"'
+        in text
+    )
+
+
 @pytest.mark.parametrize("encoding", ["utf-8", "cp1252"])
 @pytest.mark.parametrize(
     "script,argument", [("calibrate_cloud.py", "--wheel"), ("diagnose_wheel.py", "--original")]

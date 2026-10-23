@@ -62,6 +62,8 @@ def _reply(payload: dict[str, Any], index: int) -> dict[str, Any]:
             }
         ]
         stop = "tool_use"
+    # Anthropic 原生 input_tokens 不含缓存；两轮归一化输入均保持 32。
+    cache_read = 2 if stop == "end_turn" else 0
     return {
         "id": f"msg_synthetic_{index}",
         "type": "message",
@@ -71,10 +73,10 @@ def _reply(payload: dict[str, Any], index: int) -> dict[str, Any]:
         "stop_reason": stop,
         "stop_sequence": None,
         "usage": {
-            "input_tokens": 32,
+            "input_tokens": 32 - cache_read,
             "output_tokens": 16,
             "cache_creation_input_tokens": 0,
-            "cache_read_input_tokens": 0,
+            "cache_read_input_tokens": cache_read,
         },
     }
 
@@ -448,6 +450,21 @@ async def test_real_production_graph_shards_with_local_anthropic_stub(monkeypatc
                 item["usage_complete"] is True and Path(item["patch"]["path"]).stat().st_size > 0
                 for item in rows
             )
+            for item in rows:
+                cache_usage = item["cache_usage"]
+                assert cache_usage["status"] == "complete"
+                assert cache_usage["coverage_complete"] is True
+                assert cache_usage["matched_calls"] == cache_usage["model_calls"] == 2
+                assert cache_usage["input_tokens"] == item["input_tokens"] == 64
+                assert cache_usage["output_tokens"] == item["output_tokens"] == 32
+                assert cache_usage["cache_read_input_tokens"] == 2
+                assert cache_usage["cache_creation_input_tokens"] == 0
+                details = item["usage_details"]
+                assert details["sha256"] == file_sha256(Path(details["path"]))
+                sidecar = read_json(Path(details["path"]))
+                assert sidecar["collector"] == "langchain_callback_usage_v1"
+                assert sidecar["status"] == "complete" and len(sidecar["calls"]) == 2
+                assert sidecar["audit_sha256"] == cache_usage["audit_sha256"]
             assert sum(item["usage"]["model_calls"] for item in rows) == len(http_records)
             assert (
                 len([item for item in http_records if item.get("reply_stop_reason") == "tool_use"])
@@ -456,6 +473,8 @@ async def test_real_production_graph_shards_with_local_anthropic_stub(monkeypatc
             assert not merged["summary"]["formal_comparison_eligible"]
             assert not merged["summary"]["final_result_eligible"]
             estimate = estimate_paid_usage(rows, paid_endpoints=("stub",))
+            assert merged["summary"]["paid_budget"]["cache_discount_applied"] is False
+            assert estimate["cache_discount_applied"] is False
             assert (
                 merged["summary"]["paid_budget"]["known_estimate_cny"]
                 == estimate["known_estimate_cny"]
@@ -469,6 +488,7 @@ async def test_real_production_graph_shards_with_local_anthropic_stub(monkeypatc
                     "pristine_trials": 2,
                     "synthetic_usage_only": True,
                     "supplier_endpoint_configured": False,
+                    "native_usage_observer_verified": True,
                     "estimated_token_arithmetic": estimate,
                 },
             )
@@ -505,10 +525,18 @@ def test_canned_reply_uses_request_schema_and_waits_for_real_tool_result() -> No
     first = _reply(request, 1)
     assert first["stop_reason"] == "tool_use"
     assert first["content"][0]["input"] == {"path": "/app/answer.txt", "content": "42\n"}
+    assert first["usage"]["input_tokens"] == 32
+    assert first["usage"]["cache_read_input_tokens"] == 0
+    assert first["usage"]["cache_creation_input_tokens"] == 0
     request["messages"].append(
         {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "x", "content": "ok"}]}
     )
-    assert _reply(request, 2)["stop_reason"] == "end_turn"
+    second = _reply(request, 2)
+    assert second["stop_reason"] == "end_turn"
+    assert second["usage"]["input_tokens"] == 30
+    assert second["usage"]["cache_read_input_tokens"] == 2
+    assert second["usage"]["cache_creation_input_tokens"] == 0
+    assert second["usage"]["input_tokens"] + second["usage"]["cache_read_input_tokens"] == 32
 
 
 def test_canned_sse_has_native_anthropic_usage_and_tool_json_events() -> None:
@@ -527,7 +555,12 @@ def test_canned_sse_has_native_anthropic_usage_and_tool_json_events() -> None:
         ],
         "stop_reason": "tool_use",
         "stop_sequence": None,
-        "usage": {"input_tokens": 32, "output_tokens": 16},
+        "usage": {
+            "input_tokens": 30,
+            "output_tokens": 16,
+            "cache_read_input_tokens": 2,
+            "cache_creation_input_tokens": 0,
+        },
     }
     encoded = _sse(message).decode("utf-8")
     events = [
@@ -535,7 +568,12 @@ def test_canned_sse_has_native_anthropic_usage_and_tool_json_events() -> None:
         for line in encoded.splitlines()
         if line.startswith("data: ")
     ]
-    assert events[0]["message"]["usage"] == {"input_tokens": 32, "output_tokens": 0}
+    assert events[0]["message"]["usage"] == {
+        "input_tokens": 30,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+    }
     assert events[-2]["usage"]["output_tokens"] == 16
     assert events[-1]["type"] == "message_stop"
     assert json.loads(events[2]["delta"]["partial_json"]) == message["content"][0]["input"]

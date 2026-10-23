@@ -139,4 +139,12 @@ artifacts/
 
 参考：[GitHub runner 规格](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)、[Actions 限制](https://docs.github.com/en/actions/reference/limits)、[Billing usage API](https://docs.github.com/en/rest/billing/usage?apiVersion=2026-03-10)。
 
-原始 artifact 仅上传私有仓库，默认保留三天，应及时下载并核验。完整两题校准之后，再按实际成本和稳定性决定正式执行路由；它不会自动启动完整研究。正式 48 dev／96 holdout 的分片与汇总仍需独立实现、验证和冻结，本次没有扩大执行器或改变预注册样本数。
+原始 artifact 仅上传私有仓库，默认保留三天，应及时下载并核验。完整两题校准之后，再按实际成本和稳定性决定正式执行路由；它不会自动启动完整研究。正式 48 dev／最多 96 holdout 的分片与汇总现已另行接入，执行状态与边界见 [分片手册](sharded-execution.md)，预注册样本数不变。
+
+## 本轮实际结果及修复
+
+源提交 `9f470753d3b129327c0f6af0e9981b0590ead69a` 的实际 run `39801497042` 中，两题均完成三加一、生产 Agent 和独立 pristine 重判。qutebrowser 的 source／replay reward 均为 1，Ansible 均为 0；分别耗时约 497 与 839 秒，均没有子任务。
+
+整体 workflow 失败发生在汇总阶段：两个 fresh VM 的 `RUNNER_TEMP` 相同，生成了相同 source job 路径，但请求 SHA 不同，费用去重器按既定规则拒绝身份冲突。后续模板将模型输出固定为 `model/<GITHUB_RUN_ID>/<GITHUB_JOB>`，并同步更新 continuation 和跨题 prior 路径；原始旧 JSON 不改写，模型不为这项修复重跑。
+
+Ansible 还有一次 HTTP 503 回调未返回用量。70 次成功回调的输入／输出总数与只读供应商账单的展示计费数量一致；费用核对及其精度限制见 [费用记录](billing.md)。未知原始用量保持未知，两道校准题不能作为正式成功率或 multi-agent 增益证据。[最小事实报告](../reports/cloud-model-calibration-20261023-v3.json)

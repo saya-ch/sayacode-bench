@@ -427,7 +427,8 @@ async def qualify(
     receipts = {}
     for path in sorted((output / "qualifications").glob("*/qualification.json")):
         row = read_json(path)
-        task = indexed.get(row.get("task_id"))
+        task_id = row.get("task_id")
+        task = indexed.get(task_id) if isinstance(task_id, str) else None
         if task is None or row.get("task_identity") != digest(task.public_dict()):
             raise ValueError("恢复资格记录的任务身份不一致")
         restored = await qualify_one(

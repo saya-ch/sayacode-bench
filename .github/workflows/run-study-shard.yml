@@ -1,6 +1,8 @@
 # 复制到已核实的私有执行仓库；由冻结计划生成的 DAG 调用，不单独派发。
 # 模板 SHA 先写入 runner_policy，再冻结 plan；生成 DAG 不参与自引用。
-# 完整 raw bundle 每片累积；三天保留会占用实际配额，500 MB 免费存储不保证够用。
+# 完整 raw bundle 交给固定私有 draft Release；确认后 Actions 只保小型交接。
+# Release 失败或未确认时，Actions 仍保留当片原始现场三天。
+# Release 不在当前 Actions 500 MB 存储池不代表永久免费，账户零美元预算不变。
 # 不自动删除云 artifact。正式阶段仍需另获完整 scope、路由、费用与 Actions 授权。
 # 宿主 cohort 仅匹配 ImageOS/ImageVersion/RUNNER_ARCH，不保证同一 CPU、内核或模型版本。
 name: 冻结单片 source 与 pristine
@@ -16,16 +18,7 @@ on:
       shard_id:
         required: true
         type: string
-      seed_file:
-        default: ''
-        type: string
-      input_artifact:
-        default: ''
-        type: string
-      input_run_id:
-        default: ''
-        type: string
-      input_archive_sha256:
+      evidence_manifest_json:
         required: true
         type: string
       previous_receipt_sha256:
@@ -38,8 +31,8 @@ on:
       connection_keys_json:
         required: false
     outputs:
-      artifact_name:
-        value: ${{ jobs.run.outputs.artifact_name }}
+      evidence_manifest_json:
+        value: ${{ jobs.run.outputs.evidence_manifest_json }}
       archive_sha256:
         value: ${{ jobs.run.outputs.archive_sha256 }}
       receipt_sha256:
@@ -49,7 +42,7 @@ on:
       continuation_allowed:
         value: ${{ jobs.run.outputs.continuation_allowed }}
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   run:
@@ -57,7 +50,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     outputs:
-      artifact_name: study-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.shard_id || 'merged' }}
+      evidence_manifest_json: ${{ steps.archive.outputs.evidence_manifest_json }}
       archive_sha256: ${{ steps.archive.outputs.archive_sha256 }}
       receipt_sha256: ${{ steps.archive.outputs.receipt_sha256 }}
       ledger_sha256: ${{ steps.archive.outputs.ledger_sha256 }}
@@ -68,6 +61,7 @@ jobs:
       BUNDLE_ROOT: ${{ fromJSON(inputs.contract_json).bundle_root }}
       SHARD_ID: ${{ inputs.shard_id }}
       MODE: ${{ inputs.mode }}
+      SAYACODE_EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest_json }}
     steps:
       - name: 实时核实私有仓库、固定源码与首次执行
         env:
@@ -124,40 +118,13 @@ jobs:
           set -eu
           uv sync --frozen
           uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
-      - name: 从同一私有仓库下载前序或初始完整 bundle
-        if: inputs.input_artifact != ''
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: ${{ inputs.input_artifact }}
-          run-id: ${{ inputs.input_run_id }}
-          github-token: ${{ github.token }}
-          repository: saya-ch/sayacode-bench-runs
-          path: ${{ runner.temp }}/incoming
-      - name: 或使用私有执行仓库中的初始 tar
-        if: inputs.seed_file != ''
-        env:
-          SEED_FILE: ${{ inputs.seed_file }}
-        shell: bash
-        run: |
-          python - <<'PY'
-          import os,shutil
-          from pathlib import Path,PurePosixPath
-          relative=PurePosixPath(os.environ['SEED_FILE'])
-          assert not relative.is_absolute() and '..' not in relative.parts and '\\' not in str(relative)
-          root=(Path(os.environ['GITHUB_WORKSPACE'])/'execution').resolve()
-          source=root.joinpath(*relative.parts).resolve(strict=True)
-          assert source.is_relative_to(root) and source.is_file()
-          target=Path(os.environ['RUNNER_TEMP'])/'incoming'
-          target.mkdir(exist_ok=False)
-          shutil.copyfile(source,target/'bundle.tar.gz')
-          PY
-      - name: 按冻结绝对路径恢复并验证完整 bundle
+      - name: 从固定私有 draft Release 校验下载并按原路径恢复
         id: restore
         working-directory: bench
         env:
-          ARCHIVE_SHA: ${{ inputs.input_archive_sha256 }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: uv run --no-sync python -m scripts.generate_sharded_workflow restore --archive "$RUNNER_TEMP/incoming/bundle.tar.gz" --sha256 "$ARCHIVE_SHA"
+        run: uv run --no-sync python -m scripts.generate_sharded_workflow restore --download-dir "$RUNNER_TEMP/incoming"
       - name: 当前 runner 真实网络探针及清理验证
         if: inputs.mode == 'shard'
         working-directory: bench
@@ -203,8 +170,61 @@ jobs:
         id: archive
         if: always() && steps.restore.outcome == 'success'
         working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: uv run --no-sync python -m scripts.generate_sharded_workflow archive --output "$RUNNER_TEMP/archive" --shard-id "$SHARD_ID"
+      - name: Release 已确认时只保小型交接；失败仍保存本片原始现场
+        if: always() && steps.restore.outcome == 'success'
+        env:
+          RELEASE_TRANSFER_OUTCOME: ${{ steps.archive.outcome }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os,shutil
+          from pathlib import Path
+          temporary=Path(os.environ['RUNNER_TEMP'])
+          bundle=Path(os.environ['BUNDLE_ROOT'])
+          source=temporary/'archive'
+          target=temporary/'actions-evidence'
+          target.mkdir(exist_ok=False)
+          def copy_file(path, destination):
+              if path.is_file():
+                  destination.parent.mkdir(parents=True,exist_ok=True)
+                  shutil.copyfile(path,destination)
+          for name in ('evidence-manifest.json','archive-receipt.json'):
+              copy_file(source/name,target/name)
+          confirmed=False
+          try:
+              receipt=json.loads((source/'archive-receipt.json').read_text(encoding='utf-8'))
+              manifest=json.loads((source/'evidence-manifest.json').read_text(encoding='utf-8'))
+              confirmed=(os.environ.get('RELEASE_TRANSFER_OUTCOME')=='success'
+                  and receipt.get('transfer_status')=='completed'
+                  and receipt['archive_sha256']==manifest['archive_sha256']
+                  and receipt['archive_bytes']==manifest['archive_size'])
+          except (OSError,ValueError,KeyError,TypeError):
+              pass
+          shard=os.environ.get('SHARD_ID','')
+          if shard:
+              current=bundle/'shards'/shard
+              orchestration=bundle/'orchestration'/shard
+              if confirmed:
+                  for name in ('attempt.json','shard-receipt.json','run/summary.json','run/budget.json','run/progress.json','run/abort.json','run/invalid.json'):
+                      copy_file(current/name,target/'shards'/shard/name)
+                  for name in ('dispatch.json','network-probe.json','runner-preparation.json','image-preparation.json'):
+                      copy_file(orchestration/name,target/'orchestration'/shard/name)
+              else:
+                  for path,parent in ((current,'shards'),(orchestration,'orchestration')):
+                      if path.is_dir():
+                          shutil.copytree(path,target/parent/shard,symlinks=True)
+          else:
+              for name in ('manifest.json','summary.json','merge-receipt.json','missing.json','invalid.json'):
+                  copy_file(bundle/'merged/final'/name,target/'merged'/name)
+          (target/'evidence-policy.json').write_text(json.dumps({
+              'release_transfer_confirmed':confirmed,
+              'raw_current_shard_retained':bool(shard and not confirmed and current.is_dir()),
+          },ensure_ascii=False)+'\n',encoding='utf-8')
+          PY
       - name: 上传前再次核实仓库仍为私有
         id: guard
         if: always()
@@ -222,11 +242,11 @@ jobs:
           PY
           echo "private=true" >> "$GITHUB_OUTPUT"
       - name: 私有保留三天；额度与人工下载核验独立管理
-        if: always() && steps.guard.outputs.private == 'true' && steps.archive.outcome == 'success'
+        if: always() && steps.guard.outputs.private == 'true' && steps.restore.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: study-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.shard_id || 'merged' }}
-          path: ${{ runner.temp }}/archive/
+          path: ${{ runner.temp }}/actions-evidence/
           if-no-files-found: error
           retention-days: 3
       - name: 准备或恢复失败仍保存无密钥的本机诊断

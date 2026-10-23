@@ -1,6 +1,17 @@
 # 本地验证状态
 
-日期：2026-10-22。此文件区分基础设施验证与真实模型效果。
+更新：2026-10-23。此文件区分基础设施验证与真实模型效果；下方历史段落保留其当时的版本和边界。
+
+## 最新实际状态
+
+- `1c4ed0bac9ffd55023875c517a327cf4869fd727` 的 [四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39808430484)，Windows 本地对应 886 项通过、4 项明确跳过。未提交的后续修改不能借用该结果。
+- 真实原生容器分片 smoke [39809148360](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39809148360) 通过：固定生产 wheel、真实 LangChain／LangGraph 图、两次 source、两次官方 pristine 重放和严格归并。模型来自本地 HTTP/SSE 合成替身，供应商调用为零；它不是 DeepSeek 或 SWE 能力成绩，也不是跨 VM 完整 DAG 的执行证明。
+- 两题云端生产校准 [39801497042](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39801497042) 已完成实际任务和独立重判：qutebrowser 通过，Ansible 未通过；两题三次 oracle／一次 nop 的资格门禁均通过。总计 71 次模型回调，其中 70 次报告用量、1 次 HTTP 503 未报告。两题均未创建子任务。整体 workflow 因费用汇总身份冲突失败，原现场保留，不重跑模型掩盖失败。[最小事实](../reports/cloud-model-calibration-20261023-v3.json)
+- 当前供应商账单展示区间的计费 token 与 70 次成功回调精确对齐，按展示数量和单价计算名义消耗约 0.61 元；现金为零来自代金券抵扣，不能记作零成本。503 原始用量仍未知，历史费用核销方式待用户选择。[费用边界](billing.md)
+- 私有 draft Release 的本机真实上传／下载探针已通过服务端 digest 和整体 SHA 核验，使用三片合成材料；workflow token 的实际传输权限须由后续独立无模型 smoke 验证，不用本机 OAuth 探针替代。
+- 正式分片、原生 callback 缓存用量旁证、累计费用与公开发布复核正在完成新一轮实现验收。公开无模型资格入口与私有模型入口分开，正式 Secret 范围仍待用户确认。主要开发 48 次、最多最终 96 次及 Terminal 补充尚未开始，候选尚未选择。
+
+最新 Windows／Python 3.13 完整离线验收为 **1,012 通过、6 项明确跳过**：包括未启用的真实 Docker 测试、平台条件和未安装产品 LangChain 依赖的测试。原生产依赖环境的官方图用量测试另行通过；这不替代新的云端 Docker smoke。Ruff、格式、包内 MyPy、四个编排／资格脚本的显式包类型检查、九份工作流 actionlint 均通过。v7 协议新增分片、编排、资格入口与完整实现身份，10,000 次任务块 bootstrap、仓库簇敏感性、seed、样本数不变；旧协议不覆盖。
 
 ## 已有证据
 

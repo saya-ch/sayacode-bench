@@ -19,8 +19,9 @@ from typing import Any
 
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
 from sayacode_bench.network import docker
+from sayacode_bench.shards import qualification_host_cohort
 from scripts.diagnose_fixtures import pin_image
-from scripts.generate_sharded_workflow import STORAGE_NOTE, restore_archive
+from scripts.generate_sharded_workflow import restore_archive
 from scripts.prepare_cloud_runner import require_hosted_runner
 from scripts.qualify_fixtures import digest
 
@@ -33,6 +34,26 @@ COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 STUDY = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}\Z")
 HOST_FIELDS = ("ImageOS", "ImageVersion", "RUNNER_ARCH")
 MIN_DISK = 12 * 1024**3
+PUBLIC_REPOSITORY = "saya-ch/sayacode-bench"
+PUBLIC_ARTIFACT_SCOPE = (
+    "fixed_public_selection",
+    "official_public_MIT_task_snapshot",
+    "oracle_nop_native_logs",
+    "requested_and_actual_container_resources",
+    "public_actions_host_metadata",
+)
+HOST_BOUNDARY = "public standard host 4 CPU/16 GiB versus private 2 CPU/8 GiB; not identical hardware; official container CPU/RAM/swap remain unchanged and measured"
+
+
+def require_public_repository(metadata: Path) -> None:
+    require_hosted_runner(controls_only=True)
+    project = read_json(metadata)
+    if (
+        project.get("full_name") != PUBLIC_REPOSITORY
+        or project.get("private") is not False
+        or project.get("visibility") != "public"
+    ):
+        raise ValueError("公开资格材料只允许指定公开仓库；拒绝模型私有仓库")
 
 
 def archive_sha(path: Path) -> str:
@@ -123,6 +144,9 @@ def plan_identity(source_sha: str, expected_cohort: dict[str, str]) -> dict[str,
     return {
         "schema_version": 1,
         "phase": "cloud_fixture_qualification",
+        "execution_repository": PUBLIC_REPOSITORY,
+        "public_artifact_scope": list(PUBLIC_ARTIFACT_SCOPE),
+        "host_hardware_boundary": HOST_BOUNDARY,
         "public_source_sha": source_sha,
         "implementation": implementation_identity(),
         "initial_selection_sha256": INITIAL_SHA,
@@ -176,6 +200,9 @@ def preparation_issues(preparation: dict[str, Any], expected: dict[str, str]) ->
         preparation.get("passed") is not True
         or preparation.get("script_sha256") != file_sha256(ROOT / "scripts/prepare_cloud_runner.py")
         or preparation.get("runner_image") != expected
+        or preparation.get("repository") != PUBLIC_REPOSITORY
+        or preparation.get("controls_only") is not True
+        or preparation.get("role") != "public_official_controls_host_preparation"
     )
 
 
@@ -289,6 +316,33 @@ def call_qualifier(bundle: Path, log: Path, deadline: float) -> int:
     return result.returncode
 
 
+def bind_qualification_host(bundle: Path, plan: dict[str, Any]) -> dict[str, Any]:
+    """原生控制结果保持原样，只补上本次固定的公开宿主来源边界。"""
+    path = bundle / "qualification/sanity.json"
+    gate = read_json(path)
+    expected = {
+        "qualification_host_cohort": dict(plan["host_cohort"]),
+        "qualification_host_scope": {
+            key: plan[key]
+            for key in (
+                "execution_repository",
+                "public_source_sha",
+                "host_cohort_scope",
+                "host_cohort_exclusions",
+                "host_hardware_boundary",
+            )
+        }
+        | {"cloud_plan_sha256": file_sha256(bundle / "inputs/cloud-plan.json")},
+    }
+    qualification_host_cohort(expected)
+    for key, value in expected.items():
+        if key in gate and gate[key] != value:
+            raise ValueError("已有资格门禁的宿主来源与冻结计划冲突")
+    gate.update(expected)
+    write_json(path, gate)
+    return dict(gate)
+
+
 def run_batch(
     bundle: Path,
     plan: dict[str, Any],
@@ -337,7 +391,7 @@ def run_batch(
             raise ValueError("当前网络探针或清理未确认")
         task = next_task(bundle)
         if task is None:
-            sanity = read_json(bundle / "qualification/sanity.json")
+            sanity = bind_qualification_host(bundle, plan)
             status.update(
                 complete=sanity.get("complete") is True,
                 passed=sanity.get("passed") is True,
@@ -369,7 +423,7 @@ def run_batch(
             status["new_controls"] = _attempt_count(bundle) - before
             if rc not in {0, 1}:
                 raise ValueError("资格 CLI 异常退出")
-            sanity = read_json(bundle / "qualification/sanity.json")
+            sanity = bind_qualification_host(bundle, plan)
             reason = sanity.get("qualification", {}).get("reason")
             if sanity.get("complete") is True and sanity.get("passed") is True:
                 status.update(complete=True, passed=True, reason=None)
@@ -395,7 +449,12 @@ def run_batch(
 
 
 def pack_bundle(bundle: Path, output: Path, *, entry_report: Path | None = None) -> dict[str, Any]:
-    """完整保留原始控制日志与绝对路径；不裁剪、删除云端工件或推导模型授权。"""
+    """仅归档固定公开输入产生的资格材料；不复制私有 wheel/profile/账单。"""
+    if (
+        read_json(bundle / "inputs/cloud-plan.json").get("execution_repository")
+        != PUBLIC_REPOSITORY
+    ):
+        raise ValueError("拒绝将私有或模型 bundle 当作公开资格工件上传")
     if output.resolve().is_relative_to(bundle.resolve()):
         raise ValueError("tar 必须在 bundle 外部")
     output.mkdir(parents=True, exist_ok=False)
@@ -425,7 +484,9 @@ def pack_bundle(bundle: Path, output: Path, *, entry_report: Path | None = None)
         "selection_path": str(bundle / "qualification/selection.json"),
         "sanity_path": str(bundle / "qualification/sanity.json"),
         "retention_days": 3,
-        "storage_note": STORAGE_NOTE,
+        "public_artifact_scope": list(PUBLIC_ARTIFACT_SCOPE),
+        "host_hardware_boundary": HOST_BOUNDARY,
+        "storage_note": "公开标准 runner 资格控制不消耗私有 2000 分钟；公开工件三天保留，不保证平台永远免费，不自动删除。",
         "cloud_artifact_deletion_performed": False,
     }
     write_json(output / "bundle-manifest.json", result, exclusive=True)
@@ -444,6 +505,7 @@ def main() -> int:
         sub = commands.add_parser(name)
         sub.add_argument("--study-id", required=True)
         sub.add_argument("--entry-report", type=Path)
+        sub.add_argument("--repository-metadata", type=Path, required=True)
         if name == "run":
             sub.add_argument("--source-sha", required=True)
             sub.add_argument("--workflow", type=Path, required=True)
@@ -463,7 +525,7 @@ def main() -> int:
     entry: dict[str, Any] | None = None
     owned_report = False
     try:
-        require_hosted_runner()
+        require_public_repository(args.repository_metadata)
         bundle = bundle_root(args.study_id)
         if args.command == "archive":
             pack_bundle(bundle, args.output, entry_report=args.entry_report)

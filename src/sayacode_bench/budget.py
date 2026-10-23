@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import ntpath
@@ -10,6 +11,7 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 Record = Mapping[str, Any]
@@ -53,6 +55,8 @@ class _Usage:
     model_calls: int | None
     missing_calls: int | None
     fingerprint: str
+    cache_usage: Any
+    usage_details: Any
 
 
 def _usage(record: Record) -> _Usage:
@@ -107,11 +111,106 @@ def _usage(record: Record) -> _Usage:
             key: record.get(key)
             for key in ("task_id", "configuration", "repeat", "canonical_model")
         },
+        "cache_usage": record.get("cache_usage"),
+        "usage_details": record.get("usage_details"),
     }
     fingerprint = json.dumps(facts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return _Usage(
-        endpoint, input_tokens, output_tokens, complete, calls, missing_calls, fingerprint
+        endpoint,
+        input_tokens,
+        output_tokens,
+        complete,
+        calls,
+        missing_calls,
+        fingerprint,
+        record.get("cache_usage"),
+        record.get("usage_details"),
     )
+
+
+def _observed_cache(row: _Usage) -> tuple[str, int]:
+    """只认已由原生旁证核验的缓存读取；写入费率未知时不能算完整费用。"""
+    cache = row.cache_usage
+    if cache is None:
+        return "unavailable", 0
+    if not isinstance(cache, Mapping) or cache.get("status") not in {
+        "complete",
+        "unavailable",
+        "invalid",
+    }:
+        return "invalid", 0
+    try:
+        creation = _counter(cache.get("cache_creation_input_tokens"), "cache_creation_input_tokens")
+        read = _counter(cache.get("cache_read_input_tokens"), "cache_read_input_tokens")
+        if cache["status"] == "invalid" or creation and creation > 0:
+            return "invalid", 0
+        if not row.complete:
+            return "unavailable", 0
+        counts = {
+            key: _counter(cache.get(key), "cache_usage." + key)
+            for key in (
+                "input_tokens",
+                "output_tokens",
+                "total_tokens",
+                "model_calls",
+                "matched_calls",
+            )
+        }
+        if (
+            counts["input_tokens"] is not None
+            and counts["input_tokens"] != row.input_tokens
+            or counts["output_tokens"] is not None
+            and counts["output_tokens"] != row.output_tokens
+            or counts["model_calls"] is not None
+            and counts["model_calls"] != row.model_calls
+            or counts["total_tokens"] is not None
+            and row.input_tokens is not None
+            and row.output_tokens is not None
+            and counts["total_tokens"] != row.input_tokens + row.output_tokens
+            or read is not None
+            and row.input_tokens is not None
+            and read > row.input_tokens
+        ):
+            return "invalid", 0
+        if (
+            cache["status"] != "complete"
+            or cache.get("coverage_complete") is not True
+            or read is None
+            or creation is None
+            or any(value is None for value in counts.values())
+        ):
+            return "unavailable", 0
+        if counts["matched_calls"] != counts["model_calls"]:
+            return "invalid", 0
+        reference = row.usage_details
+        if (
+            cache.get("collector") != "langchain_callback_usage_v1"
+            or not isinstance(cache.get("audit_sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", cache["audit_sha256"]) is None
+            or not isinstance(reference, Mapping)
+            or not isinstance(reference.get("path"), str)
+            or not reference["path"]
+            or not isinstance(reference.get("sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", reference["sha256"]) is None
+        ):
+            return "unavailable", 0
+        # 新策略的优惠还要求旁证文件仍可重验；缺失时退回全输入价。
+        sidecar = Path(reference["path"])
+        for path, expected in (
+            (sidecar, reference["sha256"]),
+            (sidecar.with_name("audit.jsonl"), cache["audit_sha256"]),
+        ):
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                while chunk := stream.read(1024**2):
+                    digest.update(chunk)
+            if digest.hexdigest() != expected:
+                return "invalid", 0
+        return "complete", read
+    except OSError:
+        return "unavailable", 0
+    except (ValueError, TypeError):
+        return "invalid", 0
 
 
 def _unique_usage(records: Iterable[Record]) -> tuple[list[_Usage], int]:
@@ -161,6 +260,8 @@ def _estimate(
     paid_endpoints: tuple[str, ...],
     input_rate: Decimal,
     output_rate: Decimal,
+    pricing_method: str,
+    cache_read_rate: Decimal,
 ) -> tuple[dict[str, Any], Decimal]:
     if (
         not isinstance(paid_endpoints, (tuple, list))
@@ -171,6 +272,10 @@ def _estimate(
         )
     ):
         raise ValueError("paid_endpoints 必须声明至少一个非秘密连接别名")
+    if pricing_method not in {"full_input_peak_v1", "observed_cache_v1"}:
+        raise ValueError("不支持的冻结计价方法")
+    if pricing_method == "observed_cache_v1" and cache_read_rate > input_rate:
+        raise ValueError("缓存读取费率不能高于输入费率")
     usage, duplicates = _unique_usage(records)
     paid = [row for row in usage if row.endpoint in paid_endpoints]
     unpriced = [row for row in usage if row.endpoint not in paid_endpoints]
@@ -179,10 +284,19 @@ def _estimate(
     estimate = (
         Decimal(input_tokens) * input_rate + Decimal(output_tokens) * output_rate
     ) / 1_000_000
+    cache_states = (
+        [_observed_cache(row) for row in paid] if pricing_method == "observed_cache_v1" else []
+    )
+    cache_read_tokens = sum(read for status, read in cache_states if status == "complete")
+    estimate -= Decimal(cache_read_tokens) * (input_rate - cache_read_rate) / 1_000_000
     known = float(estimate)
     if not math.isfinite(known):
         raise ValueError("用量估价超出可报告的有限金额范围")
-    incomplete = [row for row in paid if not row.complete]
+    incomplete = [
+        row
+        for index, row in enumerate(paid)
+        if not row.complete or cache_states and cache_states[index][0] == "invalid"
+    ]
     missing = (
         sum(row.missing_calls for row in paid if row.missing_calls is not None)
         if all(row.missing_calls is not None for row in paid)
@@ -209,7 +323,15 @@ def _estimate(
         "paid_endpoints": sorted(set(paid_endpoints)),
         "input_cny_per_million": float(input_rate),
         "output_cny_per_million": float(output_rate),
-        "cache_discount_applied": False,
+        "pricing_method": pricing_method,
+        "cache_read_cny_per_million": float(cache_read_rate)
+        if pricing_method == "observed_cache_v1"
+        else None,
+        "cache_creation_cny_per_million": None,
+        "reported_paid_cache_read_tokens": cache_read_tokens,
+        "cache_unavailable_records": sum(status == "unavailable" for status, _ in cache_states),
+        "cache_invalid_records": sum(status == "invalid" for status, _ in cache_states),
+        "cache_discount_applied": cache_read_tokens > 0,
         "scope": "reported paid usage only; zero observations do not establish a zero bill",
     }
     return result, estimate
@@ -221,6 +343,8 @@ def estimate_paid_usage(
     paid_endpoints: tuple[str, ...] = ("remote",),
     input_cny_per_million: Rate = 2,
     output_cny_per_million: Rate = 8,
+    pricing_method: str = "full_input_peak_v1",
+    cache_read_cny_per_million: Rate = Decimal("0.04"),
 ) -> dict[str, Any]:
     """忽略缓存优惠，估计已知付费用量；本地连接与供应商总账单保持未知。"""
 
@@ -229,6 +353,8 @@ def estimate_paid_usage(
         paid_endpoints,
         _amount(input_cny_per_million, "input_cny_per_million"),
         _amount(output_cny_per_million, "output_cny_per_million"),
+        pricing_method,
+        _amount(cache_read_cny_per_million, "cache_read_cny_per_million"),
     )
     return result
 
@@ -242,6 +368,8 @@ def budget_reason(
     paid_endpoints: tuple[str, ...] = ("remote",),
     input_cny_per_million: Rate = 2,
     output_cny_per_million: Rate = 8,
+    pricing_method: str = "full_input_peak_v1",
+    cache_read_cny_per_million: Rate = Decimal("0.04"),
 ) -> str | None:
     """在任务派发前使用跨阶段记录；不取消或承诺在途请求的人民币硬上限。"""
 
@@ -254,6 +382,8 @@ def budget_reason(
         paid_endpoints,
         _amount(input_cny_per_million, "input_cny_per_million"),
         _amount(output_cny_per_million, "output_cny_per_million"),
+        pricing_method,
+        _amount(cache_read_cny_per_million, "cache_read_cny_per_million"),
     )
     if not result["usage_complete"]:
         return "paid_usage_incomplete"

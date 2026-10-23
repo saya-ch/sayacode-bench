@@ -1,6 +1,8 @@
-# 仅复制到指定私有执行仓库。每次显式派发一批，不调用模型或自动触发下一批。
-# bundle 保存全部官方 oracle/nop 原始日志，三天私有保留；不自动删云端 artifact。
-# 完整累计 bundle 可能超过免费存储，acknowledge_free_actions 不证明实际额度充足。
+# 只在公开 saya-ch/sayacode-bench 派发：标准 runner 不消耗私有 2000 免费分钟。
+# 公开工件白名单：固定公开 MIT 任务、oracle/nop 原生日志、资源及公共宿主元数据。
+# 不读取或复制私有 wheel/profile/账单/用户或模型轨迹；不调用供应商 Secret 或模型。
+# 公开标准宿主 4 CPU/16 GiB，模型私有宿主 2 CPU/8 GiB；不当作同物理硬件。
+# 容器 CPU/RAM/swap 仍用官方原值并逐次测量；公开材料保留三天，不自动删除。
 # 首批只读 Actions 历史防止误重启；不声称能发现被人工删除的 workflow run。
 name: 无模型资格检查单批
 run-name: qualification ${{ inputs.study_id }}
@@ -29,7 +31,7 @@ on:
         default: 4
         required: true
       resume_run_id:
-        description: 续批原 artifact 所属私有 run ID；首批留空
+        description: 续批原 artifact 所属同一公开仓库 run ID；首批留空
         type: string
         default: ''
       resume_artifact:
@@ -40,8 +42,8 @@ on:
         description: 原 bundle.tar.gz 的完整 SHA256；首批留空
         type: string
         default: ''
-      acknowledge_free_actions:
-        description: 已核实当前 Actions 免费分钟与存储；仅授权本次无模型批次
+      acknowledge_execution:
+        description: 确认本次公开标准 runner 的无模型资格批次；不消耗私有 Actions 额度
         type: boolean
         required: true
         default: false
@@ -53,7 +55,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   qualify:
-    if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    if: inputs.acknowledge_execution && github.repository == 'saya-ch/sayacode-bench'
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
@@ -66,7 +68,7 @@ jobs:
       RESUME_ARTIFACT: ${{ inputs.resume_artifact }}
       RESUME_SHA: ${{ inputs.resume_sha256 }}
     steps:
-      - name: 实时核实私有仓库、首次尝试与显式续批参数
+      - name: 实时核实指定公开仓库、首次尝试与显式续批参数
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -81,7 +83,7 @@ jobs:
           import json,os,re
           from pathlib import Path
           d=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_text(encoding='utf-8'))
-          assert d.get('full_name')=='saya-ch/sayacode-bench-runs' and d.get('private') is True and d.get('visibility')=='private'
+          assert d.get('full_name')=='saya-ch/sayacode-bench' and d.get('private') is False and d.get('visibility')=='public'
           run,artifact,sha=(os.environ[k] for k in ('RESUME_RUN_ID','RESUME_ARTIFACT','RESUME_SHA'))
           assert not any((run,artifact,sha)) or (run.isdigit() and int(run)>0 and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,150}',artifact) and re.fullmatch(r'[0-9a-f]{64}',sha))
           assert os.environ['MAX_NEW_CONTROLS'].isdigit() and 1<=int(os.environ['MAX_NEW_CONTROLS'])<=256
@@ -113,14 +115,14 @@ jobs:
         run: |
           set -eu
           uv sync --frozen
-          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
-      - name: 显式下载同一私有仓库的完整前序 bundle
+          uv run --no-sync python scripts/prepare_cloud_runner.py --controls-only --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - name: 显式下载同一公开仓库的完整前序资格 bundle
         if: inputs.resume_artifact != ''
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: ${{ inputs.resume_artifact }}
           run-id: ${{ inputs.resume_run_id }}
-          repository: saya-ch/sayacode-bench-runs
+          repository: saya-ch/sayacode-bench
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/incoming
       - name: 当前 runner 实际网络隔离与清理探针，无模型请求
@@ -147,6 +149,7 @@ jobs:
             --runner-preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json" \
             --entry-report "$RUNNER_TEMP/evidence/qualification-entry.json" \
+            --repository-metadata "$RUNNER_TEMP/evidence/repository.json" \
             --max-new-controls "$MAX_NEW_CONTROLS" --deadline-epoch "$JOB_DEADLINE_EPOCH" \
             "${resume[@]}" > "$RUNNER_TEMP/evidence/batch-entry.log" 2>&1
       - name: 正常 partial 与失败均保存完整原始 bundle
@@ -161,10 +164,11 @@ jobs:
             mkdir -p "$bundle/host-evidence"
             cp -a "$RUNNER_TEMP/evidence" "$bundle/host-evidence/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
             uv run --no-sync python -m scripts.qualify_cloud archive --study-id "$STUDY_ID" \
+              --repository-metadata "$RUNNER_TEMP/evidence/repository.json" \
               --entry-report "$RUNNER_TEMP/evidence/qualification-entry.json" --output "$RUNNER_TEMP/archive"
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: 上传前再次实时核实仓库私有性
+      - name: 上传前再次实时核实指定仓库仍为公开
         id: guard
         if: always()
         env:
@@ -177,11 +181,11 @@ jobs:
           import json,os
           from pathlib import Path
           d=json.loads((Path(os.environ['RUNNER_TEMP'])/'archive-repository.json').read_text(encoding='utf-8'))
-          assert d.get('full_name')=='saya-ch/sayacode-bench-runs' and d.get('private') is True and d.get('visibility')=='private'
+          assert d.get('full_name')=='saya-ch/sayacode-bench' and d.get('private') is False and d.get('visibility')=='public'
           PY
-          echo "private=true" >> "$GITHUB_OUTPUT"
-      - name: 私有三天保留原始控制证据，不自动删除
-        if: always() && steps.guard.outputs.private == 'true' && steps.archive.outputs.available == 'true'
+          echo "public=true" >> "$GITHUB_OUTPUT"
+      - name: 公开三天保留官方控制材料，不自动删除
+        if: always() && steps.guard.outputs.public == 'true' && steps.archive.outputs.available == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: qualification-${{ inputs.study_id }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -189,7 +193,7 @@ jobs:
           if-no-files-found: error
           retention-days: 3
       - name: 恢复或准备失败仍保留本 job 诊断
-        if: always() && steps.guard.outputs.private == 'true'
+        if: always() && steps.guard.outputs.public == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: qualification-${{ inputs.study_id }}-${{ github.run_id }}-${{ github.run_attempt }}-host

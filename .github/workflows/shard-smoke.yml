@@ -13,9 +13,14 @@ on:
         type: boolean
         default: false
         required: true
+      probe_release_storage:
+        description: 用合成小文件验证 workflow token 的私有 draft Release 上传与下载
+        type: boolean
+        default: false
+        required: true
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: private-shard-smoke
@@ -91,6 +96,33 @@ jobs:
           SAYACODE_BENCH_SMOKE_REQUIREMENTS: ${{ github.workspace }}/execution/artifacts/product-baseline-requirements.txt
           SAYACODE_BENCH_SMOKE_OUTPUT: ${{ runner.temp }}/evidence/native-smoke
         run: uv run --no-sync pytest tests/test_shards_docker.py -q -rA
+      - name: 仅用合成文件核实原生 workflow token 的 Release 权限
+        if: inputs.probe_release_storage
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          from sayacode_bench.release_evidence import upload_archive,download_archive
+          root=Path(os.environ['RUNNER_TEMP'])/'evidence/release-storage-probe'
+          root.mkdir(exist_ok=False)
+          source=root/'synthetic.bin'
+          source.write_bytes(bytes(range(256))*1024+os.environ['GITHUB_RUN_ID'].encode('ascii'))
+          arguments=dict(repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022')
+          manifest=upload_archive(source,work_dir=root/'upload',part_size_bytes=100000,**arguments)
+          restored=download_archive(manifest,output_dir=root/'download',**arguments)
+          digest=lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+          assert digest(source)==digest(restored)
+          (root/'verified-transfer.json').write_text(json.dumps({
+              'schema_version':1,'synthetic_only':True,'model_requests':0,
+              'authentication':'github.token','source_sha256':digest(source),
+              'restored_sha256':digest(restored),'roundtrip_verified':True,
+              'boundary':'验证 workflow token 的分片传输；不是完整研究 DAG 或模型成绩'
+          },ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
       - name: 上传前核实私有性
         id: guard
         if: always()

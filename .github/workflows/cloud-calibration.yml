@@ -201,7 +201,7 @@ jobs:
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
             --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
-            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model/$GITHUB_RUN_ID/$GITHUB_JOB" \
             --fixture qutebrowser --cache "$RUNNER_TEMP/cloud-source" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json" \
             --controls "$RUNNER_TEMP/evidence/controls" --private-home "$RUNNER_TEMP/model-private" \
@@ -217,7 +217,7 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          path = Path(os.environ["RUNNER_TEMP"]) / "evidence/model/calibration.json"
+          path = Path(os.environ["RUNNER_TEMP"]) / "evidence/model" / os.environ["GITHUB_RUN_ID"] / "qutebrowser/calibration.json"
           allowed = path.is_file() and json.loads(path.read_text(encoding="utf-8")).get("continue_allowed") is True
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
               stream.write("allowed=" + str(allowed).lower() + "\n")
@@ -331,15 +331,15 @@ jobs:
             --metadata "$RUNNER_TEMP/repository.json" \
             --requirements "$GITHUB_WORKSPACE/execution/artifacts/product-baseline-requirements.txt" \
             --wheel "$GITHUB_WORKSPACE/execution/artifacts/product-baseline.whl" \
-            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model" \
+            --artifacts "$RUNNER_TEMP/cloud-artifacts" --output "$RUNNER_TEMP/evidence/model/$GITHUB_RUN_ID/$GITHUB_JOB" \
             --fixture ansible --cache "$RUNNER_TEMP/cloud-source" \
             --probe "$RUNNER_TEMP/evidence/network-probe.json" \
             --controls "$RUNNER_TEMP/evidence/controls" --private-home "$RUNNER_TEMP/model-private" \
             --deadline-epoch "$JOB_DEADLINE_EPOCH" \
             --prior-records "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.jsonl" \
             --prior-ledger-receipt "$GITHUB_WORKSPACE/execution/artifacts/prior-paid-records.receipt.json" \
-            --cloud-prior-records "$RUNNER_TEMP/prior-cloud/model/run/records.jsonl" \
-            --cloud-prior-report "$RUNNER_TEMP/prior-cloud/model/calibration.json" \
+            --cloud-prior-records "$RUNNER_TEMP/prior-cloud/model/$GITHUB_RUN_ID/qutebrowser/run/records.jsonl" \
+            --cloud-prior-report "$RUNNER_TEMP/prior-cloud/model/$GITHUB_RUN_ID/qutebrowser/calibration.json" \
             > "$RUNNER_TEMP/evidence/model-entry.log" 2>&1
       - name: 上传前重新核实私有性
         id: archive_guard

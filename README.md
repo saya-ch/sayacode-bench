@@ -4,7 +4,7 @@
 
 Harbor 管理任务环境、资源、执行和官方验证器；SAYACODE 继续运行现有 LangChain / LangGraph 图、工具、检查点与异步子任务。两者使用独立 Python 环境，避免评测依赖覆盖产品依赖。
 
-**当前处于基础设施门禁与资源校准，尚无公开基准成绩或已证实的调优收益。** 已执行和待完成项目见 [验证状态](docs/STATUS.md)。研究方法见 [预注册协议](docs/protocol.md)，执行顺序见 [工作计划](docs/WORK_PLAN.md)。
+**当前处于基础设施门禁与资源校准，尚无正式公开子集成绩或已证实的调优收益。** 两道固定云端真实模型校准已完成：qutebrowser 的 source／独立 pristine 均通过，Ansible 均未通过；这不是正式研究分母。70 次成功回调与当前供应商账单的 token 数量对齐，另一次 HTTP 503 用量仍未知。已执行和待完成项目见 [验证状态](docs/STATUS.md)，事实见 [云端校准报告](reports/cloud-model-calibration-20261023-v3.json)。研究方法见 [预注册协议](docs/protocol.md)，执行顺序见 [工作计划](docs/WORK_PLAN.md)。
 
 固定的跨宿主诊断发现判分不一致：同一份 qutebrowser 交付在独立 Linux 三次通过，Ansible 交付三次未通过且参考解稳定通过。独立 Ubuntu Engine、固定失败种子和 WSL 3.0.3 升级诊断均已完成并单独保留；升级后参考解仍未全部通过，本轮本地平台配置试验已结束，不反复更换版本到通过，也不唯一归因内核或硬件。原分与全部诊断未混入正式效果统计。[校准证据](docs/calibration.md) · [WSL 诊断](docs/wsl-diagnostic.md) · [Linux 执行手册](docs/linux-execution.md)
 
@@ -55,6 +55,7 @@ src/sayacode_bench/
   connections.py   私有连接与规范模型身份
   artifacts.py     文件身份、停止记录和报告边界
   budget.py        已报告用量的保守人民币估算与新派发止损
+  release_evidence.py 私有 draft Release 分片传输与服务端摘要核验
   publish.py       公开事实白名单，不复制凭据、轨迹与原始路径
   cli.py           准备、冻结、执行和报告入口
 studies/           配置、假设和已冻结清单
@@ -106,7 +107,7 @@ uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolatio
 
 跨 runner 使用完整 bundle、原始绝对路径、哈希绑定的前序 receipt 和累计账本，不复制聊天状态或重建评分器。真实网络、官方资源、宿主镜像 cohort、剩余时间和磁盘均在本 runner 核验。固定三加一资格支持按 control 分批，未知基础设施状态不会被当成 fixture 失败而机械排除。详见 [分片执行与恢复](docs/sharded-execution.md)。
 
-私有工作流默认不执行模型。两题校准 Secret 与正式研究 Secret 分开授权；完整 raw artifact 的增长、免费分钟与存储额度分别管理，不把 100 元 API 预算当成 Actions 费用授权。
+私有工作流默认不执行模型。两题校准 Secret 与正式研究 Secret 分开授权；完整 raw bundle 经指定私有 draft Release 传递，上传成功后 Actions 仅保小型运行回执和宿主证据，失败仍保原始现场。无模型资格批次仅使用公开标准 runner。免费计算、存储和 API 消耗分别管理，账户 Actions 支出上限保持零美元，不把 100 元 API 预算当成 Actions 费用授权。
 
 ## 连接、证据与结果
 
