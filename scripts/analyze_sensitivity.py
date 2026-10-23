@@ -53,6 +53,10 @@ def protocol_identity() -> dict[str, Any]:
         "primary_preparation_workflow_sha256": file_sha256(
             root / ".github/workflows/prepare-primary-study.yml"
         ),
+        "final_preparation_sha256": file_sha256(root / "scripts/prepare_final_study.py"),
+        "final_preparation_workflow_sha256": file_sha256(
+            root / ".github/workflows/prepare-final-study.yml"
+        ),
         "samples": SAMPLES,
         "seed": SEED,
         "absolute_unit": "task mean across planned repeats; resample tasks",

@@ -1,0 +1,151 @@
+# 仅部署到指定私有仓库；只装配最终阶段，不取得模型 Secret 或执行模型。
+# Python、计费与统计沿用原开发清单冻结源码；本模板仅调用既有 CLI 和证据传输。
+name: 冻结主研究或终端最终阶段
+run-name: prepare ${{ inputs.stage }} from ${{ inputs.seed_manifest_file }}
+on:
+  workflow_dispatch:
+    inputs:
+      public_source_sha:
+        description: 原开发 master 与 runner-policy 已冻结的完整公开源码 SHA
+        type: string
+        required: true
+      seed_manifest_file:
+        description: 私有 artifacts 目录内完整上一阶段 Release manifest 的单文件名
+        type: string
+        required: true
+      stage:
+        description: 主研究最终阶段或复用同一候选的终端补充
+        type: choice
+        options: [primary_final, terminal_final]
+        required: true
+      terminal_artifact_id:
+        description: terminal_final 必填，完整十四题 v9 资格 main artifact ID
+        type: string
+        default: ''
+      terminal_zip_sha256:
+        description: terminal_final 必填，已核验的原始 ZIP 服务 SHA256
+        type: string
+        default: ''
+      terminal_tar_sha256:
+        description: terminal_final 必填，已核验的完整资格 tar SHA256
+        type: string
+        default: ''
+      acknowledge_free_actions:
+        description: 仅使用免费 Actions；本 job 不执行模型
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: prepare-final-study
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SOURCE_SHA: ${{ inputs.public_source_sha }}
+      SEED_MANIFEST_FILE: ${{ inputs.seed_manifest_file }}
+      STAGE: ${{ inputs.stage }}
+      TERMINAL_ARTIFACT_ID: ${{ inputs.terminal_artifact_id }}
+      TERMINAL_ZIP_SHA: ${{ inputs.terminal_zip_sha256 }}
+      TERMINAL_TAR_SHA: ${{ inputs.terminal_tar_sha256 }}
+    steps:
+      - name: 核实私有仓库、固定源码与首次尝试
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          mkdir -p "$RUNNER_TEMP/evidence"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/evidence/repository.json"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_text())
+          assert value['id']==1429748203 and value['private'] is True and value['full_name']=='saya-ch/sayacode-bench-runs'
+          assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*\.json', os.environ['SEED_MANIFEST_FILE'])
+          assert os.environ['STAGE'] in {'primary_final','terminal_final'}
+          if os.environ['STAGE']=='terminal_final':
+              assert re.fullmatch(r'[1-9][0-9]*', os.environ['TERMINAL_ARTIFACT_ID'])
+              assert all(re.fullmatch(r'[0-9a-f]{64}',os.environ[key]) for key in ('TERMINAL_ZIP_SHA','TERMINAL_TAR_SHA'))
+          elif any(os.environ[key] for key in ('TERMINAL_ARTIFACT_ID','TERMINAL_ZIP_SHA','TERMINAL_TAR_SHA')):
+              raise ValueError('主研究不接受终端资格参数')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 安装原冻结依赖并准备全新 Linux 宿主
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code HEAD --
+          cmp .github/workflows/prepare-final-study.yml ../execution/.github/workflows/prepare-final-study.yml
+          uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - name: 当前宿主真实网络与清理探针
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 只读重验完整来源，调用原 CLI 签收和冻结下一阶段
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          arguments=(--source-sha "$SOURCE_SHA" --seed-manifest-file "$SEED_MANIFEST_FILE" --stage "$STAGE")
+          if [ "$STAGE" = terminal_final ]; then
+            arguments+=(--terminal-artifact-id "$TERMINAL_ARTIFACT_ID" --terminal-zip-sha256 "$TERMINAL_ZIP_SHA" --terminal-tar-sha256 "$TERMINAL_TAR_SHA")
+          fi
+          uv run --no-sync python -m scripts.prepare_final_study "${arguments[@]}"
+
+      - name: 上传前再次确认指定私有仓库
+        id: guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'archive-repository.json').read_text())
+          assert value['id']==1429748203 and value['private'] is True and value['full_name']=='saya-ch/sayacode-bench-runs'
+          PY
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 保留准备日志与小型收据；完整 bundle 在固定私有 Release
+        if: always() && steps.guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: final-study-preparation-${{ github.run_id }}-${{ inputs.stage }}-1
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/final-prepared/*.json
+            ${{ runner.temp }}/evidence/final-prepared/*.log
+          retention-days: 3
+          if-no-files-found: error

@@ -111,6 +111,13 @@ GitHub 编排需要在 `runner_policy.json` 固定：
 准备阶段没有模型 Secret 输入，也不调用 `run`；它只上传已冻结的 seed，供后续审阅和生成原生 DAG。
 跨仓库工件读取权限另用小型无模型 workflow token 探针实测，不能从本机 OAuth 权限推断。
 
+后续 `prepare-final-study.yml` 调用 `scripts/prepare_final_study.py`：从同一私有 Release
+恢复完整 bundle，重开全部上一阶段分片收据并在临时目录重归并，再复用 `lock-candidate`、
+`freeze` 和 `plan-shards`。主最终固定 24 题 R2，Terminal 固定 12 题 R1；实际配置数由原
+SWE 开发签收决定。每阶段显式绑定此前的累计 accounting records、同一历史核销和原预算，
+缺片、未知费用或源码漂移时拒绝准备。完整原资格 tar 随 bundle 保全，并按原路径恢复，
+后续阶段不需要重新运行参考解。新 master、授权和计划使用各阶段独立名称，旧原件保留。
+
 资格、完整 master、工件和金融政策均固定后：
 
 ```bash

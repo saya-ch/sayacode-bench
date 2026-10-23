@@ -202,7 +202,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("用户授权、历史核销或无凭据输入未确认")
     for name in ("baseline.json", "diagnostic.json", "focused.json"):
         shutil.copyfile(ROOT / "studies" / name, inputs / name)
-    protocol = ROOT / "studies/sensitivity-protocol-v11.json"
+    protocol = ROOT / "studies/sensitivity-protocol-v12.json"
     if read_json(protocol) != protocol_identity():
         raise ValueError("预先冻结的分析协议与准备源码不符")
     shutil.copyfile(protocol, inputs / "analysis-protocol.json")
@@ -302,12 +302,21 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     plan = read_json(BUNDLE / "primary-dev-plan.json")
     if len(plan["schedule"]) != 48:
         raise ValueError("开发 schedule 必须保持四十八次")
+    qualifications = BUNDLE / "qualifications"
+    qualifications.mkdir(exist_ok=False)
+    preserved_qualification = qualifications / "primary-v7.bundle.tar.gz"
+    shutil.copyfile(raw_tar, preserved_qualification)
+    if _sha(preserved_qualification) != args.qualification_tar_sha256:
+        raise ValueError("长期保全的原资格归档字节身份不同")
     write_json(
         inputs / "preparation-evidence.json",
         {
             "qualification_artifact": artifact,
             "qualification_run_id": run["id"],
             "qualification_tar_sha256": args.qualification_tar_sha256,
+            "qualification_archive_relative_path": preserved_qualification.relative_to(
+                BUNDLE
+            ).as_posix(),
             "runner_preparation": preparation,
             "network_probe": read_json(args.probe),
             "model_trials_started": 0,

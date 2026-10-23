@@ -48,7 +48,11 @@ def native(path: Path, task: Path, agent: AgentConfig, reward: int) -> TrialResu
 
 @pytest.fixture
 def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
-    bundle = tmp_path / "study"
+    return make_experiment(tmp_path / "study", tmp_path / "private", monkeypatch)
+
+
+def make_experiment(bundle: Path, private: Path, monkeypatch: Any) -> Any:
+    """同一离线原生文件样例可用于 pytest 临时目录或独占的 Linux bundle。"""
     inputs = bundle / "inputs"
     inputs.mkdir(parents=True)
     wheel, requirements = inputs / "product.whl", inputs / "requirements.txt"
@@ -59,7 +63,6 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
         path = inputs / f"{label}.json"
         write_json(path, {"id": label})
         variants[label] = path
-    private = tmp_path / "private"
     private.mkdir()
     profile = private / "remote.json"
     public_profile = {
