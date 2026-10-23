@@ -14,6 +14,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from .settlement import historical_settlement as read_historical_settlement
+
 Record = Mapping[str, Any]
 Rate = int | float | Decimal
 
@@ -262,6 +264,7 @@ def _estimate(
     output_rate: Decimal,
     pricing_method: str,
     cache_read_rate: Decimal,
+    historical_settlement: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], Decimal]:
     if (
         not isinstance(paid_endpoints, (tuple, list))
@@ -276,7 +279,11 @@ def _estimate(
         raise ValueError("不支持的冻结计价方法")
     if pricing_method == "observed_cache_v1" and cache_read_rate > input_rate:
         raise ValueError("缓存读取费率不能高于输入费率")
-    usage, duplicates = _unique_usage(records)
+    rows = list(records)
+    settled, settlement = read_historical_settlement(
+        historical_settlement, rows, paid_endpoints=paid_endpoints
+    )
+    usage, duplicates = _unique_usage(rows)
     paid = [row for row in usage if row.endpoint in paid_endpoints]
     unpriced = [row for row in usage if row.endpoint not in paid_endpoints]
     input_tokens = sum(row.input_tokens for row in paid if row.input_tokens is not None)
@@ -290,7 +297,8 @@ def _estimate(
     cache_read_tokens = sum(read for status, read in cache_states if status == "complete")
     estimate -= Decimal(cache_read_tokens) * (input_rate - cache_read_rate) / 1_000_000
     known = float(estimate)
-    if not math.isfinite(known):
+    consumed = float(estimate + settled)
+    if not math.isfinite(known) or not math.isfinite(consumed):
         raise ValueError("用量估价超出可报告的有限金额范围")
     incomplete = [
         row
@@ -305,6 +313,10 @@ def _estimate(
     result = {
         "currency": "CNY",
         "known_estimate_cny": known,
+        "historical_settled_cny": float(settled),
+        "budget_consumed_cny": consumed,
+        "historical_settlement": settlement,
+        "usage_complete_scope": "token_records_excluding_historical_settlement",
         "usage_complete": not incomplete,
         "incomplete_paid_records": len(incomplete),
         "missing_usage_calls": missing,
@@ -334,7 +346,7 @@ def _estimate(
         "cache_discount_applied": cache_read_tokens > 0,
         "scope": "reported paid usage only; zero observations do not establish a zero bill",
     }
-    return result, estimate
+    return result, estimate + settled
 
 
 def estimate_paid_usage(
@@ -345,6 +357,7 @@ def estimate_paid_usage(
     output_cny_per_million: Rate = 8,
     pricing_method: str = "full_input_peak_v1",
     cache_read_cny_per_million: Rate = Decimal("0.04"),
+    historical_settlement: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """忽略缓存优惠，估计已知付费用量；本地连接与供应商总账单保持未知。"""
 
@@ -355,6 +368,7 @@ def estimate_paid_usage(
         _amount(output_cny_per_million, "output_cny_per_million"),
         pricing_method,
         _amount(cache_read_cny_per_million, "cache_read_cny_per_million"),
+        historical_settlement,
     )
     return result
 
@@ -370,6 +384,7 @@ def budget_reason(
     output_cny_per_million: Rate = 8,
     pricing_method: str = "full_input_peak_v1",
     cache_read_cny_per_million: Rate = Decimal("0.04"),
+    historical_settlement: Mapping[str, Any] | None = None,
 ) -> str | None:
     """在任务派发前使用跨阶段记录；不取消或承诺在途请求的人民币硬上限。"""
 
@@ -384,7 +399,11 @@ def budget_reason(
         _amount(output_cny_per_million, "output_cny_per_million"),
         pricing_method,
         _amount(cache_read_cny_per_million, "cache_read_cny_per_million"),
+        historical_settlement,
     )
+    settlement = result["historical_settlement"]
+    if settlement is not None and Decimal(str(settlement["budget_limit_cny"])) != limit:
+        raise ValueError("历史核销必须继续使用原总预算，不能另设剩余或新预算")
     if not result["usage_complete"]:
         return "paid_usage_incomplete"
     if estimate >= limit * fraction:

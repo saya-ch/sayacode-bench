@@ -104,6 +104,13 @@ GitHub 编排需要在 `runner_policy.json` 固定：
 
 ## CLI 与生成工作流
 
+本轮主开发的实际准备使用 `prepare-primary-study.yml` 和 `scripts/prepare_primary_study.py`：
+在指定私有 fresh Linux runner 核验完整公开资格原 ZIP／tar、原 v7 来源和实际宿主 cohort，
+重新读取全部 32 道任务的 128 条原生三加一结果，再复用 `freeze`／`plan-shards`。
+生产 wheel、依赖、三个既定 variant、分析协议、历史核销和无凭据模型参数共同固定进同一 bundle。
+准备阶段没有模型 Secret 输入，也不调用 `run`；它只上传已冻结的 seed，供后续审阅和生成原生 DAG。
+跨仓库工件读取权限另用小型无模型 workflow token 探针实测，不能从本机 OAuth 权限推断。
+
 资格、完整 master、工件和金融政策均固定后：
 
 ```bash

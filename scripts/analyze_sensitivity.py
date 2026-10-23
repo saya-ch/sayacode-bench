@@ -49,6 +49,10 @@ def protocol_identity() -> dict[str, Any]:
         "qualification_workflow_sha256": file_sha256(root / ".github/workflows/qualify-study.yml"),
         "terminal_selection_sha256": file_sha256(root / "studies/terminal-selection-v2.json"),
         "executor_workflow_sha256": file_sha256(root / ".github/workflows/run-study-shard.yml"),
+        "primary_preparation_sha256": file_sha256(root / "scripts/prepare_primary_study.py"),
+        "primary_preparation_workflow_sha256": file_sha256(
+            root / ".github/workflows/prepare-primary-study.yml"
+        ),
         "samples": SAMPLES,
         "seed": SEED,
         "absolute_unit": "task mean across planned repeats; resample tasks",

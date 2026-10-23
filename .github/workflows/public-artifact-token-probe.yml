@@ -1,0 +1,132 @@
+# 仅复制到指定私有执行仓库；实测该仓库 GITHUB_TOKEN 的公开工件下载权限。
+# 无模型 Secret、无模型调用；只读取最多 1 MiB 的公开诊断工件。
+name: 公开工件跨仓库令牌探针
+run-name: public artifact token probe ${{ inputs.artifact_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: saya-ch/sayacode-bench 中已核验的小型公开宿主工件 ID
+        type: string
+        default: '12483941421'
+        required: true
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: public-artifact-token-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: 核实私有身份，实际下载公开 ZIP 并比对服务端 SHA
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBE_ARTIFACT_ID: ${{ inputs.artifact_id }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, re, subprocess, sys, time
+          from pathlib import Path
+
+          destination = Path(os.environ['RUNNER_TEMP']) / 'public-artifact-token-probe'
+          destination.mkdir(exist_ok=False)
+          receipt = {
+              'schema_version': 1,
+              'kind': 'private_workflow_token_public_artifact_read_probe',
+              'execution_repository': 'saya-ch/sayacode-bench-runs',
+              'source_repository': 'saya-ch/sayacode-bench',
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': 1,
+              'private_repository_confirmed': False,
+              'metadata_access_confirmed': False,
+              'zip_download_confirmed': False,
+              'service_digest_verified': False,
+              'model_requests': 0,
+              'billing_accessed': False,
+          }
+          started = time.monotonic()
+          environment = dict(os.environ)
+          environment.pop('GH_DEBUG', None)
+          environment.pop('DEBUG', None)
+
+          def save(name, value):
+              (destination / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          def request(endpoint, stage, target=None):
+              command = ['gh', 'api', endpoint, '--hostname', 'github.com']
+              if target is None:
+                  result = subprocess.run(command, env=environment, capture_output=True, timeout=120)
+              else:
+                  with target.open('xb') as stream:
+                      result = subprocess.run(command, env=environment, stdout=stream, stderr=subprocess.PIPE, timeout=120)
+              if result.returncode:
+                  error = result.stderr.decode('utf-8', errors='replace')
+                  # 不保留调试环境和认证信息；仅保存此固定请求的 HTTP 错误。
+                  for key in ('GH_TOKEN', 'GITHUB_TOKEN'):
+                      secret = environment.get(key)
+                      if secret:
+                          error = error.replace(secret, '[REDACTED]')
+                  error = re.sub(r'(?im)^.*(?:authorization|x-access-token|cookie)\s*[:=].*$', '[REDACTED]', error)
+                  statuses = re.findall(r'HTTP\s+(\d{3})', error)
+                  save(stage + '-error.json', {
+                      'stage': stage, 'returncode': result.returncode,
+                      'http_status': int(statuses[-1]) if statuses else None,
+                      'message': error[:4096],
+                  })
+                  raise RuntimeError(stage + '_request_failed')
+              return json.loads(result.stdout) if target is None else None
+
+          code = 1
+          try:
+              if os.environ.get('GITHUB_REPOSITORY') != 'saya-ch/sayacode-bench-runs' or os.environ.get('GITHUB_RUN_ATTEMPT') != '1':
+                  raise ValueError('execution_scope_or_attempt_invalid')
+              identifier = os.environ['PROBE_ARTIFACT_ID']
+              if not re.fullmatch(r'[1-9][0-9]*', identifier):
+                  raise ValueError('artifact_id_invalid')
+              receipt['artifact_id'] = int(identifier)
+              repository = request('repos/saya-ch/sayacode-bench-runs', 'repository')
+              if repository.get('id') != 1429748203 or repository.get('private') is not True or repository.get('full_name') != 'saya-ch/sayacode-bench-runs':
+                  raise ValueError('private_repository_identity_invalid')
+              receipt['private_repository_confirmed'] = True
+              with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as stream:
+                  stream.write('private=true\n')
+              endpoint = 'repos/saya-ch/sayacode-bench/actions/artifacts/' + identifier
+              metadata = request(endpoint, 'metadata')
+              receipt['metadata_access_confirmed'] = True
+              save('artifact-metadata.json', metadata)
+              digest, size = metadata.get('digest'), metadata.get('size_in_bytes')
+              if metadata.get('id') != int(identifier) or metadata.get('expired') is not False or not isinstance(digest, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', digest) or type(size) is not int or not 0 < size <= 1048576:
+                  raise ValueError('artifact_identity_or_small_size_invalid')
+              download = destination / 'artifact.download'
+              request(endpoint + '/zip', 'download', download)
+              receipt['zip_download_confirmed'] = True
+              actual = hashlib.sha256(download.read_bytes()).hexdigest()
+              receipt.update(expected_bytes=size, actual_bytes=download.stat().st_size, expected_sha256=digest[7:], actual_sha256=actual)
+              if download.stat().st_size != size or 'sha256:' + actual != digest:
+                  raise ValueError('artifact_bytes_or_digest_mismatch')
+              download.rename(destination / 'original-artifact.zip')
+              receipt['service_digest_verified'] = True
+              code = 0
+          except Exception as error:
+              receipt['error_type'] = type(error).__name__
+              # 不回显外部响应或命令异常对象，详情仅在经脱敏的小型私有证据中。
+          finally:
+              receipt['elapsed_seconds'] = round(time.monotonic() - started, 3)
+              receipt['exit_code'] = code
+              save('receipt.json', receipt)
+          print('公开工件令牌探针通过' if code == 0 else '公开工件令牌探针未通过；查看私有证据')
+          sys.exit(code)
+          PY
+      - name: 保留原始小型 ZIP、校验收据与失败 HTTP 证据
+        if: always() && steps.probe.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-artifact-token-probe-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/public-artifact-token-probe/
+          retention-days: 3
+          if-no-files-found: error

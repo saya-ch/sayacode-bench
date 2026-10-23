@@ -223,6 +223,21 @@ def validate_candidate_receipt(
         sources[field] = path
     manifest = read_json(sources["dev_manifest"])
     _validate_terminal_supplement(final_manifest, manifest, sources["dev_manifest"])
+    dev_budget = manifest.get("paid_budget")
+    if isinstance(dev_budget, dict) and dev_budget.get("historical_settlement") is not None:
+        final_budget = final_manifest.get("paid_budget")
+        historical = dev_budget["historical_settlement"]
+        if (
+            not isinstance(historical, dict)
+            or not isinstance(final_budget, dict)
+            or not isinstance(final_budget.get("historical_settlement"), dict)
+            or final_budget["historical_settlement"].get("sha256") != historical.get("sha256")
+            or any(
+                final_budget.get(key) != dev_budget.get(key)
+                for key in ("limit_cny", "stop_fraction")
+            )
+        ):
+            raise ValueError("最终阶段必须继承同一历史核销与原总预算门槛")
     if manifest.get("phase") != "dev" or manifest.get("frozen") is not True:
         raise ValueError("候选来源不是冻结开发集")
     if any(

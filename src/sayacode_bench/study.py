@@ -31,6 +31,7 @@ from .execution import paired_order, remaining_order, replay_official_trial, run
 from .gates import validate_directories
 from .locking import validate_candidate_receipt
 from .resources import resource_status, runtime_record_issues
+from .settlement import historical_settlement as read_historical_settlement
 from .sources import SOURCES, fetch_source, sha256_file
 
 
@@ -146,6 +147,8 @@ def _budget_arguments(policy: dict[str, Any]) -> dict[str, Any]:
         )
     elif policy.get("pricing_method") not in {None, "full_input_peak_v1"}:
         raise ValueError("未知的冻结计价方法")
+    if "historical_settlement" in policy:
+        arguments["historical_settlement"] = policy["historical_settlement"]
     return arguments
 
 
@@ -164,6 +167,10 @@ def _check_budget_references(policy: dict[str, Any]) -> None:
         path = Path(reference["path"]).resolve(strict=True)
         if file_sha256(path) != reference.get("sha256"):
             raise ValueError("已冻结的价格或历史费用记录发生变化")
+    if "historical_settlement" in policy:
+        read_historical_settlement(
+            policy["historical_settlement"], paid_endpoints=tuple(policy["paid_endpoints"])
+        )
     if policy.get("pricing_method") == "observed_cache_v1":
         snapshot = read_json(Path(policy["price_snapshot"]["path"]))
         if (
@@ -233,12 +240,19 @@ def freeze_paid_budget(
     stop_fraction: float = 0.8,
     price_snapshot: Path | None = None,
     prior_records: list[Path] | None = None,
+    historical_settlement: Path | None = None,
     paid_endpoints: list[str] | None = None,
     connection_profiles: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """只冻结显式授权的金额；价格和全部先前阶段记录以路径及内容哈希绑定。"""
     if limit_cny is None:
-        if price_snapshot is not None or prior_records or paid_endpoints or stop_fraction != 0.8:
+        if (
+            price_snapshot is not None
+            or prior_records
+            or historical_settlement is not None
+            or paid_endpoints
+            or stop_fraction != 0.8
+        ):
             raise ValueError("费用配置需要显式的 --paid-limit-cny")
         return None
     if price_snapshot is None:
@@ -294,6 +308,12 @@ def freeze_paid_budget(
         "prior_records": references,
         "provider_enforced_currency_cap": False,
     }
+    if historical_settlement is not None:
+        settlement_path = historical_settlement.resolve(strict=True)
+        policy["historical_settlement"] = {
+            "path": str(settlement_path),
+            "sha256": file_sha256(settlement_path),
+        }
     if observed:
         requirements = snapshot.get("connection_requirements")
         aliases = policy["paid_endpoints"]

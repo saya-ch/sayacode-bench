@@ -1,0 +1,135 @@
+# 仅部署到指定私有仓库；没有模型 Secret 输入，也不调用模型执行入口。
+name: 冻结正式主开发输入
+run-name: prepare primary study ${{ inputs.public_source_sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      public_source_sha:
+        description: 已审查并通过 CI 的公开完整源码 SHA
+        type: string
+        required: true
+      qualification_artifact_id:
+        description: 全部三十二题已完整核验的公开资格 main artifact ID
+        type: string
+        required: true
+      qualification_zip_sha256:
+        description: 该原始 ZIP 已验证的服务 SHA256
+        type: string
+        required: true
+      qualification_tar_sha256:
+        description: 该完整资格 bundle.tar.gz 已验证的 SHA256
+        type: string
+        required: true
+      acknowledge_free_actions:
+        description: 仅使用免费 Actions；本 job 不执行模型
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: prepare-primary-study
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SOURCE_SHA: ${{ inputs.public_source_sha }}
+      QUALIFICATION_ID: ${{ inputs.qualification_artifact_id }}
+      QUALIFICATION_ZIP_SHA: ${{ inputs.qualification_zip_sha256 }}
+      QUALIFICATION_TAR_SHA: ${{ inputs.qualification_tar_sha256 }}
+    steps:
+      - name: 核实私有仓库、输入格式与首次尝试
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$QUALIFICATION_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$QUALIFICATION_ZIP_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$QUALIFICATION_TAR_SHA" =~ ^[0-9a-f]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/evidence"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/evidence/repository.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'evidence/repository.json').read_text())
+          assert d['full_name']=='saya-ch/sayacode-bench-runs' and d['private'] is True and d['id']==1429748203
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 锁定依赖与宿主磁盘准备
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          cmp .github/workflows/prepare-primary-study.yml ../execution/.github/workflows/prepare-primary-study.yml
+          uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/evidence/runner-preparation.json"
+      - name: 本 runner 实际网络与清理探针
+        working-directory: bench
+        env:
+          SAYACODE_BENCH_DOCKER_TESTS: '1'
+          SAYACODE_BENCH_PROBE_OUTPUT: ${{ runner.temp }}/evidence/network-probe.json
+        run: uv run --no-sync pytest tests/test_network.py::test_real_docker_network_isolation -q
+      - name: 复核完整资格与授权，冻结四十八次开发及原累计预算
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python -m scripts.prepare_primary_study \
+            --source-sha "$SOURCE_SHA" --qualification-artifact-id "$QUALIFICATION_ID" \
+            --qualification-zip-sha256 "$QUALIFICATION_ZIP_SHA" \
+            --qualification-tar-sha256 "$QUALIFICATION_TAR_SHA" \
+            --input-manifest ../execution/artifacts/formal-input-seed-manifest.json \
+            --preparation "$RUNNER_TEMP/evidence/runner-preparation.json" \
+            --probe "$RUNNER_TEMP/evidence/network-probe.json" \
+            --output "$RUNNER_TEMP/evidence/prepared"
+      - name: 上传前确认仍为指定私有仓库
+        id: guard
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/archive-repository.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'archive-repository.json').read_text())
+          assert d['full_name']=='saya-ch/sayacode-bench-runs' and d['private'] is True and d['id']==1429748203
+          PY
+          echo "private=true" >> "$GITHUB_OUTPUT"
+      - name: 保存小型准备证据；完整 seed 在已验证的私有 Release
+        if: always() && steps.guard.outputs.private == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: primary-study-preparation-${{ github.run_id }}-1
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/prepared/*.json
+            ${{ runner.temp }}/evidence/prepared/*.log
+          retention-days: 3
+          if-no-files-found: error

@@ -258,7 +258,15 @@ def freeze_execution_plan(
     if extra_paid and master.get("paid_budget") is None:
         raise ValueError("增量费用必须已有冻结金融政策")
     study._continuation_rows(tuple(extra_paid))
-    study._paid_inputs(master)
+    policy, initial = study._paid_inputs(master)
+    if policy is not None:
+        budget_reason(
+            [],
+            [*initial, *extra_paid],
+            limit_cny=policy["limit_cny"],
+            stop_fraction=policy["stop_fraction"],
+            **study._budget_arguments(policy),
+        )
     schedule = _schedule(master, master_ref["sha256"])
     plan = {
         "schema_version": 1,

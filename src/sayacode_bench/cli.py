@@ -195,6 +195,7 @@ def freeze(args: argparse.Namespace) -> dict[str, Any]:
         stop_fraction=getattr(args, "paid_stop_fraction", 0.8),
         price_snapshot=getattr(args, "paid_price_snapshot", None),
         prior_records=getattr(args, "prior_records", None),
+        historical_settlement=getattr(args, "historical_settlement", None),
         paid_endpoints=getattr(args, "paid_endpoint", None),
         connection_profiles=profiles,
     )
@@ -271,6 +272,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     frozen.add_argument("--paid-stop-fraction", type=float, default=0.8)
     frozen.add_argument("--paid-price-snapshot", type=Path)
+    frozen.add_argument(
+        "--historical-settlement",
+        type=Path,
+        help="显式授权的历史账单核销收据；保留原用量未知并计入同一总预算",
+    )
     frozen.add_argument("--paid-endpoint", action="append", help="按次估价的连接别名，可重复声明")
     frozen.add_argument(
         "--prior-records",
