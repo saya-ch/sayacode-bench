@@ -456,15 +456,23 @@ def validate_installation_case_native(
         or job["stats"].get("n_retries") != 0
     ):
         raise ValueError("原生 install_only 阶段未确认")
+    # 资格以 tag 请求、预检以已核 digest 请求；只统一期待视图中的地址。
+    # 实际请求必须固定 digest，原件不改写，实际 Image ID 与资源仍逐项比较。
+    qualified_runtime = wanted["runtime_identity"]
+    expected_runtime = {
+        **qualified_runtime,
+        "requested": {**qualified_runtime["requested"], "docker_image": wanted["immutable_image"]},
+    }
     if (
         synthetic["environment"]["docker_image"] != wanted["immutable_image"]
+        or runtime.get("requested", {}).get("docker_image") != wanted["immutable_image"]
         or synthetic.get("agent", {}).get("user") != wanted["task"]["agent"].get("user")
         or installed.get("configured_agent_user") != wanted["task"]["agent"].get("user")
         or resource_status(runtime, wanted["task"]["environment"]) is not True
         or not all(
             v is True
             for v in compare_runtimes(
-                runtime, wanted["runtime_identity"], wanted["task"]["environment"]
+                runtime, expected_runtime, wanted["task"]["environment"]
             ).values()
         )
     ):

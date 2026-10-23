@@ -212,7 +212,10 @@ def setup(tmp_path: Path, monkeypatch: Any) -> SimpleNamespace:
                 wheel=Path(inputs["product_wheel"]["path"]),
                 requirements=Path(inputs["requirements"]["path"]),
             )
-            write_json(trial / "runtime.json", runtime(index))
+            observed_runtime = runtime(index)
+            # 真实环境记录的是实际启动的 digest，资格原件仍保留原 tag。
+            observed_runtime["requested"]["docker_image"] = cases[index - 1]["immutable_image"]
+            write_json(trial / "runtime.json", observed_runtime)
             write_json(
                 trial / "result.json",
                 {
@@ -266,6 +269,7 @@ async def test_native_install_only_and_exclusive_case_output(setup: SimpleNamesp
     config = setup.jobs[0]
     assert str(config.tasks[0].path).endswith("synthetic-task")
     assert config.environment.kwargs["messages_upstream"] == "http://127.0.0.1:9"
+    assert setup.cases[5]["runtime_identity"]["requested"]["docker_image"].endswith(":fixed")
     assert "api_key" not in read_json(Path(setup.inputs["profile"]["path"]))
     with pytest.raises(FileExistsError):
         await case(setup, 6)
@@ -344,6 +348,30 @@ async def test_changed_output_or_runtime_cannot_be_covered_by_pass_flag(
         installation.validate_installation_case_native(
             value, path.parent, setup.cases[0], script._artifacts(setup.inputs)
         )
+
+
+@pytest.mark.parametrize("change", ["unpinned_request", "different_image", "different_memory"])
+async def test_digest_alias_does_not_relax_actual_identity_or_resources(
+    setup: SimpleNamespace, change: str
+) -> None:
+    original = copy.deepcopy(setup.cases[0]["runtime_identity"])
+    path = await case(setup, 1)
+    value = read_json(path)
+    runtime_path = Path(value["native"]["runtime"]["path"])
+    observed = read_json(runtime_path)
+    if change == "unpinned_request":
+        observed["requested"]["docker_image"] = original["requested"]["docker_image"]
+    elif change == "different_image":
+        observed["image_id"] = "sha256:" + "f" * 64
+    else:
+        observed["docker_limits"]["Memory"] += 1024
+    write_json(runtime_path, observed)
+    value["native"]["runtime"] = reference(runtime_path)
+    with pytest.raises(ValueError, match="镜像或官方资源"):
+        installation.validate_installation_case_native(
+            value, path.parent, setup.cases[0], script._artifacts(setup.inputs)
+        )
+    assert setup.cases[0]["runtime_identity"] == original
 
 
 async def test_cohort_failure_keeps_attempt_but_does_not_start_job(setup: SimpleNamespace) -> None:
