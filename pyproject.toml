@@ -12,7 +12,7 @@ license = "MIT"
 dependencies = ["harbor==0.24.0", "httpx==0.28.1"]
 
 [dependency-groups]
-dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "ruff==0.17.1", "mypy==2.4.0"]
+dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "ruff==0.17.1", "mypy==2.4.0", "wheel==0.45.1"]
 
 [project.scripts]
 sayacode-bench = "sayacode_bench.cli:main"

@@ -199,6 +199,10 @@ jobs:
           from pathlib import Path
           root=Path(os.environ['BUNDLE_ROOT'])
           temporary=Path(os.environ['RUNNER_TEMP'])
+          results=[]
+          results_path=temporary/'evidence/native-exit-codes.json'
+          with results_path.open('x',encoding='utf-8') as stream:
+              json.dump(results,stream)
           for index in json.loads(os.environ['CASE_GROUP_JSON']):
               case=root/f'installations/restart-v2/case-{index:04d}'
               if case.exists():
@@ -207,7 +211,11 @@ jobs:
               value['CASE_INDEX']=str(index)
               with (temporary/f'evidence/native-attempt-{index:04d}.json').open('x',encoding='utf-8') as stream:
                   json.dump(value,stream)
-              subprocess.run([sys.executable,'-m','scripts.preflight_installations','run','--inputs',str(root/'inputs/restart-v2/installation-inputs.json'),'--source-sha',os.environ['SOURCE_SHA'],'--case-index',str(index),'--output',str(case),'--runner-preparation',str(temporary/'evidence/runner-preparation.json'),'--probe',str(temporary/'evidence/network-probe.json')],check=True)
+              result=subprocess.run([sys.executable,'-m','scripts.preflight_installations','run','--inputs',str(root/'inputs/restart-v2/installation-inputs.json'),'--source-sha',os.environ['SOURCE_SHA'],'--case-index',str(index),'--output',str(case),'--runner-preparation',str(temporary/'evidence/runner-preparation.json'),'--probe',str(temporary/'evidence/network-probe.json')],check=False)
+              results.append({'case_index':index,'exit_code':result.returncode})
+              results_path.write_text(json.dumps(results,indent=2),encoding='utf-8')
+          if any(row['exit_code']!=0 for row in results):
+              raise SystemExit(1)
           PY
       - name: 保存当项完整私有原件
         id: archive

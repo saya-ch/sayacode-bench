@@ -337,6 +337,23 @@ async def test_native_failure_never_becomes_passed_case(setup: SimpleNamespace) 
     assert result["native"]["trial_result"]["sha256"]
 
 
+async def test_missing_installation_receipt_keeps_original_native_error(
+    setup: SimpleNamespace, monkeypatch: Any
+) -> None:
+    async def no_installation_receipt(*args: Any, **kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(installation, "verify_installed_runtime", no_installation_receipt)
+    setup.fail = True
+    result = read_json(await case(setup, 1))
+    assert result["passed"] is False and result["complete"] is False
+    assert result["error_type"] == "SetupFailed"
+    assert result["failure_origin"] == "native_trial"
+    assert "installation" not in result["native"]
+    original = read_json(Path(result["native"]["trial_result"]["path"]))
+    assert original["exception_info"]["exception_type"] == result["error_type"]
+
+
 async def test_partial_merge_never_reduces_46_denominator(setup: SimpleNamespace) -> None:
     path = await case(setup, 1)
     output = setup.root / "installations/restart-v2/preflight.json"

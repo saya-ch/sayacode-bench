@@ -286,8 +286,9 @@ def test_two_case_archive_restores_both_without_copying_history(
         ).is_file()
 
 
-def test_two_case_step_keeps_separate_cli_outputs(
-    guarded: None, tmp_path: Path, monkeypatch: Any
+@pytest.mark.parametrize("failed_indices", [[], [1], [2], [1, 2]])
+def test_two_case_step_keeps_separate_cli_outputs_and_continues_after_failure(
+    guarded: None, tmp_path: Path, monkeypatch: Any, failed_indices: list[int]
 ) -> None:
     root = tmp_path / "bundle"
     root.mkdir()
@@ -295,22 +296,32 @@ def test_two_case_step_keeps_separate_cli_outputs(
     monkeypatch.setenv("GITHUB_RUN_ID", "456")
     calls: list[list[str]] = []
 
-    def invoke(arguments: list[str], **kwargs: Any) -> None:
-        assert kwargs == {"check": True}
+    def invoke(arguments: list[str], **kwargs: Any) -> subprocess.CompletedProcess[Any]:
+        assert kwargs == {"check": False}
         assert arguments[1:4] == ["-m", "scripts.preflight_installations", "run"]
         calls.append(arguments)
         Path(arguments[arguments.index("--output") + 1]).mkdir(parents=True)
+        index = int(arguments[arguments.index("--case-index") + 1])
+        return subprocess.CompletedProcess(arguments, int(index in failed_indices))
 
     monkeypatch.setattr(subprocess, "run", invoke)
-    exec(
-        compile(body("case", "原生 install_only；不执行 Agent 或 verifier"), str(TEMPLATE), "exec"),
-        {},
+    code = compile(
+        body("case", "原生 install_only；不执行 Agent 或 verifier"), str(TEMPLATE), "exec"
     )
+    if failed_indices:
+        with pytest.raises(SystemExit) as stopped:
+            exec(code, {})
+        assert stopped.value.code == 1
+    else:
+        exec(code, {})
     assert [arguments[arguments.index("--case-index") + 1] for arguments in calls] == ["1", "2"]
     for index in (1, 2):
         assert (root / f"installations/restart-v2/case-{index:04d}").is_dir()
         marker = json.loads((tmp_path / f"evidence/native-attempt-{index:04d}.json").read_bytes())
         assert marker["CASE_INDEX"] == str(index)
+    assert json.loads((tmp_path / "evidence/native-exit-codes.json").read_bytes()) == [
+        {"case_index": index, "exit_code": int(index in failed_indices)} for index in (1, 2)
+    ]
 
 
 def test_missing_case_outputs_still_produce_partial_diagnostic(

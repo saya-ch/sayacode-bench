@@ -1,0 +1,174 @@
+# 固定 sqlite-vec 0.1.9 的正规 musl 派生构建；无模型、无供应商凭据。
+name: 固定平台依赖无模型构建
+run-name: sqlite-vec-musl ${{ inputs.public_source_sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      public_source_sha:
+        description: 已审阅且 CI 通过的公开完整源码 SHA
+        type: string
+        required: true
+      acknowledge_free_actions:
+        description: 已确认免费标准 Actions 与零美元预算；仅构建依赖
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: sqlite-vec-musl-runtime-build
+  cancel-in-progress: false
+env:
+  SOURCE_SHA: ${{ inputs.public_source_sha }}
+  BUNDLE_ROOT: /tmp/sayacode-studies/deepseek-v41-20261023
+  BUILD_ROOT: /tmp/sayacode-studies/deepseek-v41-20261023/runtime-support/sqlite-vec-musl-v1
+jobs:
+  build:
+    if: inputs.acknowledge_free_actions && github.repository == 'saya-ch/sayacode-bench-runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: 核实私有仓库与唯一尝试
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/build-handoff"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/build-handoff/repository.json"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          assert re.fullmatch(r'[0-9a-f]{40}',os.environ['SOURCE_SHA'])
+          project=json.loads((Path(os.environ['RUNNER_TEMP'])/'build-handoff/repository.json').read_bytes())
+          assert project['id']==1429748203 and project['private'] is True
+          assert project['full_name']=='saya-ch/sayacode-bench-runs'
+          root=Path(os.environ['BUILD_ROOT'])
+          root.mkdir(parents=True,exist_ok=False)
+          (root/'host').mkdir()
+          identity={key:os.environ[key] for key in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','SOURCE_SHA')}
+          identity.update(model_calls=0,supplier_credentials_available=False)
+          (root/'host/workflow.json').write_text(json.dumps(identity,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: execution
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: saya-ch/sayacode-bench
+          ref: ${{ inputs.public_source_sha }}
+          path: bench
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.5'
+          python-version: '3.13.12'
+          enable-cache: false
+      - name: 绑定模板、依赖与独立宿主
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code HEAD --
+          cmp .github/workflows/build-platform-runtime.yml ../execution/.github/workflows/build-platform-runtime.yml
+          uv sync --frozen
+          uv run --no-sync python scripts/prepare_cloud_runner.py --output "$RUNNER_TEMP/build-handoff/runner-preparation.json"
+          cp "$RUNNER_TEMP/build-handoff/runner-preparation.json" "$BUILD_ROOT/host/runner-preparation.json"
+      - name: 保留受限失败原件空间
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run --no-sync python -m scripts.preflight_installation_storage reserve --output "$BUILD_ROOT/host/storage-before.json"
+      - name: 固定原件下载与离线原生构建
+        id: native
+        working-directory: bench
+        shell: bash
+        run: |
+          set -eu
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          (Path(os.environ['BUILD_ROOT'])/'host/native-attempt.txt').write_text(os.environ['GITHUB_RUN_ID']+'\n',encoding='utf-8')
+          PY
+          timeout --signal=TERM --kill-after=10s 600s \
+            env -u GH_TOKEN -u GITHUB_TOKEN -u SAYACODE_STUDY_CONNECTION_KEYS_JSON \
+            uv run --no-sync python -m scripts.build_sqlite_vec_musl prepare --output "$BUILD_ROOT/inputs"
+          env -u GH_TOKEN -u GITHUB_TOKEN -u SAYACODE_STUDY_CONNECTION_KEYS_JSON \
+            uv run --no-sync python -m scripts.build_sqlite_vec_musl build \
+              --inputs "$BUILD_ROOT/inputs" --output "$BUILD_ROOT/output" --source-sha "$SOURCE_SHA"
+      - name: 保存成功或失败的完整构建原件
+        id: archive
+        if: always() && (steps.native.outcome == 'success' || steps.native.outcome == 'failure')
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PY'
+          import os, tarfile
+          from pathlib import Path
+          from sayacode_bench.artifacts import file_sha256, write_json
+          from sayacode_bench.release_evidence import upload_archive
+          from scripts.build_sqlite_vec_musl import require_archive_safe
+          root=Path(os.environ['BUILD_ROOT'])
+          bundle=Path(os.environ['BUNDLE_ROOT'])
+          temporary=Path(os.environ['RUNNER_TEMP'])
+          assert (root/'host/native-attempt.txt').read_text().strip()==os.environ['GITHUB_RUN_ID']
+          handoff=temporary/'build-handoff'
+          try:
+              require_archive_safe(root/'output')
+          except Exception as error:
+              write_json(handoff/'container-retention-unconfirmed.json',{'retention_unconfirmed':True,'error_type':type(error).__name__,'reason':str(error),'archive_created':False},exclusive=True)
+              raise
+          archive=temporary/'sqlite-vec-musl-runtime.tar.gz'
+          with tarfile.open(archive,'x:gz',dereference=False) as stream:
+              stream.add(root,arcname=root.relative_to(bundle))
+          write_json(handoff/'archive.json',{'sha256':file_sha256(archive),'size_in_bytes':archive.stat().st_size,'source_sha':os.environ['SOURCE_SHA'],'run_id':os.environ['GITHUB_RUN_ID']},exclusive=True)
+          try:
+              manifest=upload_archive(archive,repository='saya-ch/sayacode-bench-runs',release_id=420920737,release_tag='research-evidence-20261022',work_dir=temporary/'runtime-release-upload')
+              write_json(handoff/'runtime-archive-manifest.json',manifest,exclusive=True)
+          except Exception as error:
+              write_json(handoff/'release-unconfirmed.json',{'retention_unconfirmed':True,'error_type':type(error).__name__,'automatic_retry':False},exclusive=True)
+              raise
+          PY
+      - name: Release 未确认时核验 10 MB 备用原 tar
+        id: fallback
+        if: always() && steps.archive.outcome == 'failure'
+        working-directory: bench
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -eu
+          uv run --no-sync python -m scripts.preflight_installation_storage fallback \
+            --archive "$RUNNER_TEMP/sqlite-vec-musl-runtime.tar.gz" --output "$RUNNER_TEMP/build-handoff/retention-fallback.json"
+          cp "$RUNNER_TEMP/sqlite-vec-musl-runtime.tar.gz" "$RUNNER_TEMP/build-handoff/"
+      - name: 保留小型交接与明确未确认诊断
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          root=Path(os.environ['BUILD_ROOT'])
+          handoff=Path(os.environ['RUNNER_TEMP'])/'build-handoff'
+          handoff.mkdir(exist_ok=True)
+          for name in ('provenance.json','build-failure.json','native-result.json','container-owner.json','container-cleanup.json','container-create.json','container-start-request.json','offline-native-build.json'):
+              path=root/'output'/name
+              if path.is_file(): shutil.copyfile(path,handoff/name)
+          for path in (root/'host').glob('*.json'):
+              shutil.copyfile(path,handoff/('host-'+path.name))
+          PY
+      - name: 私有交接；成功声明与原件保全分别记录
+        if: always() && github.repository == 'saya-ch/sayacode-bench-runs'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sqlite-vec-musl-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/build-handoff
+          retention-days: 3
+          if-no-files-found: warn

@@ -222,6 +222,15 @@ async def run_case(
         ):
             if path.is_file():
                 receipt["native"][label] = file_reference(path)
+        native_error = read_json(trials[0]).get("exception_info")
+        if native_error is not None:
+            # 安装失败时可能没有安装收据，先保留原生原因，避免次生 KeyError 掩盖它。
+            receipt["error_type"] = native_error["exception_type"]
+            receipt["failure_origin"] = "native_trial"
+            receipt["failure_message"] = "原生安装阶段失败；详见 TrialResult 与原始异常日志"
+            if (trial / "exception.txt").is_file():
+                receipt["native"]["exception"] = file_reference(trial / "exception.txt")
+            return receipt
         validate_installation_case_native(receipt, output, wanted, _artifacts(inputs))
         receipt.update(complete=True, passed=True)
     except Exception as exc:
