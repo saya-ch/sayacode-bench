@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import inspect
 import json
 import os
+import re
 import shutil
 import signal
 import stat
@@ -472,6 +474,75 @@ def git_baseline(workspace: Path, output: Path) -> dict[str, Any]:
     return result
 
 
+_TEST_PATH_SEGMENT = {"tests", "test", "__tests__", "spec", "specs"}
+_TEST_NAME_PATTERN = re.compile(
+    r"^(test_.*\.py|.*_test\.py|.*_test\.go|conftest\.py"
+    r"|.*\.test\.[tj]sx?|.*\.spec\.[tj]sx?|test_.*\.ts)$",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_test_path(path: str) -> bool:
+    """精确判定测试文件：目录段为 tests/test/__tests__/spec，或文件名符合常见命名。
+
+    不能用子串匹配（会把 latest_report.py 之类误判成测试而丢掉源码改动）。
+    """
+    segments = path.lower().split("/")
+    if any(segment in _TEST_PATH_SEGMENT for segment in segments[:-1]):
+        return True
+    return bool(_TEST_NAME_PATTERN.match(segments[-1]))
+
+
+def restore_existing_test_files(
+    execute: Any, repo: Path, base_commit: str
+) -> list[str]:
+    """把 Agent 对「base 中已存在的测试文件」的修改/删除恢复为 base 版本。
+
+    返回被恢复的路径清单。新增测试文件（base 中不存在）不受影响。
+    """
+    changed = (
+        execute("diff", "--name-only", "--diff-filter=MD", base_commit, "--")
+        .stdout.decode("utf-8", "replace")
+        .splitlines()
+    )
+    restored: list[str] = []
+    for path in changed:
+        clean = path.strip()
+        if not clean or not _looks_like_test_path(clean):
+            continue
+        probe = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "-e", f"{base_commit}:{clean}"],
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        if probe.returncode != 0:
+            continue  # base 中不存在，是新增文件
+        execute("checkout", base_commit, "--", clean)
+        restored.append(clean)
+    return restored
+
+
+def strip_new_test_files(execute: Any, repo: Path, base_commit: str) -> list[str]:
+    """从补丁中剔除新增的测试文件（工作区保留，仅临时索引移除）。
+
+    官方验证器按 fixtures 判分，新建测试文件对评分无益；剔除可防止
+    Agent「新建同名/近名测试」来掩盖源码缺陷。返回被剔除的路径。
+    """
+    added = (
+        execute("diff", "--name-only", "--diff-filter=A", base_commit, "--")
+        .stdout.decode("utf-8", "replace")
+        .splitlines()
+    )
+    stripped: list[str] = []
+    for path in added:
+        clean = path.strip()
+        if clean and _looks_like_test_path(clean):
+            execute("reset", "-q", "--", clean)
+            stripped.append(clean)
+    return stripped
+
+
 def capture_patch(baseline_path: Path, patch_path: Path) -> dict[str, Any]:
     """按官方重放边界保存最终工作树差异，含新文件和二进制，不合入子交付。"""
     baseline = read_object(baseline_path)
@@ -508,7 +579,24 @@ def capture_patch(baseline_path: Path, patch_path: Path) -> dict[str, Any]:
         environment["GIT_INDEX_FILE"] = str(index)
         if not index.exists():
             execute("read-tree", str(baseline["base_commit"]))
+        # 机制层测试保护：官方验证器会在干净沙箱重放补丁并重置测试面，
+        # Agent 对既有测试文件的任何修改都只会让必需测试缺失。恢复它们，新增测试保留。
+        protected = restore_existing_test_files(execute, repo, str(baseline["base_commit"]))
+        if protected:
+            write_json(
+                patch_path.with_name("restored-test-files.json"),
+                {"restored": protected, "reason": "existing test files must not be modified"},
+            )
         execute("add", "--intent-to-add", "--all")
+        # 机制层测试保护（第二类）：剔除补丁中**新增**的测试文件。
+        # 官方验证器只按 fixtures 判分，Agent 新建测试文件对评分无益，还可能掩盖真实缺陷；
+        # 保留源码与既有测试的新增无关文件。
+        stripped = strip_new_test_files(execute, repo, str(baseline["base_commit"]))
+        if stripped:
+            write_json(
+                patch_path.with_name("stripped-new-test-files.json"),
+                {"stripped": stripped, "reason": "newly added test files do not affect official score"},
+            )
         with patch_path.open("wb") as stream:
             execute(
                 "diff",
@@ -775,19 +863,22 @@ async def _run(args: argparse.Namespace, usage_snapshot: Any) -> int:
     )
     await repository.save(config)
     runtime = await AgentRuntime.open(paths.home)
-    app = SayacodeApp(
-        paths=paths,
-        repository=repository,
-        config=config,
-        runtime=runtime,
-        workspace=workspace,
-        session_id="bench-main",
-        trust_level="full",
-        trust_explicit=True,
-        profile_name=profile.name,
-        headless=True,
-        team_enabled=variant.get("team_enabled", True),
-    )
+    # 兼容不同产品版本的构造签名：正式发布版没有 team_enabled。
+    app_options: dict[str, Any] = {
+        "paths": paths,
+        "repository": repository,
+        "config": config,
+        "runtime": runtime,
+        "workspace": workspace,
+        "session_id": "bench-main",
+        "trust_level": "full",
+        "trust_explicit": True,
+        "profile_name": profile.name,
+        "headless": True,
+    }
+    if "team_enabled" in inspect.signature(SayacodeApp.__init__).parameters:
+        app_options["team_enabled"] = variant.get("team_enabled", True)
+    app = SayacodeApp(**app_options)
     # 审计逐行直接进入已挂载日志，强制终止也保留此前已确认计量。
     app.audit = AuditLog(logs / "audit.jsonl")
     control = RunControl()
