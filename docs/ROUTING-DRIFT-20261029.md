@@ -54,3 +54,18 @@
 ```powershell
 python C:\sb\tmp\route_drift.py   # 读取 ~/.config/magpie/usage.jsonl 统计 req→served/provider
 ```
+
+## 六、auto-hy3 组（用户确认三条是同一模型，2026-10-29 复测）
+
+**重要更正**：`auto-hy3` 组的三条成员 `workbuddy/hy3`、`workbuddy-ai/hy3`、`workbuddy/hy3-x` 是**同一个腾讯 hy3 模型**，仅分为国际版/国内版、免费/付费额度来源（用户确认）。此前"hy3-x 是降配变体"的判断作废。
+
+用户调整路由权重后复测（8 次）：
+| 落点 | 次数 |
+|---|---|
+| hy3 / workbuddy | 4/8 |
+| hy3 / workbuddy-ai | 4/8 |
+| hy3-x / workbuddy（偶发） | 少量 |
+
+- hy3 正常输出（含 `reasoning_content`，是推理模型）；单次 credits 0–0.01 量级。
+- **含义**：组内是「同一模型 × 多额度池」，路由分摊到免费（workbuddy-ai Free plan，Credits 100%）与付费来源，**能力一致、可分摊额度**——这比 `auto/deepseek` 混入 glm 有本质不同，可以作为评测模型。
+- **使用注意**：评测时记录每 trial 的 `served`/`provider`；若要完全确定性可 pin `workbuddy-ai/hy3`（免费池）。hy3 与 deepseek-v4.1-flash 是**不同模型**，两者的成绩不可混比。
