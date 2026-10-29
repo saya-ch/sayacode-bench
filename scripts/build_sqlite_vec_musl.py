@@ -258,27 +258,50 @@ def package(inputs: Path, output: Path, native: Path) -> Path:
 
 
 SMOKE = r"""
-import json, math, os, platform, sqlite3, sys
+import ctypes, json, os, platform, shutil, sqlite3, subprocess, sys
 import sqlite_vec
+
 assert sqlite_vec.__version__ == "0.1.9"
-db = sqlite3.connect(":memory:")
-db.enable_load_extension(True)
-sqlite_vec.load(db)
-version = db.execute("SELECT vec_version()").fetchone()[0]
-assert version == "v0.1.9"
-distance = db.execute("SELECT vec_distance_L2('[1,2,3]', '[4,6,3]')").fetchone()[0]
-assert math.isclose(distance, 5.0)
-db.execute("CREATE VIRTUAL TABLE items USING vec0(embedding float[3])")
-db.execute("INSERT INTO items(rowid, embedding) VALUES (1, '[1,2,3]'), (2, '[4,6,3]')")
-nearest = db.execute("SELECT rowid, distance FROM items WHERE embedding MATCH '[1,2,3]' AND k=1").fetchone()
-assert nearest == (1, 0.0)
-db.execute("DELETE FROM items WHERE rowid=2")
-assert db.execute("SELECT count(*) FROM items").fetchone()[0] == 1
+module_path = os.path.abspath(sqlite_vec.__file__)
+module_dir = os.path.dirname(module_path)
+so_path = os.path.join(module_dir, "vec0.so")
+
+# musl 镜像内的 CPython（cp310-cp314）其 sqlite3 模块均未编译 loadable extension，
+# 无法用 enable_load_extension 加载扩展。改用 ctypes 校验入口符号，再以镜像自带
+# 的 sqlite3 CLI 做真实 SQL 加载与向量运算，两者都必须通过。
+lib = ctypes.CDLL(so_path)
+assert hasattr(lib, "sqlite3_vec_init"), "扩展缺少 sqlite3_vec_init 入口"
+cli = shutil.which("sqlite3")
+assert cli, "镜像内缺少 sqlite3 CLI"
+statements = "\n".join([
+    ".load " + os.path.join(module_dir, "vec0"),
+    "SELECT vec_version();",
+    "SELECT vec_distance_L2('[1,2,3]', '[4,6,3]');",
+    "CREATE VIRTUAL TABLE items USING vec0(embedding float[3]);",
+    "INSERT INTO items(rowid, embedding) VALUES (1, '[1,2,3]'), (2, '[4,6,3]');",
+    "SELECT rowid || '|' || distance FROM items WHERE embedding MATCH '[1,2,3]' AND k=1;",
+    "DELETE FROM items WHERE rowid=2;",
+    "SELECT count(*) FROM items;",
+]) + "\n"
+completed = subprocess.run([cli, ":memory:"], input=statements, capture_output=True, text=True, timeout=120)
+assert completed.returncode == 0, "sqlite3 CLI 执行失败：" + completed.stderr
+rows = [line for line in completed.stdout.splitlines() if line.strip()]
+assert len(rows) == 4, "sqlite3 输出行数不符：" + repr(rows)
+version, distance_text, nearest_text, count_text = rows
+assert version == "v0.1.9", version
+distance = float(distance_text)
+assert abs(distance - 5.0) < 1e-9, distance
+assert nearest_text == "1|0.0", nearest_text
+count = int(count_text)
+assert count == 1, count
+
 print(json.dumps({"builder_python": sys.version, "builder_executable": sys.executable,
  "effective_uid": os.geteuid(), "effective_gid": os.getegid(),
- "sqlite_version": sqlite3.sqlite_version, "module_path": sqlite_vec.__file__,
+ "sqlite_version": sqlite3.sqlite_version, "module_path": module_path,
  "machine": platform.machine(), "vec_version": version, "distance_l2": distance,
- "nearest": nearest, "insert_query_delete_passed": True, "sut_python_verified": False}))
+ "nearest": [1, 0.0], "insert_query_delete_passed": True, "sut_python_verified": False,
+ "extension_load_method": "ctypes+sqlite3-cli",
+ "python_has_enable_load_extension": hasattr(sqlite3.connect(":memory:"), "enable_load_extension")}))
 """
 
 
@@ -327,6 +350,13 @@ def worker(inputs: Path, output: Path) -> None:
             "-O3",
             "-march=x86-64",
             "-mtune=generic",
+            # musl 不提供 u_int*_t 这组 BSD/glibc 别名，而原 amalgamation 在
+            # 非 Windows/Emscripten/Cosmopolitan/wasi 分支里依赖它们。这里只在
+            # 编译期补上别名，不改动源文件字节，保持对官方原件的可追溯性。
+            "-Du_int8_t=uint8_t",
+            "-Du_int16_t=uint16_t",
+            "-Du_int32_t=uint32_t",
+            "-Du_int64_t=uint64_t",
             str(source / "sqlite-vec.c"),
             "-o",
             str(native),

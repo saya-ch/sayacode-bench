@@ -25,7 +25,7 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
     """生产 wheel 与锁文件固定安装，连接通过权限受限的文件传递。"""
 
     ERROR_PATTERNS: ClassVar[list[Any]] = []
-    DEFAULT_SETUP_TIMEOUT_SEC = 900.0
+    DEFAULT_SETUP_TIMEOUT_SEC = 2400.0
 
     @staticmethod
     def name() -> str:
@@ -80,18 +80,30 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             # wheel 必须保持合法文件名，pip 从文件名读取发行物元数据。
             remote = ROOT / source.name if source == self.product_wheel else target
             await environment.upload_file(source, str(remote))
+        install_steps = (
+            f"export UV_PYTHON_INSTALL_DIR={ROOT}/python; "
+            # 慢速网络适配：国内 PyPI 镜像 + 放宽 uv 的 HTTP 超时与并发。
+            "export UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple; "
+            "export UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple; "
+            "export UV_HTTP_TIMEOUT=600 UV_CONCURRENT_DOWNLOADS=4; "
+            f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
+            f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; "
+            f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv; "
+            f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --require-hashes "
+            f"-r {ROOT}/requirements.txt; "
+            f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --no-deps "
+            f"{shlex.quote(str(ROOT / self.product_wheel.name))}; "
+            f"chmod -R a+rX {ROOT}"
+        )
         await self.exec_as_root(
             environment,
+            # astral.sh/GitHub 的下载间歇性 TLS 失败；整链重试 3 次（下载失败 20 秒即返回，代价小）。
             command=(
-                f"set -eu; export UV_PYTHON_INSTALL_DIR={ROOT}/python; "
-                f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
-                f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; "
-                f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv; "
-                f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --require-hashes "
-                f"-r {ROOT}/requirements.txt; "
-                f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --no-deps "
-                f"{shlex.quote(str(ROOT / self.product_wheel.name))}; "
-                f"chmod -R a+rX {ROOT}"
+                "set -eu; ok=0; "
+                "for attempt in 1 2 3; do "
+                f"if ( set -eu; {install_steps} ); then ok=1; break; fi; "
+                "echo \"install attempt $attempt failed, retrying\"; sleep 5; done; "
+                "[ \"$ok\" = 1 ]"
             ),
         )
         await verify_installed_runtime(
