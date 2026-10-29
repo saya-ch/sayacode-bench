@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "date": "2026-10-29",
+  "purpose": "L2 快速回归：pass 题验证无回归，fail 题验证修复是否生效；不作为正式成绩",
+  "source": "studies/primary-selection-v1.json 的 holdout 子集",
+  "tasks": [
+    {
+      "task_id": "instance_internetarchive__openlibrary-3f7db6bbbcc7c418b3db72d157c6aed1d45b2ccf-v430f20c722405e462d9ef44dee7d34c41e76fe7a",
+      "expect": "pass",
+      "reason": "稳定通过（快，131s）"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+      "expect": "pass",
+      "reason": "稳定通过（165s）"
+    },
+    {
+      "task_id": "instance_ansible__ansible-de01db08d00c8d2438e1ba5989c313ba16a145b0-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "expect": "pass",
+      "reason": "稳定通过（306s）"
+    },
+    {
+      "task_id": "instance_navidrome__navidrome-812dc2090f20ac4f8ac271b6ed95be5889d1a3ca",
+      "expect": "pass",
+      "reason": "稳定通过（951s）"
+    },
+    {
+      "task_id": "instance_future-architect__vuls-e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+      "expect": "pass",
+      "reason": "稳定通过（951s）"
+    },
+    {
+      "task_id": "instance_element-hq__element-web-9bf77963ee5e036d54b2a3ca202fbf6378464a5e-vnan",
+      "expect": "fail",
+      "reason": "基线灾难性失败（51 必需缺 41，改测试）——验证机制保护"
+    },
+    {
+      "task_id": "instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan",
+      "expect": "fail",
+      "reason": "基线缺 1 个测试（改测试）"
+    },
+    {
+      "task_id": "instance_tutao__tutanota-51818218c6ae33de00cbea3a4d30daac8c34142e-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+      "expect": "fail",
+      "reason": "基线稳定失败（源码修复错误/空转）"
+    }
+  ]
+}
