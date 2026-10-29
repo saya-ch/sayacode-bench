@@ -70,7 +70,19 @@
 | **最终确认** | **deepseek-v4.1-flash**（目标模型，`workbuddy/deepseek-v4.1-flash` 固定来源） | 对外能力结论与正式成绩须在目标模型上复验，防止「只对 hy3 有效」的优化 |
 
 规则：
-1. **每个 trial 必须记录 `served` / `provider`**（用户已把 `auto-hy3` 权重调为同一模型的多额度池；仍要留痕以证明"实际测的是同一模型"）。
-2. **不同模型的成绩不可混比**（hy3 与 deepseek 是不同模型）。
+1. **每个 trial 必须记录 `served` / `provider`**（`scripts/annotate_served.py`，按 trial 时间窗从 Magpie usage 关联，且**只统计评测 agent**，排除对话 agent）。用户已把 `auto-hy3` 权重调为同一模型的多额度池；仍要留痕以证明"实际测的是同一模型"。
+2. **不同模型的成绩不可混比**（hy3 与 deepseek 是不同模型），**回归集期望必须按模型分别维护**：`studies/regression-baseline-<model>.json`；`run_regression.py --model-label` 决定用哪份基线，无对应基线时判定仅供参考。
 3. hy3 的失败要区分「能力不足」与「agent 设计缺陷」——只有后者才是迭代目标；前者对 deepseek 未必成立。
 4. 详见 [ROUTING-DRIFT](ROUTING-DRIFT-20261029.md) 第六节（hy3 组实测）与第二节（auto-deepseek 混 glm 的风险）。
+
+### hy3 基线（2026-10-29 实测，L2 回归集 8 题）
+
+| 结果 | 题 |
+|---|---|
+| PASS（5） | ansible-de01、element-9bf、vuls-e52、openlibrary-3f7、navidrome-812 |
+| FAIL（3） | element-d405（partial 40%）、openlibrary-fdbc（**partial 97%**，差一点）、tutao-518（**partial 0%，空转**） |
+
+- pass@1 = 5/8 = 62.5%（95%CI 31–86%，n 小仅作基线）；平均 partial = 79.7%；平均步数 28（deepseek 同集为 61）。
+- 改既有测试触发 3 次、空转 1 个 → 护栏有实际拦截对象。
+- served 分布（194 次评测调用）：`hy3/workbuddy` 94 + `hy3/workbuddy-ai` 86 + `hy3-x/workbuddy` 14，**全部 hy3 系列、零 deepseek**，证明 profile 生效且权重在分摊额度。
+- 与 deepseek 的回归集结果**互补**（hy3 救了 element-9bf、丢了 openlibrary-fdbc），因此**必须双基线**。

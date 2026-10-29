@@ -79,22 +79,31 @@ async def main_async(args: argparse.Namespace) -> int:
                          "reward": reward, "status": status})
             print(f"    -> {status} reward={reward}", flush=True)
 
-    # 判定
+    # 判定：优先使用「该模型自己的基线」，否则用 regression-set 的期望但只作参考
     ok = 0
     breaks = []
     fixed = []
+    baseline_path = ROOT / "studies" / f"regression-baseline-{args.model_label}.json"
+    judged = baseline_path.is_file()
+    if judged:
+        base = json.loads(baseline_path.read_text(encoding="utf-8"))
+        expect_map = {t["task_id"]: ("pass" if t["reward"] == 1.0 else "fail") for t in base["tasks"]}
+    else:
+        expect_map = {item["task_id"]: item["expect"] for item in spec["tasks"]}
     for item in spec["tasks"]:
         tid = item["task_id"]
         got = [r["reward"] for r in rows if r["task_id"] == tid and r["reward"] is not None]
         passed = bool(got) and max(got) == 1.0
-        if item["expect"] == "pass" and not passed:
+        expect = expect_map.get(tid)
+        if expect == "pass" and not passed:
             breaks.append(tid)
-        if item["expect"] == "fail" and passed:
+        if expect == "fail" and passed:
             fixed.append(tid)
         if got:
             ok += 1
 
     report = {"summary": {"runs": len(rows), "with_reward": ok,
+                          "baseline_model": args.model_label, "baseline_used": judged,
                           "regressions": breaks, "fixes": fixed},
               "rows": rows}
     (out / "regression-report.json").write_text(
@@ -103,6 +112,7 @@ async def main_async(args: argparse.Namespace) -> int:
     print(f"  有效运行 {ok}/{len(rows)}")
     print(f"  回归破坏（原 PASS 现非 PASS）: {breaks or '无'}")
     print(f"  修复生效（原 FAIL 现 PASS）: {fixed or '无'}")
+    print(f"  基线: {args.model_label} ({'已用该模型基线' if judged else '无该模型基线，判定仅供参考'})")
     print(f"  结论: {'Go（无回归）' if not breaks else 'No-Go（有回归，回退）'}")
     return 0 if not breaks else 1
 
@@ -116,6 +126,7 @@ def main() -> int:
     p.add_argument("--variant", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--repeats", type=int, default=1)
+    p.add_argument("--model-label", default="deepseek-v4.1-flash", help="用于匹配 studies/regression-baseline-<label>.json")
     return asyncio.run(main_async(p.parse_args()))
 
 
