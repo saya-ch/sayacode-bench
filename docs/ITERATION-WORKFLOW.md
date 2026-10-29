@@ -59,3 +59,18 @@
 - 本工作流的探索性结果（如 2026-10 的 holdout 探索见 [EXPLORATORY-20261029](EXPLORATORY-20261029.md)）**不是正式成绩**，不写入公开子集分数。
 - partial credit 可被「改测试」抬高，因此必须与护栏同报；只看 partial 会自欺。
 - 当前 bench 仍处「基础设施门禁与资源校准、正式模型试验为 0」（见 [STATUS](STATUS.md)），本文不改变该状态。
+
+## 7. 评测模型选择（2026-10-29 决定）
+
+采用**双模型策略**：
+
+| 角色 | 模型 | 理由 |
+|---|---|---|
+| **开发迭代主模型** | **hy3**（腾讯混元，`auto-hy3` 组） | 能力低于 deepseek → 天花板效应低、同一改进更易显现、区分度高；额度充足（`workbuddy-ai` Free plan，Credits 100%）可支撑高频迭代 |
+| **最终确认** | **deepseek-v4.1-flash**（目标模型，`workbuddy/deepseek-v4.1-flash` 固定来源） | 对外能力结论与正式成绩须在目标模型上复验，防止「只对 hy3 有效」的优化 |
+
+规则：
+1. **每个 trial 必须记录 `served` / `provider`**（用户已把 `auto-hy3` 权重调为同一模型的多额度池；仍要留痕以证明"实际测的是同一模型"）。
+2. **不同模型的成绩不可混比**（hy3 与 deepseek 是不同模型）。
+3. hy3 的失败要区分「能力不足」与「agent 设计缺陷」——只有后者才是迭代目标；前者对 deepseek 未必成立。
+4. 详见 [ROUTING-DRIFT](ROUTING-DRIFT-20261029.md) 第六节（hy3 组实测）与第二节（auto-deepseek 混 glm 的风险）。
