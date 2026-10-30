@@ -27,10 +27,11 @@ NGINX_IMAGE = (
 
 @dataclass(frozen=True)
 class GatewayConfig:
-    """两个地址由研究配置固定；凭据只经请求头透传，不属于网关配置。"""
+    """上游地址由研究配置固定；凭据只经请求头透传，不属于网关配置。"""
 
     chat_upstream: str | None
     messages_upstream: str
+    responses_upstream: str | None = None
 
 
 def _endpoint(value: str, suffix: str) -> tuple[str, str, str]:
@@ -61,6 +62,7 @@ def nginx_config(config: GatewayConfig) -> str:
     for name, path, upstream in (
         ("saya_chat", "/v1/chat/completions", config.chat_upstream),
         ("saya_messages", "/v1/messages", config.messages_upstream),
+        ("saya_responses", "/v1/responses", config.responses_upstream),
     ):
         if upstream is None:
             continue
@@ -260,9 +262,14 @@ class IsolatedDockerEnvironment(DockerEnvironment):  # type: ignore[misc]
     """Harbor 原生 Docker 环境的本地网络适配；仅支持单个 Linux 容器。"""
 
     def __init__(
-        self, *args: Any, messages_upstream: str, chat_upstream: str | None = None, **kwargs: Any
+        self,
+        *args: Any,
+        messages_upstream: str,
+        chat_upstream: str | None = None,
+        responses_upstream: str | None = None,
+        **kwargs: Any,
     ) -> None:
-        self.gateway = ModelGateway(GatewayConfig(chat_upstream, messages_upstream))
+        self.gateway = ModelGateway(GatewayConfig(chat_upstream, messages_upstream, responses_upstream))
         self._container_id: str | None = None
         self._public_networks: dict[str, dict[str, Any]] = {}
         self._network_lock = asyncio.Lock()

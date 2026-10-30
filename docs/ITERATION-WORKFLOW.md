@@ -60,22 +60,20 @@
 - partial credit 可被「改测试」抬高，因此必须与护栏同报；只看 partial 会自欺。
 - 当前 bench 仍处「基础设施门禁与资源校准、正式模型试验为 0」（见 [STATUS](STATUS.md)），本文不改变该状态。
 
-## 7. 评测模型选择（2026-10-29 决定）
+## 7. 评测模型（暂定只用 hy3，2026-10-30 更新）
 
-采用**双模型策略**：
+**暂定只用 hy3**（腾讯混元，`auto-hy3` 组）。选它的理由：能力低于前沿模型 → 天花板效应低、同一改进更易显现、区分度高；额度充足（`workbuddy-ai` Free plan）可支撑高频迭代。
 
-| 角色 | 模型 | 理由 |
-|---|---|---|
-| **开发迭代主模型** | **hy3**（腾讯混元，`auto-hy3` 组） | 能力低于 deepseek → 天花板效应低、同一改进更易显现、区分度高；额度充足（`workbuddy-ai` Free plan，Credits 100%）可支撑高频迭代 |
-| **最终确认** | **deepseek-v4.1-flash**（目标模型，`workbuddy/deepseek-v4.1-flash` 固定来源） | 对外能力结论与正式成绩须在目标模型上复验，防止「只对 hy3 有效」的优化 |
+> deepseek-v4.1-flash 仅作**可选**的最终确认手段，**尚未确认使用**，当前不纳入流程。
 
 规则：
-1. **每个 trial 必须记录 `served` / `provider`**（`scripts/annotate_served.py`，按 trial 时间窗从 Magpie usage 关联，且**只统计评测 agent**，排除对话 agent）。用户已把 `auto-hy3` 权重调为同一模型的多额度池；仍要留痕以证明"实际测的是同一模型"。
-2. **不同模型的成绩不可混比**（hy3 与 deepseek 是不同模型），**回归集期望必须按模型分别维护**：`studies/regression-baseline-<model>.json`；`run_regression.py --model-label` 决定用哪份基线，无对应基线时判定仅供参考。
-3. hy3 的失败要区分「能力不足」与「agent 设计缺陷」——只有后者才是迭代目标；前者对 deepseek 未必成立。
-4. 详见 [ROUTING-DRIFT](ROUTING-DRIFT-20261029.md) 第六节（hy3 组实测）与第二节（auto-deepseek 混 glm 的风险）。
+1. **每个 trial 必须记录 `served` / `provider`**（`scripts/annotate_served.py`，按 trial 时间窗从 Magpie usage 关联，且**只统计评测 agent**，排除对话 agent），以证明"实际测的是同一模型"。
+2. hy3 的失败要区分「能力不足」与「agent 设计缺陷」——只有后者才是迭代目标。
+3. 详见 [ROUTING-DRIFT](ROUTING-DRIFT-20261029.md) 第六节（hy3 组实测）与第二节（auto-deepseek 混 glm 的风险）。
 
-### hy3 基线（2026-10-29 实测，L2 回归集 8 题）
+### hy3 基线（⚠️ 已作废，2026-10-29，在 65536 错误配置下测得）
+
+> 下表在 `context_length=65536`（触发点 52k）下产生，**配置错误，不得引用**，仅作历史记录。修正配置（192k）后的基线待重跑。
 
 | 结果 | 题 |
 |---|---|
@@ -107,8 +105,8 @@
 后果：长任务（需要大量读文件的 element-web / qutebrowser / navidrome）在 52k 就被摘要压缩、丢失任务细节，容易草率收尾——这解释了 hy3 平均步数只有 28（deepseek 61）。**此前基于 65,536 配置的所有探索性结论均偏低，只作方向性参考。**
 
 现行 profile（已修正）：
-- `magpie-hy3.json`：192000 / 16000 → 触发点 153,600
-- `magpie-deepseek.json`：900000 / 32000 → 触发点 720,000（模型名固定为 `workbuddy/deepseek-v4.1-flash`，避免路由漂移）
+- `magpie-hy3.json`：192000 / 16000 → 触发点 153,600（**当前唯一在用**）
+- `magpie-deepseek.json`：900000 / 32000 → 触发点 720,000（**暂未使用**，仅备用）
 
 ## 9. 记分卡指标（每批自动产出，`analyze_trials.py`）
 

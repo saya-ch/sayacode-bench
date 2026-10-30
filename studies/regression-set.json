@@ -45,6 +45,5 @@
       "reason": "基线稳定失败（源码修复错误/空转）"
     }
   ],
-  "baseline_model": "deepseek-v4.1-flash",
-  "note": "expect 字段属于 baseline_model；换模型须重测并生成 regression-baseline-<model>.json"
+  "note": "expect 为旧配置(65536)下的参考，已作废；须在新配置(192k)下重测并生成 regression-baseline-<model>.json"
 }
