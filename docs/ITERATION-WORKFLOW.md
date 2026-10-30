@@ -109,3 +109,21 @@
 现行 profile（已修正）：
 - `magpie-hy3.json`：192000 / 16000 → 触发点 153,600
 - `magpie-deepseek.json`：900000 / 32000 → 触发点 720,000（模型名固定为 `workbuddy/deepseek-v4.1-flash`，避免路由漂移）
+
+## 9. 记分卡指标（每批自动产出，`analyze_trials.py`）
+
+对齐 2026 主流 agent 评测（四层：结果/轨迹/效率/安全），在原有基础上补齐 5 项**零额外成本、抗刷**的指标：
+
+| 指标 | 定义 | 来源 | 用途 |
+|---|---|---|---|
+| **cost-per-success** | 总 token ÷ 通过题数 | `agent_result` tokens | 决策核心：多花的钱换几个点 |
+| **step-per-success** | 总步数 ÷ 通过题数 | `events.jsonl` | 抓"绕远路" |
+| **reward hacking rate** | 改/删测试的 trial 比例 | `restored/stripped-test-files.json` | **防虚高**（partial 可被改测试刷高）|
+| **bloat ratio** | model.patch ÷ gold_patch 大小（中位）| `model.patch` / `solution/gold_patch.diff` | 抓过度修改 |
+| **重复方差** | 同题多次的通过率标准差 | 多次重复 | 显式量化 run-to-run 噪声 |
+
+**报告格式**：`成功率(±CI) | partial | cost/成功 | step/成功 | 改测试率 | bloat | 空转 | 重复方差`
+
+**不纳入**：tool schema/argument validity（SWE 工具少）、safety（无安全维度）、LLM-as-judge/rubric（引入偏置）、trajectory exact-match（无参考轨迹）。
+
+**原则**：只加"可行动 + 抗刷 + 零成本"的指标；指标越多越易 Goodhart，故 partial 必须与 reward hacking 同报。
