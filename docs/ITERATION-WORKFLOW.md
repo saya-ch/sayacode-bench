@@ -86,3 +86,26 @@
 - 改既有测试触发 3 次、空转 1 个 → 护栏有实际拦截对象。
 - served 分布（194 次评测调用）：`hy3/workbuddy` 94 + `hy3/workbuddy-ai` 86 + `hy3-x/workbuddy` 14，**全部 hy3 系列、零 deepseek**，证明 profile 生效且权重在分摊额度。
 - 与 deepseek 的回归集结果**互补**（hy3 救了 element-9bf、丢了 openlibrary-fdbc），因此**必须双基线**。
+
+## 8. 跑前配置汇报（硬性流程，2026-10-30 起）
+
+每次跑批（L1/L2/L3）**启动前必须**：
+
+1. 执行 `python scripts/profile_summary.py <profile.json>`，确认：模型 id、协议、**上下文长度**、最大输出、**摘要触发点**、摘要保留消息、上下文编辑参数；
+2. 把该摘要**汇报给用户并取得确认**；
+3. 用户确认后才启动跑批。两个 runner（`run_holdout.py` / `run_regression.py`）也会在跑前自动把同一摘要写入日志。
+
+### 为什么要立这条规矩
+
+2026-10-30 发现 **context_length 被系统性配小**：
+
+| 模型 | 实际 context | 曾配置 | 实际摘要触发点 | 曾触发点 |
+|---|---|---|---|---|
+| hy3 | 192,000 | 65,536 | 153,600 | 52,428 |
+| deepseek-v4.1-flash | 1,000,000 | 65,536 | 720,000 | 52,428 |
+
+后果：长任务（需要大量读文件的 element-web / qutebrowser / navidrome）在 52k 就被摘要压缩、丢失任务细节，容易草率收尾——这解释了 hy3 平均步数只有 28（deepseek 61）。**此前基于 65,536 配置的所有探索性结论均偏低，只作方向性参考。**
+
+现行 profile（已修正）：
+- `magpie-hy3.json`：192000 / 16000 → 触发点 153,600
+- `magpie-deepseek.json`：900000 / 32000 → 触发点 720,000（模型名固定为 `workbuddy/deepseek-v4.1-flash`，避免路由漂移）

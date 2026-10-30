@@ -25,6 +25,9 @@ from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E
 from sayacode_bench.connections import messages_endpoint  # noqa: E402
 from sayacode_bench.execution import CANONICAL_MODEL, run_official_trial  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from profile_summary import summary_text  # noqa: E402
+
 SET = ROOT / "studies" / "regression-set.json"
 
 
@@ -54,6 +57,7 @@ def build_agent(args: argparse.Namespace, work: Path) -> tuple[AgentConfig, Envi
 
 async def main_async(args: argparse.Namespace) -> int:
     spec = json.loads(SET.read_text(encoding="utf-8"))
+    print(summary_text(args.profile), flush=True)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     agent, env = build_agent(args, out)
