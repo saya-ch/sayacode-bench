@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -55,15 +56,24 @@ def build_agent(args: argparse.Namespace, work: Path) -> tuple[AgentConfig, Envi
 
 
 async def main_async(args: argparse.Namespace) -> int:
-    sel = json.loads(SEL.read_text(encoding="utf-8"))
-    excluded = set(args.exclude_repos)
-    tasks = []
-    for t in sel["holdout"]:
-        tid = t["task_id"]
-        repo = tid.replace("instance_", "").split("__")[0]
-        if repo in excluded:
-            continue
-        tasks.append(tid)
+    if args.sample_file:
+        spec = json.loads(Path(args.sample_file).read_text(encoding="utf-8"))
+        tasks = [t["task_id"] for t in spec["tasks"]]
+        print(f"题集: {args.sample_file}（{len(tasks)} 题）", flush=True)
+    else:
+        sel = json.loads(SEL.read_text(encoding="utf-8"))
+        excluded = set(args.exclude_repos)
+        tasks = []
+        for t in sel["holdout"]:
+            tid = t["task_id"]
+            repo = tid.replace("instance_", "").split("__")[0]
+            if repo in excluded:
+                continue
+            tasks.append(tid)
+
+    # 每 trial 占 2 个 Docker 网络，默认地址池 ~17；跑前必须清理，避免 fully subnetted。
+    subprocess.run(["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False)
+    print("已清理未使用 Docker 网络", flush=True)
 
     print(summary_text(args.profile), flush=True)
 
@@ -124,7 +134,8 @@ def main() -> int:
     p.add_argument("--repeats", type=int, default=1)
     p.add_argument("--model-label", default="hy3")
     p.add_argument("--skip-existing", action="store_true", help="跳过已有验证结果的题（断点续跑）")
-    p.add_argument("--concurrency", type=int, default=4, help="并发 trial 数；实测单容器约 0.8-1.5GB（配置 4GB 是上限），Docker 8GB 建议 4")
+    p.add_argument("--sample-file", default=None, help="studies/sample-40.json 等题集文件；缺省用 holdout")
+    p.add_argument("--concurrency", type=int, default=8, help="并发 trial 数；实测单容器峰值约 0.5GB，Docker 8GB 可支撑 8 并发")
     p.add_argument("--exclude-repos", nargs="*", default=["gravitational", "protonmail"])
     return asyncio.run(main_async(p.parse_args()))
 

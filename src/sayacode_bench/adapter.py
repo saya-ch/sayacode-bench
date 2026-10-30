@@ -63,12 +63,21 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
 
     async def install(self, environment: BaseEnvironment) -> None:
         evidence = self.logs_dir / "installation"
-        bootstrap = await prepare_uv_installer(
-            environment,
-            ROOT / "install-uv.sh",
-            evidence,
-            self.ensure_system_dependencies,
-        )
+        # install.sh 下载受网络抖动影响（curl exit=18 传输中断等）；在此重试 3 次。
+        bootstrap = None
+        for attempt in range(1, 4):
+            try:
+                bootstrap = await prepare_uv_installer(
+                    environment,
+                    ROOT / "install-uv.sh",
+                    evidence,
+                    self.ensure_system_dependencies,
+                )
+                break
+            except RuntimeError as exc:
+                if "curl exit=" not in str(exc) or attempt == 3:
+                    raise
+                await asyncio.sleep(5)
         await self.exec_as_root(
             environment, command=f"mkdir -p {ROOT} {PRIVATE}; chmod 700 {PRIVATE}"
         )

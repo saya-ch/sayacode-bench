@@ -15,8 +15,11 @@
 - 模型网关：Magpie，host `127.0.0.1:3425/v1`，容器内经 `saya-model-gateway:8080`（支持 `/v1/messages`、`/v1/chat/completions`、`/v1/responses`）。
 - 暂定只用 **hy3**（`auto-hy3`），上下文 **192,000** / 输出 16,000。
 - 只用 **SWE-bench Pro V2**（642 题，排除 123 musl → **519 可评测**）；暂不使用 Terminal-Bench。
-- Docker 内存 8GB，单容器约 1.5GB → 并发建议 ≤4。
-- 迭代题集：`studies/sample-40.json`（seed `saya-eval-20261030`，可复现）。
+- **容器内存实测**（50 trial 采样）：空载 3–5MB；agent 执行阶段 140–500MB；**验证器阶段峰值可达 2.26GB**（vuls）；任务差异远大于 agent 差异。
+- **阶段耗时实测**（50 trial）：environment_setup 8s（1%）、agent_setup 172s（22.5%）、**agent_execution 540s（70.5%，低内存）**、verifier 46s（6%，高内存）。单 trial 均值 12.8 分钟。
+- **并发策略**：默认 **trial 并发 12 + 验证器限流 1**（`run_formal_240.py --concurrency 12 --verifier-limit 1`）+ 内存自适应降级（>5GB 降到 2，>3.5GB 降到 4）。依据：验证器峰值 2.26GB 单跑安全，其余给执行/安装。
+- **Docker 崩溃根因**（实测 2026-10-30）：主机物理内存 15.6GB 被 Docker VM（提交 6.9GB）+ 桌面应用 + 系统吃满，提交内存冲到 53.6GB、页面文件峰值 13.8GB → WSL 后端被压垮。**关掉 ChatGPT/WorkBuddy/codex 桌面应用可释放约 2.4GB**，崩溃频率明显下降。崩溃后 `wsl --shutdown` + 重启 Docker + `--skip-existing` 续跑。
+- 正式题集：`studies/sample-40-final.json`（40 题，已 gold patch 验证全绿）。
 - **网络**：Clash Verge 已开 TUN + fake-ip；其规则模板 `profiles/rNSaXJaGi0rv.yaml` 已加国内镜像（tuna/aliyun/ustc/tencent/huawei）**DIRECT** 规则——否则国内源被代理拖到 30KB/s。改规则后需重启 Clash Verge 生效。
 - **每个 trial 占 2 个 Docker 网络**（`instance_*__env_default` + `saya-isolated-*`），默认地址池约 17 个；跑批前后必须 `docker network prune -f`，否则「all predefined address pools have been fully subnetted」。
 

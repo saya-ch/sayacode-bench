@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "benchmark": "swe-bench-pro-v2",
+  "purpose": "正式三 agent 对比的 40 题全绿集（已 gold patch 验证）",
+  "seed": "saya-eval-20261030",
+  "size": 40,
+  "note": "原 sample-40 剔除 4 坏/可疑（gold patch 不过或无结果），补入 4 个经 Oracle 验证的替代题",
+  "tasks": [
+    {
+      "task_id": "instance_ansible__ansible-415e08c2970757472314e515cb63a51ad825c45e-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+      "repo": "ansible"
+    },
+    {
+      "task_id": "instance_ansible__ansible-de01db08d00c8d2438e1ba5989c313ba16a145b0-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "repo": "ansible"
+    },
+    {
+      "task_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+      "repo": "ansible"
+    },
+    {
+      "task_id": "instance_ansible__ansible-fb144c44144f8bd3542e71f5db62b6d322c7bd85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "repo": "ansible"
+    },
+    {
+      "task_id": "instance_element-hq__element-web-9bf77963ee5e036d54b2a3ca202fbf6378464a5e-vnan",
+      "repo": "element-hq"
+    },
+    {
+      "task_id": "instance_element-hq__element-web-b7fea97bb68c6628a644580076f840109132f074-vnan",
+      "repo": "element-hq"
+    },
+    {
+      "task_id": "instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan",
+      "repo": "element-hq"
+    },
+    {
+      "task_id": "instance_flipt-io__flipt-756f00f79ba8abf9fe53f3c6c818123b42eb7355",
+      "repo": "flipt-io"
+    },
+    {
+      "task_id": "instance_flipt-io__flipt-8bd3604dc54b681f1f0f7dd52cbc70b3024184b6",
+      "repo": "flipt-io"
+    },
+    {
+      "task_id": "instance_future-architect__vuls-dc496468b9e9fb73371f9606cdcdb0f8e12e70ca",
+      "repo": "future-architect"
+    },
+    {
+      "task_id": "instance_future-architect__vuls-e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+      "repo": "future-architect"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+      "repo": "internetarchive"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-3f7db6bbbcc7c418b3db72d157c6aed1d45b2ccf-v430f20c722405e462d9ef44dee7d34c41e76fe7a",
+      "repo": "internetarchive"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+      "repo": "internetarchive"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+      "repo": "internetarchive"
+    },
+    {
+      "task_id": "instance_navidrome__navidrome-0130c6dc13438b48cf0fdfab08a89e357b5517c9",
+      "repo": "navidrome"
+    },
+    {
+      "task_id": "instance_navidrome__navidrome-812dc2090f20ac4f8ac271b6ed95be5889d1a3ca",
+      "repo": "navidrome"
+    },
+    {
+      "task_id": "instance_navidrome__navidrome-dfa453cc4ab772928686838dc73d0130740f054e",
+      "repo": "navidrome"
+    },
+    {
+      "task_id": "instance_NodeBB__NodeBB-05f2236193f407cf8e2072757fbd6bb170bc13f0-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e",
+      "repo": "NodeBB"
+    },
+    {
+      "task_id": "instance_NodeBB__NodeBB-397835a05a8e2897324e566b41c5e616e172b4af-v89631a1cdb318276acb48860c5d78077211397c6",
+      "repo": "NodeBB"
+    },
+    {
+      "task_id": "instance_NodeBB__NodeBB-4327a09d76f10a79109da9d91c22120428d3bdb9-vnan",
+      "repo": "NodeBB"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-3d01c201b8aa54dd71d4f801b1dd12feb4c0a08a-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "repo": "qutebrowser"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-3e21c8214a998cb1058defd15aabb24617a76402-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "repo": "qutebrowser"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-52708364b5f91e198defb022d1a5b4b3ebd9b563-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+      "repo": "qutebrowser"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367",
+      "repo": "qutebrowser"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-c09e1439f145c66ee3af574386e277dd2388d094-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+      "repo": "qutebrowser"
+    },
+    {
+      "task_id": "instance_tutao__tutanota-51818218c6ae33de00cbea3a4d30daac8c34142e-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+      "repo": "tutao"
+    },
+    {
+      "task_id": "instance_tutao__tutanota-de49d486feef842101506adf040a0f00ded59519-v10a26bfb45a064b93f4fc044a0254925037b88f1",
+      "repo": "tutao"
+    },
+    {
+      "task_id": "instance_ansible__ansible-7e1a347695c7987ae56ef1b6919156d9254010ad-v390e508d27db7a51eece36bb6d9698b63a5b638a",
+      "repo": "ansible"
+    },
+    {
+      "task_id": "instance_ansible__ansible-a02e22e902a69aeb465f16bf03f7f5a91b2cb828-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+      "repo": "ansible"
+    },
+    {
+      "task_id": "instance_flipt-io__flipt-9d25c18b79bc7829a6fb08ec9e8793d5d17e2868",
+      "repo": "flipt-io"
+    },
+    {
+      "task_id": "instance_flipt-io__flipt-ee02b164f6728d3227c42671028c67a4afd36918",
+      "repo": "flipt-io"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-e390c1212055dd84a262a798e53487e771d3fb64-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+      "repo": "internetarchive"
+    },
+    {
+      "task_id": "instance_internetarchive__openlibrary-60725705782832a2cb22e17c49697948a42a9d03-v298a7a812ceed28c4c18355a091f1b268fe56d86",
+      "repo": "internetarchive"
+    },
+    {
+      "task_id": "instance_navidrome__navidrome-6b3b4d83ffcf273b01985709c8bc5df12bbb8286",
+      "repo": "navidrome"
+    },
+    {
+      "task_id": "instance_qutebrowser__qutebrowser-fec187c2cb53d769c2682b35ca77858a811414a8-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+      "repo": "qutebrowser"
+    },
+    {
+      "task_id": "instance_element-hq__element-web-772df3021201d9c73835a626df8dcb6334ad9a3e-vnan",
+      "repo": "element-hq"
+    },
+    {
+      "task_id": "instance_flipt-io__flipt-dbe263961b187e1c5d7fe34c65b000985a2da5a0",
+      "repo": "flipt-io"
+    },
+    {
+      "task_id": "instance_future-architect__vuls-f6cc8c263dc00329786fa516049c60d4779c4a07",
+      "repo": "future-architect"
+    },
+    {
+      "task_id": "instance_future-architect__vuls-4b680b996061044e93ef5977a081661665d3360a",
+      "repo": "future-architect"
+    }
+  ]
+}

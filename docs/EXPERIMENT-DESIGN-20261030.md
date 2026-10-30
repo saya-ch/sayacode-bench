@@ -120,9 +120,11 @@
 ## 8. 执行协议
 
 1. 跑前：`docker network prune -f`（每 trial 占 2 网络，池约 17）+ `profile_summary.py` 汇报配置（硬性，见 ITERATION-WORKFLOW §8）。
-2. 并发：**8**（实测单容器峰值约 507MB；Docker VM 8GB；网络池需 prune）。
-3. 每次跑批：`--repeats 2 --concurrency 8`，secrets/镜像均已就绪。
-4. 跑后：`analyze_trials.py` 出记分卡 + `annotate_served.py` 确认 served 分布。
+2. **并发**：trial **12** + **验证器限流 1**（`run_formal_240.py --concurrency 12 --verifier-limit 1`），外加内存自适应降级（>5GB→2，>3.5GB→4）。
+   - 依据（50 trial 实测）：agent 执行占 70.5% 时间但内存低（140–500MB）；验证器仅 6% 时间但峰值 2.26GB。
+   - 为何 12 而非 16：安装阶段内存未单独实测，给余量；为何验证限 1：vuls 单个 2.26GB，两个同时就 4.5GB。
+3. 每次跑批：`--repeats 2`，镜像/secrets 已就绪；断点续跑用 `--skip-existing`（自动归档无 reward 的残留 job）。
+4. 跑后：`summarize_formal.py` 出三 agent 记分卡 + 配对 McNemar；`annotate_served.py` 确认 served 分布。
 
 ## 9. 数据与可复现
 
@@ -147,6 +149,8 @@
 ## 11. 当前状态
 
 - ✅ 三 agent 单题链路跑通（SAYACODE 0/1、mini-swe 1.0、Codex 1.0）
-- ✅ 40 题镜像就绪
-- ✅ 窗口/权限/网络/依赖全部对齐
-- ⏳ 待执行：gold patch 筛坏题 → SAYACODE 40×2 → mini-swe 40×2 → Codex 40×2
+- ✅ 窗口/权限/网络/依赖全部对齐（SAYACODE 192k/176k、mini-swe registry 176k+16k、Codex 182400；三者均完全权限）
+- ✅ **gold patch 筛题完成**：原 40 题中 36 好 / 1 坏 / 3 可疑；补入 4 个经 Oracle 验证的替代题 → `studies/sample-40-final.json`（40 题全绿）
+  - 坏题率 1/40 = 2.5%（远低于 Epoch AI 估的 30%）
+- 🔄 **正式 240 次跑批进行中**：SAYACODE → mini-swe → Codex，每 agent 40 题 × 2 重复，trial 并发 12 + 验证器限流 1，watchdog 自动恢复
+- ⏳ 跑完：`summarize_formal.py` 出三 agent 记分卡 + 配对 McNemar → 写入分析文档
