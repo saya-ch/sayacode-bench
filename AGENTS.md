@@ -8,6 +8,7 @@
 2. **时常推送**：完成一批改动就 `git commit` + `git push origin main`，不要在本地长期累积未推送的提交。
 3. **跑前汇报配置**：每次评测启动前用 `python scripts/profile_summary.py <profile>` 汇报模型 / 上下文 / 摘要触发点并取得确认（见 ITERATION-WORKFLOW §8）。
 4. **诚实边界**：开发期数字不当正式成绩；作废数字不引用；过程指标（步数/token/改测试）只作诊断，不作「模型更强」的证据。
+5. **失败先自己查根因，不要等用户问**。依次查：`job.log` / `exception.txt` / 容器内**实测**（`docker run` 测网络与下载速度）/ 对比 host 与容器行为，定位到具体环节（安装、网络、配置、模型）再汇报；汇报必须带实测证据与已排除项。
 
 ## 环境事实（确认无疑）
 
@@ -16,6 +17,8 @@
 - 只用 **SWE-bench Pro V2**（642 题，排除 123 musl → **519 可评测**）；暂不使用 Terminal-Bench。
 - Docker 内存 8GB，单容器约 1.5GB → 并发建议 ≤4。
 - 迭代题集：`studies/sample-40.json`（seed `saya-eval-20261030`，可复现）。
+- **网络**：Clash Verge 已开 TUN + fake-ip；其规则模板 `profiles/rNSaXJaGi0rv.yaml` 已加国内镜像（tuna/aliyun/ustc/tencent/huawei）**DIRECT** 规则——否则国内源被代理拖到 30KB/s。改规则后需重启 Clash Verge 生效。
+- **每个 trial 占 2 个 Docker 网络**（`instance_*__env_default` + `saya-isolated-*`），默认地址池约 17 个；跑批前后必须 `docker network prune -f`，否则「all predefined address pools have been fully subnetted」。
 
 ## 常见坑
 
