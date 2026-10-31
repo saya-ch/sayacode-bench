@@ -1,6 +1,6 @@
 # 新轮次执行协议 v13
 
-本执行合同用于安装阶段故障之后重新冻结的 `restart-v2` 研究轮次。它补充完整安装预检和先导费用延续；[v12 统计协议](../studies/sensitivity-protocol-v12.json)的候选规则、抽样、重复数和敏感性分析保持原字节。新合同在 [execution-protocol-v13.json](../studies/execution-protocol-v13.json) 中绑定原统计协议的 SHA256。
+本执行合同用于安装阶段故障之后重新冻结的 `restart-v2` 研究轮次。它补充完整安装预检和先导费用延续；[v12 统计协议](../../studies/sensitivity-protocol-v12.json)的候选规则、抽样、重复数和敏感性分析保持原字节。新合同在 [execution-protocol-v13.json](../../studies/execution-protocol-v13.json) 中绑定原统计协议的 SHA256。
 
 原分析身份同时包含旧执行代码的 SHA，不能要求它与新源码的完整身份相等。旧文件永久保留；`inputs/restart-v2/analysis-protocol.json` 单独冻结新源码的真实完整身份。统计脚本、分析、有效性、计价、资源规则的代码 SHA 以及抽样次数、seed 和抽样单位必须仍与原方法一致。最终分析的 `--protocol` 使用新文件，不能给旧记录补新身份。
 

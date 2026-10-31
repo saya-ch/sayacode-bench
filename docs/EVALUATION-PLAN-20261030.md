@@ -17,7 +17,7 @@
 
 | 角色 | 模型 | 固定来源 | 上下文配置 |
 |---|---|---|---|
-| 主模型（开发 + 确认）| **hy3** | `auto-hy3`（同模型多额度池）| 192,000 / 输出 16,000 |
+| 主模型（开发 + 确认）| **hy3** | `auto-hy3`（同模型多额度池）| 192,000 / 输出 **32,000**（v2 起）|
 
 - **暂定只用 hy3**；deepseek-v4.1-flash 作为「可选」最终确认，**尚未确认使用**，不纳入当前流程。
 - **禁止用会漂移的 `auto/...` 别名**（见 [ROUTING-DRIFT](ROUTING-DRIFT-20261029.md)）。
@@ -64,7 +64,11 @@
 | 配置汇报 | `scripts/profile_summary.py <profile>` |
 | served 记录 | `scripts/annotate_served.py <jobs>` |
 
-## 9. 当前状态与下一步
+## 9. 当前状态与下一步（2026-10-31 更新）
 
 - 网络环境已支持 chat/messages/**responses** 三种上游（`network.py`）。
-- 待办：① 三 agent 单题可行性验证；② gold patch 筛 40 题坏题；③ 跑修正配置后的 hy3 基线（40 题 × 2）。
+- ✅ 三 agent 单题可行性验证完成；窗口/权限/依赖已对齐。
+- ⚠️ gold patch 筛 40 题：实际 **36 good / 1 bad / 3 null**，bad 不在 40 题内；「40 题全绿」不成立，3 个 null 需补齐或替换。
+- ⛔ v1 240 次跑批已收尾但**结论作废**：221/240 完整，分母三套（SAYACODE 55/80、mini-swe 69/80、Codex 56/65），17.4pp 差距是分母假象（Codex 统一 80 分母 70.0%）。
+- 🔄 下一步：**v2 重跑**（40 题 × 2 重复 × 3 agent，输出 `C:\sb\hard\v2`，`max_output_tokens=32000`），汇总必须统一 80 分母、改测试分两口径、模型故障逐条列明。
+- 当前真实状态见 [STATUS](STATUS.md)，交接见 [HANDOFF](HANDOFF.md)。

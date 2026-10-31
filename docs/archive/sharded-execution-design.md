@@ -1,8 +1,8 @@
 # 正式研究的分片执行设计
 
-状态：**编码前的设计快照**。下文保留当时的拟议接口和验收约束；后续已经接入的代码、实际入口与证据边界见 [分片执行与恢复](sharded-execution.md) 和 [状态记录](STATUS.md)。本文不表示正式模型试验已经开始，也不赋予额外执行权限。
+状态：**编码前的设计快照**。下文保留当时的拟议接口和验收约束；后续已经接入的代码、实际入口与证据边界见 [分片执行与恢复](sharded-execution.md) 和 [状态记录](../STATUS.md)。本文不表示正式模型试验已经开始，也不赋予额外执行权限。
 
-设计承接 [研究协议](protocol.md)、[固定规模](../studies/design-20261022-v1.json)、[v6 统计与资源身份](../studies/sensitivity-protocol-v6.json) 和 [云端校准](cloud-calibration.md)。当前实现已有单次官方试验、独立 pristine replay、费用估价、资源门禁与候选签收；尚无本文描述的正式分片、全局账本和严格归并入口。
+设计承接 [研究协议](../protocol.md)、[固定规模](../../studies/design-20261022-v1.json)、[v6 统计与资源身份](../../studies/archive/sensitivity-protocol-v6.json) 和 [云端校准](cloud-calibration.md)。当前实现已有单次官方试验、独立 pristine replay、费用估价、资源门禁与候选签收；尚无本文描述的正式分片、全局账本和严格归并入口。
 
 ## 目标与不变条件
 
@@ -162,7 +162,7 @@ bundle 根路径属于该研究的输入约定。每个 runner 将前序已核�
 
 ## 八、继承 v6 资源与统计规则
 
-分片和归并都必须调用 [resources.py](../src/sayacode_bench/resources.py) 的现有规则，不另写字典相等比较：
+分片和归并都必须调用 [resources.py](../../src/sayacode_bench/resources.py) 的现有规则，不另写字典相等比较：
 
 - 请求资源须符合原官方任务声明。
 - CPU 额度须由 Docker NanoCpus 或 quota/period 及 cgroup `cpu.max` 交叉确认，无限额不能算相同。

@@ -7,14 +7,14 @@
 - 公开仓库提供 `scripts/calibrate_cloud.py`、离线测试及工作流模板。
 - 主任务已建立私有执行仓库 `saya-ch/sayacode-bench-runs`，原始 requirements 已单独保留。
 - 用户已授权密钥托管于指定私有仓库、以新起点计算后续 100 元、早期探针费用单列未知，并仅使用免费 Actions。授权不扩大为完整正式研究。
-- 首轮私有工作流在工件 preflight 阶段失败，两个模型 job 被跳过，模型调用为零。原始日志和 artifact 已私有保存，见 [首轮最小失败事实](../reports/cloud-calibration-preflight-failure-20261022-v1.json)。
-- 精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 已完成 Windows 实际无密钥预检，源码重建 wheel 与原始基线逐字节一致；本地 565 通过、3 项平台跳过，四环境 CI 通过。这不是云端 Linux 模型运行证据，最小记录见 [准备工件](../reports/cloud-calibration-preparation-20261022-v1.json)。
+- 首轮私有工作流在工件 preflight 阶段失败，两个模型 job 被跳过，模型调用为零。原始日志和 artifact 已私有保存，见 [首轮最小失败事实](../../reports/cloud-calibration-preflight-failure-20261022-v1.json)。
+- 精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 已完成 Windows 实际无密钥预检，源码重建 wheel 与原始基线逐字节一致；本地 565 通过、3 项平台跳过，四环境 CI 通过。这不是云端 Linux 模型运行证据，最小记录见 [准备工件](../../reports/cloud-calibration-preparation-20261022-v1.json)。
 - GitHub API 凭据不能读取账户私有 Actions 余量；准备记录保留当时的未知状态。随后已通过本机登录页面只读核查实际免费额度与现有支出控制，并获得仅使用免费 Actions 的授权；账户财务详情仅留仓库外，未修改设置，不能将免费计划说明当作实际余量。
 - 首轮云端生成 wheel 未被保存于原 artifact；不能宣称已经直接比较该云端 wheel。本机纯 Linux 复现发现同源码 wheel 与原件的 90 个条目内容、顺序及属性相同，字节差异仅为 ZIP `create_system`。下一 cohort 将保存本次云端的真实重建 wheel 和完整诊断，再依据实际证据决定放行。
-- 第二轮已取得真实云端 wheel，确认仅 90 个创建平台字节不同；真实网络探针及清理通过，随后输入阶段失败，参考解和模型均未启动，见 [第二轮原始事实的最小发布](../reports/cloud-calibration-input-failure-20261022-v2.json)。
-- 独立的无模型冷输入诊断 `39797160282` 中，两题元数据及第一题镜像通过，第二题拉取前因磁盘低于原定 12 GiB 门槛停止；不能据此断言此前第二轮也是同一原因。见 [冷输入诊断](../reports/cloud-cold-input-diagnostic-20261022-v1.json)。三次云端尝试均未请求模型。
+- 第二轮已取得真实云端 wheel，确认仅 90 个创建平台字节不同；真实网络探针及清理通过，随后输入阶段失败，参考解和模型均未启动，见 [第二轮原始事实的最小发布](../../reports/cloud-calibration-input-failure-20261022-v2.json)。
+- 独立的无模型冷输入诊断 `39797160282` 中，两题元数据及第一题镜像通过，第二题拉取前因磁盘低于原定 12 GiB 门槛停止；不能据此断言此前第二轮也是同一原因。见 [冷输入诊断](../../reports/cloud-cold-input-diagnostic-20261022-v1.json)。三次云端尝试均未请求模型。
 
-相关协议见 [研究协议](protocol.md)、[Linux 执行说明](linux-execution.md) 和 [生产基线重建](../reproduction/README.md)。
+相关协议见 [研究协议](../protocol.md)、[Linux 执行说明](linux-execution.md) 和 [生产基线重建](../../reproduction/README.md)。
 
 ## 两个仓库各自保存什么
 
@@ -147,4 +147,4 @@ artifacts/
 
 整体 workflow 失败发生在汇总阶段：两个 fresh VM 的 `RUNNER_TEMP` 相同，生成了相同 source job 路径，但请求 SHA 不同，费用去重器按既定规则拒绝身份冲突。后续模板将模型输出固定为 `model/<GITHUB_RUN_ID>/<GITHUB_JOB>`，并同步更新 continuation 和跨题 prior 路径；原始旧 JSON 不改写，模型不为这项修复重跑。
 
-Ansible 还有一次 HTTP 503 回调未返回用量。70 次成功回调的输入／输出总数与只读供应商账单的展示计费数量一致；费用核对及其精度限制见 [费用记录](billing.md)。未知原始用量保持未知，两道校准题不能作为正式成功率或 multi-agent 增益证据。[最小事实报告](../reports/cloud-model-calibration-20261023-v3.json)
+Ansible 还有一次 HTTP 503 回调未返回用量。70 次成功回调的输入／输出总数与只读供应商账单的展示计费数量一致；费用核对及其精度限制见 [费用记录](billing.md)。未知原始用量保持未知，两道校准题不能作为正式成功率或 multi-agent 增益证据。[最小事实报告](../../reports/cloud-model-calibration-20261023-v3.json)

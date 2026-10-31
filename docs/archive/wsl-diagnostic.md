@@ -75,7 +75,7 @@
 
 ## 第一批实际结果：WSL 2.6.3、独立 Engine
 
-已完成专用 Ubuntu 24.04.5 安装；安装文件与微软清单 SHA256 一致。实际 Engine 与 Desktop 不同，服务端为 Ubuntu、版本 29.7.2，使用 `/run/docker.sock` 和自身 ext4 存储。WSL 平台没有升级，内核仍是 `6.6.87.2-microsoft-standard-WSL2`。安装过程与包版本见 [重建说明](../reproduction/wsl/README.md)。
+已完成专用 Ubuntu 24.04.5 安装；安装文件与微软清单 SHA256 一致。实际 Engine 与 Desktop 不同，服务端为 Ubuntu、版本 29.7.2，使用 `/run/docker.sock` 和自身 ext4 存储。WSL 平台没有升级，内核仍是 `6.6.87.2-microsoft-standard-WSL2`。安装过程与包版本见 [重建说明](../../reproduction/wsl/README.md)。
 
 固定评测代码为 `72c3698589e961f704bbf7109b803254863739a5`。新 Linux 依赖安装检查为 509 项通过、1 项 Docker 探针跳过；真实 Docker 网络探针随后单独通过，四类专属资源的独立清理检查也通过。基础测试不作为评分稳定性的证明。
 
@@ -134,6 +134,6 @@ qutebrowser 第二次失败发生在 Hypothesis 的 `int_from_bytes` 调用，�
 
 qutebrowser 前两次 oracle 含 `INTERNALERROR>`，三次日志均含 `TypeError`，不能说三次错误栈完全一致。官方 stdout 的 `Required tests / Passed tests` 分别为 383/130、383/282、383/384；第三组数量不等于验收成功，仍保留原生 reward=0，不用日志数量重算官方评分。评分 0 和这些异常分别保留，不能用“Harbor 进程退出码为 0”声称就绪通过，也不能将参考解异常解释为 Agent 答题失败。OpenLibrary 三次 oracle 为 1，两个 nop 为 0；固定八次全部执行后才结束，没有根据中途成绩追加重复。
 
-公开最小证据见 [WSL 3 工件目录](../reports/wsl3-fixture-diagnostic-20261022-v1/)，包括原计划、逐次结果、镜像和资源、配置与原生结果哈希、异常类型与数量、独立探针和清理事实。完整原始目录另存仓库外，归档 SHA256 为 `9315c35de67f2065b5239bdbaa7a473ee4804066b17f134fbf3f7431e5852633`。旧 WSL 批次、固定种子对照和未提权安装失败记录均保留。
+公开最小证据见 [WSL 3 工件目录](../../reports/wsl3-fixture-diagnostic-20261022-v1/)，包括原计划、逐次结果、镜像和资源、配置与原生结果哈希、异常类型与数量、独立探针和清理事实。完整原始目录另存仓库外，归档 SHA256 为 `9315c35de67f2065b5239bdbaa7a473ee4804066b17f134fbf3f7431e5852633`。旧 WSL 批次、固定种子对照和未提权安装失败记录均保留。
 
 **执行完成，就绪未通过，本轮本地平台配置试验结束。** 按升级前的停止规则，不继续更换 WSL 版本、修改任务依赖或反复运行到参考解通过。这说明单次稳定版升级未解决观察到的就绪问题，不能唯一归因内核、硬件或其他共享条件；不同默认随机种子的批次也不被当作严格因果实验。本批模型请求及付费 API 费用均为 **0**，不进入正式效果分母。

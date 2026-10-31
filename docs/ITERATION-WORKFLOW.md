@@ -2,7 +2,7 @@
 
 日期：2026-10-29。状态：**执行层工具与流程说明；不产生正式成绩，不改变预注册协议**。
 
-本文服务于 [WORK_PLAN](WORK_PLAN.md)「阶段 4：在开发集完成基线与候选的真实比较」，规定**日常调优怎么快速迭代、怎么量化、怎么判定**。它与 [protocol.md](protocol.md) 的关系：protocol 决定「研究什么、怎么统计」，本文决定「开发期怎么高频试错」。两者都不把开发期诊断结果计入正式分母。
+本文服务于开发期内部调优（原正式研究计划见 [WORK_PLAN 归档](archive/WORK_PLAN.md)），规定**日常调优怎么快速迭代、怎么量化、怎么判定**。它与 [protocol.md](protocol.md) 的关系：protocol 决定「研究什么、怎么统计」，本文决定「开发期怎么高频试错」。两者都不把开发期诊断结果计入正式分母。
 
 ## 0. 四条原则（承接 protocol 的证据观）
 
@@ -56,9 +56,9 @@
 
 ## 6. 诚实边界
 
-- 本工作流的探索性结果（如 2026-10 的 holdout 探索见 [EXPLORATORY-20261029](EXPLORATORY-20261029.md)）**不是正式成绩**，不写入公开子集分数。
+- 本工作流的探索性结果（如 2026-10 的 holdout 探索，见 [EXPLORATORY 归档](archive/EXPLORATORY-20261029.md)）**不是正式成绩**，不写入公开子集分数。
 - partial credit 可被「改测试」抬高，因此必须与护栏同报；只看 partial 会自欺。
-- 当前 bench 仍处「基础设施门禁与资源校准、正式模型试验为 0」（见 [STATUS](STATUS.md)），本文不改变该状态。
+- 当前 bench 处于「开发期重建中」：v1 跑批结论已作废，正按统一口径重跑 v2（见 [STATUS](STATUS.md)），本文不改变该状态。
 
 ## 7. 评测模型（暂定只用 hy3，2026-10-30 更新）
 
@@ -104,8 +104,8 @@
 
 后果：长任务（需要大量读文件的 element-web / qutebrowser / navidrome）在 52k 就被摘要压缩、丢失任务细节，容易草率收尾——这解释了 hy3 平均步数只有 28（deepseek 61）。**此前基于 65,536 配置的所有探索性结论均偏低，只作方向性参考。**
 
-现行 profile（已修正）：
-- `magpie-hy3.json`：192000 / 16000 → 触发点 153,600（**当前唯一在用**）
+现行 profile（v2 起）：
+- `magpie-hy3.json`：192000 / **32000** → 摘要触发 153,600（**当前唯一在用**；v1 用 16000，长任务收尾过早，v2 已修正）
 - `magpie-deepseek.json`：900000 / 32000 → 触发点 720,000（**暂未使用**，仅备用）
 
 ## 9. 记分卡指标（每批自动产出，`analyze_trials.py`）
@@ -116,7 +116,7 @@
 |---|---|---|---|
 | **cost-per-success** | 总 token ÷ 通过题数 | `agent_result` tokens | 决策核心：多花的钱换几个点 |
 | **step-per-success** | 总步数 ÷ 通过题数 | `events.jsonl` | 抓"绕远路" |
-| **reward hacking rate** | 改/删测试的 trial 比例 | `restored/stripped-test-files.json` | **防虚高**（partial 可被改测试刷高）|
+| **reward hacking rate** | 改/删测试的 trial 比例 | `restored/stripped-test-files.json` | **防虚高**（partial 可被改测试刷高）；这是**产品侧检测率**，与「patch 含测试文件比例」是两个口径，不可混 |
 | **bloat ratio** | model.patch ÷ gold_patch 大小（中位）| `model.patch` / `solution/gold_patch.diff` | 抓过度修改 |
 | **重复方差** | 同题多次的通过率标准差 | 多次重复 | 显式量化 run-to-run 噪声 |
 

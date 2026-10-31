@@ -35,4 +35,4 @@ SWE 公开资格继续使用原固定 v7 源码；Terminal 首批在执行任何
 - SWE-bench Pro V2 是主要编程基准；Terminal-Bench 2.1 固定历史版本作为终端能力补充，结果分开。
 - 不把两种基准和旧自构造集合成一个总分，也不把 Linux 容器成绩扩展为原生 Windows 成绩。
 
-详细研究协议在 `protocol.md`，开发期的高频迭代、指标与回归判定见 [调优迭代工作流](ITERATION-WORKFLOW.md)（执行层，不产生正式成绩）；实际冻结规模与候选身份以 studies 中的清单为准。
+详细研究协议在 `protocol.md`，开发期的高频迭代、指标与回归判定见 [调优迭代工作流](../ITERATION-WORKFLOW.md)（执行层，不产生正式成绩）；实际冻结规模与候选身份以 studies 中的清单为准。

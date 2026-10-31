@@ -33,7 +33,7 @@
 - **不用 Terminal-Bench**（已弃用）。
 
 ### 3.2 模型：hy3（暂定唯一）
-- Magpie `auto-hy3`，实际 context **192,000** / max_output 64,000（`/v1/models` 实测）。
+- Magpie `auto-hy3`，实际 context **192,000** / max_output **64,000**（`/v1/models` 实测）；profile 实际配 `max_output_tokens=32000`（v2 起，留余量）。
 - 三来源同模型不同额度池（workbuddy / workbuddy-ai / hy3-x），权重已调；**每 trial 记录 served**。
 - 上下文窗口**必须显式对齐**（见 §5.3）。
 
@@ -102,7 +102,7 @@
 | 结果 | 回归破坏率 | PASS_TO_PASS 变化（partial=100% 但 reward=0 等）|
 | 效率 | **cost-per-success** | 总 token ÷ 通过数 |
 | 效率 | step-per-success | 总步数 ÷ 通过数 |
-| 护栏 | **reward hacking rate** | 改/删测试的 trial 比例 |
+| 护栏 | **reward hacking rate** | 改/删测试的 trial 比例（**产品侧检测率**，来自 restored/stripped 文件；与「patch 含测试文件比例」是两个口径，不可混）|
 | 护栏 | 空转率 | model.patch=0 |
 | 护栏 | bloat ratio | patch 字节 ÷ gold patch 字节（中位）|
 | 噪声 | 重复方差 | 同题两次 reward 的标准差 |
@@ -120,11 +120,11 @@
 ## 8. 执行协议
 
 1. 跑前：`docker network prune -f`（每 trial 占 2 网络，池约 17）+ `profile_summary.py` 汇报配置（硬性，见 ITERATION-WORKFLOW §8）。
-2. **并发**：trial **12** + **验证器限流 1**（`run_formal_240.py --concurrency 12 --verifier-limit 1`），外加内存自适应降级（>5GB→2，>3.5GB→4）。
+2. **并发**：v2 重建期用 trial **4–6** + **验证器限流 1**（`run_formal_240.py --concurrency 4 --verifier-limit 1`），外加内存自适应降级（>5GB→2，>3.5GB→4）。历史上限 12 是旧环境调优值，当前保守使用。
    - 依据（50 trial 实测）：agent 执行占 70.5% 时间但内存低（140–500MB）；验证器仅 6% 时间但峰值 2.26GB。
    - 为何 12 而非 16：安装阶段内存未单独实测，给余量；为何验证限 1：vuls 单个 2.26GB，两个同时就 4.5GB。
 3. 每次跑批：`--repeats 2`，镜像/secrets 已就绪；断点续跑用 `--skip-existing`（自动归档无 reward 的残留 job）。
-4. 跑后：`summarize_formal.py` 出三 agent 记分卡 + 配对 McNemar；`annotate_served.py` 确认 served 分布。
+4. 跑后：`final_summary.py` 出三 agent 记分卡（统一分母）+ 配对 McNemar；`annotate_served.py` 确认 served 分布。
 
 ## 9. 数据与可复现
 
@@ -146,11 +146,12 @@
 | 仅 hy3 | 结论不外推到其他模型 | 报告标注 |
 | 40 题样本 | ±14pp | 不外宣称更小差异 |
 
-## 11. 当前状态
+## 11. 当前状态（2026-10-31 更新）
 
 - ✅ 三 agent 单题链路跑通（SAYACODE 0/1、mini-swe 1.0、Codex 1.0）
 - ✅ 窗口/权限/网络/依赖全部对齐（SAYACODE 192k/176k、mini-swe registry 176k+16k、Codex 182400；三者均完全权限）
-- ✅ **gold patch 筛题完成**：原 40 题中 36 好 / 1 坏 / 3 可疑；补入 4 个经 Oracle 验证的替代题 → `studies/sample-40-final.json`（40 题全绿）
-  - 坏题率 1/40 = 2.5%（远低于 Epoch AI 估的 30%）
-- 🔄 **正式 240 次跑批进行中**：SAYACODE → mini-swe → Codex，每 agent 40 题 × 2 重复，trial 并发 12 + 验证器限流 1，watchdog 自动恢复
-- ⏳ 跑完：`summarize_formal.py` 出三 agent 记分卡 + 配对 McNemar → 写入分析文档
+- ⚠️ **gold patch 筛题结果**：40 题中 **36 good / 1 bad / 3 null**；bad 题不在最终 40 题内，3 个 null 表示未取得有效 gold 结论。**「40 题全绿」不成立**，不能把 null 当通过，也不能把坏题率写成 1/40。
+- ⛔ **v1 240 次跑批已收尾但结论作废**：221/240 完整（19 条缺口），且三 agent 分母不同（SAYACODE 55/80、mini-swe 69/80、Codex 56/65），并列成 68.8%/86.2%/86.2% 制造了 17.4pp 假差距；Codex 统一 80 分母为 70.0%。
+- 🔄 **当前主线：v2 重跑**：40 题 × 2 重复 × 3 agent，输出 `C:\sb\hard\v2`，`max_output_tokens=32000`，统一验证器口径。
+- ⏳ v2 跑完：按统一 80 分母汇总，改测试分「检测率 / patch 含测试」两列，模型故障逐条列明（v1 仅 1 条真 API 故障）。
+- 当前真实状态与作废结论清单见 [STATUS](STATUS.md)。

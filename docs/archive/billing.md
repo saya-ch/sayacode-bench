@@ -4,7 +4,7 @@
 
 ## 固定价格与证据
 
-首轮使用[2026-10-22 价格快照](../studies/prices/siliconflow-deepseek-v4.1-flash-20261022.json)。快照记录官方来源、抓取时间与 HTML 内容哈希，不把整页 HTML、凭据或账户余额提交进仓库。
+首轮使用[2026-10-22 价格快照](../../studies/prices/siliconflow-deepseek-v4.1-flash-20261022.json)。快照记录官方来源、抓取时间与 HTML 内容哈希，不把整页 HTML、凭据或账户余额提交进仓库。
 
 硅基流动 `deepseek-ai/DeepSeek-V4.1-Flash` 当日标价，单位均为人民币／百万 tokens：
 
@@ -46,7 +46,7 @@ reason = budget_reason(
 
 ### 已观测缓存读取协议
 
-新 [v2 价格协议](../studies/prices/siliconflow-deepseek-v4.1-flash-observed-cache-20261023-v2.json) 继承 2026-10-22 的标价，派生日期为 2026-10-23，不声称重新采价。只有显式冻结 `observed_cache_v1`，且真实连接匹配 SiliconFlow Messages 协议、地址与模型 ID，才可使用：
+新 [v2 价格协议](../../studies/prices/siliconflow-deepseek-v4.1-flash-observed-cache-20261023-v2.json) 继承 2026-10-22 的标价，派生日期为 2026-10-23，不声称重新采价。只有显式冻结 `observed_cache_v1`，且真实连接匹配 SiliconFlow Messages 协议、地址与模型 ID，才可使用：
 
 ```text
 已观测缓存读取 R × 0.04 + 其余输入 (I − R) × 2 + 输出 O × 8
@@ -152,4 +152,4 @@ SDK 重试、连接中断、失败调用、流未完整接收、在途请求、�
 
 已核销请求或其路径别名再次进入当前／prior 会被拒绝；收据、原件、账单或授权缺失／变更也会停止。后续新任务缺失用量仍按原规则停止，不沿用这份收据自动核销。最终阶段继承开发阶段同一核销 SHA、总额度与派发比例，跨阶段的新增试验仍须显式绑定完整 prior，不能仅凭同 bundle 假定费用已经累计。
 
-新 [v3 价格协议](../studies/prices/siliconflow-deepseek-v4.1-flash-observed-cache-20261023-v3.json) 仅绑定加入历史核销的预算实现，价格和缓存规则沿用原冻结快照，不声称重新采价。公开报告只保留金额、证据 SHA、预算时间及上述边界，不复制账单路径、授权正文或凭据。
+新 [v3 价格协议](../../studies/prices/siliconflow-deepseek-v4.1-flash-observed-cache-20261023-v3.json) 仅绑定加入历史核销的预算实现，价格和缓存规则沿用原冻结快照，不声称重新采价。公开报告只保留金额、证据 SHA、预算时间及上述边界，不复制账单路径、授权正文或凭据。

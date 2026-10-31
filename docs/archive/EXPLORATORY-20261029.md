@@ -1,11 +1,11 @@
 # 历史教训与作废清单（2026-10-30）
 
-> 本页取代 2026-10-29 的探索记录。那些早期数字是在**两个系统性缺陷**下产生的，**全部作废**，仅保留教训。正式方案见 [评测方案](EVALUATION-PLAN-20261030.md)。
+> 本页取代 2026-10-29 的探索记录。那些早期数字是在**两个系统性缺陷**下产生的，**全部作废**，仅保留教训。正式方案见 [评测方案](../EVALUATION-PLAN-20261030.md)。
 
 ## 一、为什么作废：两个系统性缺陷
 
-1. **上下文配错**：所有早期运行用 `context_length=65536`，而 hy3 实际 192,000、deepseek 实际 1,000,000 → 摘要触发点被压到 52k，长任务过早丢上下文。（见 [ITERATION-WORKFLOW](ITERATION-WORKFLOW.md) 第 8 节）
-2. **路由漂移**：用 `auto/...` 别名，实测 40% 请求落到 **glm-5.3-flash**（不同模型），而非声称的 deepseek。（见 [ROUTING-DRIFT](ROUTING-DRIFT-20261029.md)）
+1. **上下文配错**：所有早期运行用 `context_length=65536`，而 hy3 实际 192,000、deepseek 实际 1,000,000 → 摘要触发点被压到 52k，长任务过早丢上下文。（见 [ITERATION-WORKFLOW](../ITERATION-WORKFLOW.md) 第 8 节）
+2. **路由漂移**：用 `auto/...` 别名，实测 40% 请求落到 **glm-5.3-flash**（不同模型），而非声称的 deepseek。（见 [ROUTING-DRIFT](../ROUTING-DRIFT-20261029.md)）
 
 → 因此早期结论混入了**不同模型 + 错误的上下文窗口**，不可作为任何成绩或对比依据。
 
@@ -30,4 +30,4 @@
 
 ## 四、教训的落地
 
-以上教训已固化进 [ITERATION-WORKFLOW](ITERATION-WORKFLOW.md) 的指标体系与判定规则，以及 [评测方案](EVALUATION-PLAN-20261030.md) 的执行设计。
+以上教训已固化进 [ITERATION-WORKFLOW](../ITERATION-WORKFLOW.md) 的指标体系与判定规则，以及 [评测方案](../EVALUATION-PLAN-20261030.md) 的执行设计。

@@ -2,7 +2,7 @@
 
 本文给出主机准备、私有模型连接、门禁、正式运行和恢复的操作顺序。目标仍为预注册的 8 个开发任务与 24 个最终任务，不因迁移主机减少任务数。具体重复、候选和额度以首次正式模型运行前冻结的清单为准。
 
-相关设计：[研究协议](protocol.md)、[环境资格门禁](fixture-gates.md)、[生产基线重建](../reproduction/README.md)、[候选假设](hypotheses.md)。
+相关设计：[研究协议](../protocol.md)、[环境资格门禁](../fixture-gates.md)、[生产基线重建](../../reproduction/README.md)、[候选假设](hypotheses.md)。
 
 ## 已验证与待执行
 
@@ -72,7 +72,7 @@ uv run --no-sync pytest -q
 
 实验使用 uv 0.12.5 与已提交锁文件。Host Python 与 Docker／内核版本记录为主机条件；产品在任务容器中使用适配器固定的独立 Python 3.13.7，不覆盖任务本身用于官方测试的 Python。
 
-优先转移已保存的非秘密原始 wheel 和 requirements 文件，逐字节核对 [identity.json](../reproduction/identity.json)：
+优先转移已保存的非秘密原始 wheel 和 requirements 文件，逐字节核对 [identity.json](../../reproduction/identity.json)：
 
 ```text
 sayacode-3.2.4-py3-none-any.whl

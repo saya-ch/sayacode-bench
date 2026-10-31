@@ -1,99 +1,110 @@
-# 本地验证状态
+# STATUS：当前真实状态
 
-更新：2026-10-23。此文件区分基础设施验证与真实模型效果；下方历史段落保留其当时的版本和边界。
+更新：2026-10-31。**当前处于开发期重建中：v1 跑批的结论已作废，正在按修正后的口径重跑。**
 
-## 最新实际状态
+本文件只写**当前有效**的事实。历史快照与作废结论见 [docs/archive/](archive/README.md)；交接与坑清单见 [HANDOFF](HANDOFF.md)。
 
-- v12 在首次正式模型试验前补齐三个阶段的输入装配与资格原件长期保全。完整套件本地 **1,157 通过、7 项环境跳过**；随后新增 Linux 专用真实 `inspect_plan → merge-shards CLI` 交接用例，Windows 的相关目标回归为 **34 通过、1 项 POSIX 跳过**。该 Linux 用例由 Ubuntu CI 实际执行，使用合成原生文件，不能当作真实模型或云端完整 DAG 成绩。统计规模、方法和 seed 保持原设计。
-- 用户已确认正式密钥托管范围和历史 0.62 元核销，同一 100 元预算与免费 Actions 约束继续执行。v11 新增显式收据核验，并让准备步骤重开全部 32 道题的 128 条三加一原件，再调用既有 CLI 冻结 48 次开发；没有新增 Agent 执行循环。Windows／Python 3.13 全套 **1,144 通过、7 项环境跳过**，14 条为上游弃用警告。新准备工作流、预算和核销的离线验收不代表正式模型已经执行。
-- v10 在正式模型试验前补齐离线报告门禁：独立分析 CLI 与标准报告共用费用证据检查；清单冻结完整实现及敏感性脚本，显式协议缺失或不匹配时不给正式区间。公开导出分别保留原资格宿主／源码与当前分析实现。Windows／Python 3.13 全量 **1,096 通过、7 项环境跳过**，14 条为上游 `allow_internet` 弃用警告；Ruff、格式、20 个源码及 5 个脚本的 MyPy 通过。统计方法、样本规模、seed、原始试验资料及正在执行的资格标签不变；正式模型试验仍为零。
-- v9 修复了目录指纹的跨平台排序：相对路径组件按区分大小写的元组排序，保留旧 Linux 语义。SWE 642 题 catalog 与冻结值相同，6,436 项官方 checksum 全部通过；Terminal v2 选择保持原十四个 ID、seed、资源和排除规则。Windows 全套 **1,074 通过、7 项环境跳过**，Ruff、格式、包内及五个脚本类型检查通过。Terminal 首批 `39906586154` 在任何 control attempt 前因 catalog 身份不一致失败，原件已完整保全；该批不能算作模型或 fixture 不通过。[失败与修复证据](../reports/terminal-qualification-catalog-failure-20261023-v1.json)
-- v8 实现已完成 Windows／Python 3.13 全套 **1,068 通过、7 项按环境跳过**；Ruff、格式、20 个源码文件及 5 个编排脚本的类型检查通过。九份静态 workflow，以及部分批次／前缀恢复／仅归并三种实际生成 DAG 均通过 actionlint。新增合同覆盖跨阶段目录隔离、显式物理批次恢复和 Terminal 独立补充；这些新合同当前以离线行为验收为证据，尚未完成跨 VM 的真实模型恢复或 Terminal 资格执行。v8 保留原样本数、统计方法与 seed，并绑定恢复 helper、资格 workflow 和 Terminal 初选身份。
-- `1c4ed0bac9ffd55023875c517a327cf4869fd727` 的 [四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39808430484)，Windows 本地对应 886 项通过、4 项明确跳过。未提交的后续修改不能借用该结果。
-- 真实原生容器分片 smoke [39809148360](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39809148360) 通过：固定生产 wheel、真实 LangChain／LangGraph 图、两次 source、两次官方 pristine 重放和严格归并。模型来自本地 HTTP/SSE 合成替身，供应商调用为零；它不是 DeepSeek 或 SWE 能力成绩，也不是跨 VM 完整 DAG 的执行证明。
-- 两题云端生产校准 [39801497042](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39801497042) 已完成实际任务和独立重判：qutebrowser 通过，Ansible 未通过；两题三次 oracle／一次 nop 的资格门禁均通过。总计 71 次模型回调，其中 70 次报告用量、1 次 HTTP 503 未报告。两题均未创建子任务。整体 workflow 因费用汇总身份冲突失败，原现场保留，不重跑模型掩盖失败。[最小事实](../reports/cloud-model-calibration-20261023-v3.json)
-- 当前供应商账单展示区间的计费 token 与 70 次成功回调精确对齐，按展示数量和单价计算名义消耗约 0.61 元；现金为零来自代金券抵扣，不能记作零成本。503 原始用量仍未知，历史费用核销方式待用户选择。[费用边界](billing.md)
-- 私有 draft Release 的本机 OAuth 探针和原生 workflow token 探针分别通过服务端 digest、上传者和整体 SHA 核验。第三次真实 smoke 同时验证了生产图、两次 source／pristine 和完整缓存用量传播；HTTP 替身、合成用量、同宿主分片的边界保持不变。[第三次 smoke 事实](../reports/native-shard-smoke-20261023-v3.json)
-- 公开 SWE 资格前七批已核验 7 道任务合格、0 道排除；第七批为 `39907786320`，每批原始 ZIP 服务摘要、内层 tar 和原生结果均保全核验。计划仍为 8 道开发／24 道最终任务，不能把 7 道已合格任务当作完成。Terminal v9 首批 `39909795535` 已完成原件与原生结果核验，1 道任务三加一资格通过、0 道排除，第二批继续执行；旧 v8 零控制失败材料保留。上述计数是本次记录时的资格进度，均不调用模型。
-- 公开无模型资格入口与私有模型入口分开，正式 Secret 已按新增授权设置，历史收据与两份原 records 的逐字节副本已准备并只读验证。主要开发 48 次、最多最终 96 次及 Terminal 模型补充尚未开始，候选尚未选择。
+## 1. 一句话状态
 
-v7 对应的 Windows／Python 3.13 完整离线验收为 **1,012 通过、6 项明确跳过**：包括未启用的真实 Docker 测试、平台条件和未安装产品 LangChain 依赖的测试。原生产依赖环境的官方图用量测试另行通过；这不替代新的云端 Docker smoke。Ruff、格式、包内 MyPy、四个编排／资格脚本的显式包类型检查、九份工作流 actionlint 均通过。v7 协议新增分片、编排、资格入口与完整实现身份，10,000 次任务块 bootstrap、仓库簇敏感性、seed、样本数不变；旧协议不覆盖。
+v1 的 240 trial（3 agent × 40 题 × 2 重复）已收尾但**不完整**：221/240 完整，19 条缺口。v1 的三 agent 对比结论（68.8% vs 86.2% vs 86.2%）**作废**——分母三套、改测试口径混用、坏题率描述不成立。正在按统一口径重跑（输出到 `C:\sb\hard\v2`，`max_output_tokens=32000`）。
 
-提交 `5fcc3ce48fa98cd65c98ea5f74c1b36d43c42c0e` 的[四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39899305422)。随后真实 smoke `39899372348` 在缓存完整性断言失败：两个 source 均实际匹配 2／2 次 callback，但合成 SSE 最终事件只给输出用量，锁定的 ChatAnthropic 因此得到输入 0 且无缓存详情。已由原始工件及官方事件转换器确认；修复仅调整测试桩最终 usage 并新增官方 parser 回归，observer 和完整性门禁不变。[失败事实](../reports/native-shard-smoke-fixture-failure-20261023-v2.json)
+## 2. 已核实的数字（写文档以此为准）
 
-首个公开资格 run `39899427125` 在任何 oracle／nop 前因实际宿主 ImageVersion 与固定值不同而停止，新增 controls 为 0，模型请求为 0；完整工件已保全并核对服务 digest。保持旧计划不变，另按实际已观察 cohort 建立 `primary-v7-host20261012`；新 run `39899824620` 已正常收尾首个控制批次，具体资格事实仍以保存的 sanity 和原生记录为准，不能仅凭 workflow 绿色宣称任务已经合格。[原拒绝事实](../reports/public-qualification-cohort-guard-20261023-v1.json)
+### 2.1 旧结果的三套分母（v1，不可并列比较）
 
-修复后的源码 `b55cfe57c5a75a4e302bd6fb5004a920a501e87f` 已通过[四环境 CI](https://github.com/saya-ch/sayacode-bench/actions/runs/39900411079)，真实 [smoke 39900455447](https://github.com/saya-ch/sayacode-bench-runs/actions/runs/39900455447) 也通过：两个 source 各匹配 2／2 次 callback，原生输入 64、输出 32、缓存读取 2、缓存创建 0，独立 pristine 均通过且容器资源清理确认。原生 workflow token 完成三片合成文件的上传、下载与全量 SHA 核验，服务端 uploader 为 `github-actions[bot]`。原始 ZIP 已完整保全并核对服务 digest。以上仍是合成服务的真实工程链路验证，不计 DeepSeek／SWE 成绩。[实际事实](../reports/native-shard-smoke-20261023-v3.json)
+| agent | 有效 trial | 原始分母结果 | 统一 80 分母 |
+|---|---|---|---|
+| SAYACODE | 80 | 55/80 = 68.8% | 55/80 = 68.8% |
+| mini-swe-agent | 80 | 69/80 = 86.2% | 69/80 = 86.2% |
+| Codex CLI | 65 | **56/65 = 86.2%** | **56/80 = 70.0%** |
 
-## 已有证据
+- **17.4pp 差距是分母假象**：Codex 只有 65 条有效 trial（15 条缺口），86.2% 是 56/65；若统一到 80 分母是 70.0%。
+- 因此「SAYACODE 68.8% 对 对手 86.2%」**不成立**，不能作为对比结论。
 
-- 已固定 Harbor 0.24.0 和独立依赖锁，SAYACODE 生产包与依赖另行固定。
-- SWE-bench Pro V2：642 题，固定源码提交，6436 项官方 SHA256 全部通过。
-- Terminal-Bench 2.1：89 题，固定 Git blob 快照与目录身份。
-- 两个已授权连接均完成实际 Messages 协议工具调用往返，研究规范模型统一为 DeepSeek-V4.1-Flash。
-- 官方 Harbor 在本机的无模型 smoke：参考解 reward=1、空解 reward=0。
-- 补丁采集已用真实 Git 检查新建二进制、暂存改动、中途提交及独立重放。
-- 实现提交 `0ab66b8` 的 Ubuntu／Windows × Python 3.12／3.13 四环境 [CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39742502958)；真实 Docker 探针独立执行，普通测试中显式跳过。后续变更以对应提交的 CI 为准。
-- 本轮最终 Windows／Python 3.13 全套测试 507 通过、3 项明确跳过（独立 Docker 探针、文件符号链接权限、POSIX FIFO）；Ruff、格式、严格类型和已知密钥扫描通过。Linux 网络探针另行实际通过，不能把单元测试跳过写成 Docker 没有验证。
+### 2.2 改测试：两个口径，不可跨 agent 比
 
-## 实际容器门禁
+| 口径 | SAYACODE | mini-swe-agent | Codex CLI |
+|---|---|---|---|
+| 产品侧**检测率**（改测试被验证器发现并恢复）| **39/80 = 48.8%** | 未按此口径统计 | 未按此口径统计 |
+| **patch 含测试文件**（最终提交里含测试改动）| **0%** | **70.9%** | **54.2%** |
 
-Docker Engine 曾在安装 smoke 中连续返回 HTTP 500，旧中断现场保留。用户确认服务恢复后，已重新核验 Docker API 可用且没有运行容器，继续执行真实容器门禁。
+- 48.8% 是「SAYACODE 尝试改测试、被 `restore_existing_test_files` 恢复」的比例，**不是作弊成功**，也不是「patch 含测试」。
+- 70.9% / 54.2% 是最终 patch 里含测试文件的比例，口径不同，**不能与 48.8% 比大小**。
+- 三者（检测率 vs patch 内容）**不可跨 agent 直接比较**；任何报告必须写清是哪个口径。
 
-- 独立 uv/Python/锁定依赖/真实生产 wheel 安装通过；原生图与本地 mock 的实际文件工具往返通过。
-- 真实 Shell 及忽略 SIGTERM 的后代取消通过，7.929 秒确认取消，容器清理成功。
-- 内部隔离网络与固定 nginx 网关真实探针通过；直接缓存宿主 IP 阻断、公网阻断、阶段恢复与独占资源清理均有证据。
-- 两道 SWE 资源校准题的官方参考解均 reward=1、空解均 reward=0。
-- 生产源码归档在独立目录重建后，wheel SHA 与实际输入逐字节相同。
+### 2.3 模型故障：只有 1 条真 API 故障
 
-## 环境诊断与当前执行边界
+- 真 API 故障 **1 条**：`vuls-f6cc8c-r1`（ECONNRESET）。
+- 2 条 tutao（`tutao-51818218` r1/r2）**不是模型故障**：`completed + verified + reward=0` 的**空 patch**，是 agent 正常完成但没产出。
+- **严格剔除后：55/79 = 69.6%**（只剔除那 1 条真故障）。旧文档的「3 条故障、71.4%」口径不成立。
 
-两道真实模型校准和独立 pristine 重判均已完成。第一批达到预设 token 止损，原记录保留；第二题在独立批次完整执行。两题模型回调分别为 97 和 62 次，用量均完整，未观察到连接错误或子任务。具体成绩与边界见 [校准记录](calibration.md)。
+### 2.4 坏题：gold-check 实际 36 good / 1 bad / 3 null
 
-本机资格批次中，多个固定镜像的官方参考解出现随机内部异常，甚至 `SIGSEGV`。固定的独立 Linux 对照中，两题各三次参考解全部通过、空解均不通过。本机资格批次已经停止并标记失效，中断日志保留，专属容器与网络已清理；不得用该批挑选正式任务。交叉验证的逐次证据见 [宿主诊断](host-diagnostics.md)。
+- 40 题 gold-check 的真实结果是 **36 good / 1 bad / 3 null**；**bad 题不在最终 40 题内**。
+- 「40 题全绿」**不成立**——3 个 null 表示未取得有效 gold 结论，不能当「通过」。
+- 坏题率不能简单写成 1/40；口径是「1 bad 已剔除、3 null 待补」。
 
-已有真实模型补丁的十次无模型云端复核完成：qutebrowser 同补丁三次通过；Ansible 同补丁三次失败，参考解三次通过、空解失败。补丁应用和实际镜像证据均核实，旧分保留。原生 Linux 的实际网络隔离探针也已通过，独立确认四类专属资源清理完成。二者不计入正式效果分母。完整开发与最终验收需要稳定 Linux 执行资源；原定 8 个开发／24 个最终任务和重复数不变，正式模型对照尚未启动。
+### 2.5 19 条缺口（v1，240 目标 vs 221 完整）
 
-随后已在本机建立独立 Ubuntu 24.04.5 WSL2／Docker Engine 29.7.2：发行版、socket、Engine ID 和 ext4 存储均核实，WSL 平台仍是 2.6.3／内核 6.6.87.2。新环境基础测试 509 通过、1 项 Docker 探针跳过；真实网络探针另行通过且四类资源独立清理确认。固定两题八次参考解／空解已完整执行：qutebrowser 为 oracle 1/0/0、nop 0；OpenLibrary 为 oracle 1/1/1、nop 0，因此未达到预定就绪门槛，模型调用仍为 0。该批未固定相同随机种子，不能单独用其差异唯一归因宿主；补充对照见下。完整边界见 [WSL 诊断](wsl-diagnostic.md)。
+| 类别 | 条数 | 明细 |
+|---|---|---|
+| 无目录 | 4 | Codex 侧 4 条：缺 trial 目录（无 job 记录）|
+| 空 patch | 4 | 有 trial 目录但 patch 为空 |
+| 有 patch 未验证 | 7 | Codex「有 patch 无 reward」中待阶段2 验证的部分 |
+| 小计（Codex）| 15 | Codex 65/80 |
+| SAYACODE | 3 | tutao r1/r2（空 patch）+ vuls-f6cc8c r1（ECONNRESET）|
+| mini-swe | 1 | ansible-de5858xx r1（有 reward 无 patch）|
+| **合计** | **19** | 221/240 完整 |
 
-固定失败种子的补充对照也已完成：同一镜像、原 pytest flags、Hypothesis seed 与 Python hash seed 下，本机三次 oracle 均为 0，GitHub Linux 三次均为 1，原生配置和判分证据完整。最新实现本地测试 533 通过、3 项平台跳过，[四环境 CI 通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39778000838)。
+> 缺口 job 已归档在 `C:\sb\hard\formal-240\abandoned-gaps\`，可重跑；但 v1 结论已作废，**不补跑 v1**，直接进 v2。
 
-用户随后以管理员身份完成 WSL 更新，实际平台已核实为 **3.0.3.0／内核 6.18.54.1**；原 Error 1730 只属于此前未提权的安装尝试，不是当前阻碍。保持同一 Ubuntu、独立 Engine、Docker 包版本、全局 WSL 配置与评测实现，重新运行真实网络探针，1 项通过且四类资源独立清理检查通过；随后完整执行新批次固定八次：qutebrowser oracle **0/0/0**、nop **0**；OpenLibrary oracle **1/1/1**、nop **0**。qutebrowser 前两次参考解含 pytest `INTERNALERROR>`，三次日志均含 `TypeError`；不据此声称错误栈完全一致。8 项原生结果、默认验证器配置、实际镜像与资源均核对完整，结束后无残留试验容器或专属网络。
+## 3. 已作废的结论（不得再引用）
 
-**本轮本地平台配置试验已经结束。** WSL 升级成功，但新批次未达到预声明就绪门槛，不继续更换版本、修改依赖或重跑到通过；不唯一归因内核或硬件。最小证据见 [WSL 3 诊断工件](../reports/wsl3-fixture-diagnostic-20261022-v1/)，完整原始归档在仓库外保存。本轮模型请求及付费 API 费用均为 0，正式开发／最终验收仍未启动。下一条可行路线是托管 Linux 的真实 Agent 小规模校准；云端密钥保管、原始轨迹保密、全局预算与分片执行需要先落实，不能将既有无模型云端通过记录直接当成完整研究就绪。
+| 曾声称 | 作废原因 |
+|---|---|
+| SAYACODE 68.8% 低于 mini-swe/Codex 的 86.2%（17.4pp 差距）| 三套分母并列；Codex 实为 56/65，统一分母 70.0% |
+| 「SAYACODE 改测试率 49%（其余 0%）」| 49%≈48.8% 是**检测率**；patch 含测试比例是 SAYACODE 0% / mini-swe 70.9% / Codex 54.2% |
+| 「mini-swe 改测试 73%、Codex 42%」| 旧口径错误，正确为 70.9% / 54.2% |
+| 「3 条模型故障，剔除后 71.4%」| 只有 1 条真 API 故障；严格剔除后 55/79 = 69.6% |
+| 「40 题 gold patch 全绿 / 坏题率 1/40」| 实际 36 good / 1 bad / 3 null；bad 不在 40 题内，null 不能算绿 |
+| 「v2-tuned 调优有收益」| 规则基于误读，A/B 中止，见 [归档说明](archive/README.md) |
+| 「正式模型试验为 0」| 已过时：v1 开发期跑批已执行 221 条完整 trial（但结论作废）|
+| 早期探索数字（holdout 70%、token 降 82% 等）| 65536 配错 + 路由漂移，全部作废，见 [EXPLORATORY 归档](archive/EXPLORATORY-20261029.md) |
 
-诊断结束后已停止专用 Docker／socket／containerd，终止专用发行版及保活会话。恢复原 Docker Desktop 时遇到其运行目录遗留 socket 无法重命名的启动错误，尚未恢复；自动审批检查拒绝了删除失效 socket 的动作，未改用其他方式绕过，也未重置 Docker 数据、镜像或卷。具体系统日志仅在仓库外保留。这一收尾问题与本轮已封存的八项原生结果分开报告。
+## 4. 基础设施当前事实
 
-## 私有云端校准的准备验证
+- **模型**：hy3（`auto-hy3` 组，同模型多额度池），context 192,000；**max_output_tokens 修正为 32,000**（v1 用 16,000，长任务收尾过早）。
+- **基准**：SWE-bench Pro V2 public set，40 题开发迭代集（`studies/sample-40-final.json`）；不用 Terminal-Bench。
+- **跑批入口**：`scripts/run_formal_240.py`（阶段1 解题，`--skip-verifier`）+ `scripts/verify_patches.py`（阶段2 PatchReplay 统一验证）+ `scripts/final_summary.py`（汇总）。
+- **并发**：trial 并发 4–6，验证器限流 1（每 trial 占 2 个 Docker 网络，池约 17；并发 14 必爆）。
+- **结果目录**：v1 在 `C:\sb\hard\formal-240`；v2 计划在 `C:\sb\hard\v2`。
+- **测试与 CI**：本地 `uv run --no-sync pytest -q` 通过；具体计数以最近一次实际运行为准，不在本文写死（避免再次过期）。
 
-已建立 `saya-ch/sayacode-bench-runs` 私有仓库，保存原始 requirements、已知早期付费探针的最小事实和工作流；公开仓库保留全部执行代码及测试。精确代码提交 `fa9d9894ad7fe0ae690145b887c8a657b76432a1` 的本地检查为 **565 通过、3 项平台跳过**，Ruff、格式、MyPy 和 actionlint 通过，[四环境 CI 全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39785392695)。
+## 5. 已知局限（必须随任何结论声明）
 
-在该精确提交上，用真实私有仓库 metadata、原始依赖文件和同字节工作流，已实际执行 Windows 无密钥预检：从生产源码归档重建的 wheel 与原始基线逐字节相同，requirements SHA 一致。工件预检通过，`model_dispatch_ready=false`，原因为历史费用账本和预算范围待核实。此次没有 Docker、模型请求或私有 Actions 派发，未上传 Secret；不能将本地重建等同于云端 Linux 运行通过。最小证明见 [校准准备记录](../reports/cloud-calibration-preparation-20261022-v1.json)。
+1. **样本小**：40 题 × 2 重复，95% CI 半宽约 ±14pp；不足以区分 10pp 量级差异。
+2. **多重比较**：3 agent 两两比较需 Bonferroni α/3 = 0.0167。
+3. **协议不同**：SAYACODE = Anthropic messages / mini-swe = OpenAI chat / Codex = OpenAI responses（同 Magpie、同 hy3）。
+4. **上下文策略不同**：SAYACODE 摘要（触发 153.6k）/ mini-swe 输出截断 / Codex paginated + 截断。
+5. **仅 hy3**：结论不外推到其他模型。
+6. **v1 缺口未补**：19 条缺口使 v1 各 agent 分母不同；v2 必须以完整 240 条为前提。
+7. **gold-check 3 个 null**：3 题未取得有效 gold 结论，v2 前需补齐或替换。
 
-下一步已有可审阅的两题生产校准入口，详见 [云端校准说明](cloud-calibration.md)。后续已通过本机登录页面只读核查私有 Actions 额度及现有支出控制，未修改设置，财务详情不公开。密钥交由 GitHub 托管、早期未知费用的预算范围及工作流使用方式仍待用户确认；没有替用户生成放行声明。正式模型研究和完整分片仍未执行。
+## 6. 下一步（按优先级）
 
-## 两题云端校准的实际执行
+1. **v2 重跑**：40 题 × 2 重复 × 3 agent = 240 trial，输出 `C:\sb\hard\v2`，`max_output_tokens=32000`，统一验证器口径。
+2. **补齐 gold-check**：3 个 null 题重新跑 gold patch 或替换。
+3. **v2 汇总按统一口径**：分母必须都是 80；改测试分「检测率」与「patch 含测试」两列；模型故障逐条列明。
+4. **调优（暂缓）**：v2 结果出来前不做任何 prompt/规则调优；正确顺序是逐题对比找失败模式再设计规则。
+5. **正式对外研究（未启动）**：protocol 预注册仍在，但需 v2 开发期结论稳定后再谈冻结。
 
-上述准备之后，用户已明确授权指定私有仓库托管密钥、从新起点累计后续 100 元预算并将早期探针费用单列未知，以及仅使用免费 Actions。按真实授权生成了范围记录，没有补造早期 token 或费用，也没有修改账户现有的零付费预算。
+## 7. 证据位置
 
-首轮云端运行 `39786774621` 停在无模型工件预检，仅输出 `ValueError`；两道模型题均跳过，请求和模型费用为 0。原始日志与 artifact 已保存，最小事实见 [首轮预检失败](../reports/cloud-calibration-preflight-failure-20261022-v1.json)。本机 Linux 纯构建复现了 wheel 归档创建平台字节差异，但没有取得首轮云端 wheel，不能将本地复现冒充云端直接证据。
-
-修订入口显式选择原始冻结 wheel，严格验证原 SHA；Linux 重建件单列保存、比较全部内容及归档字节，仅允许已定位的 Windows→Unix 创建平台标记差异，不重新打包后代替实际安装输入。新的完整本地测试 **585 通过、3 项平台跳过**，Ruff、格式、MyPy、actionlint 通过。真实新云端工件和模型结果仍以对应新 cohort 为准；预检修复不算重跑模型或覆盖首轮失败。
-
-打包修订首次 CI 的两项 Linux 检查通过，但英文 Windows 的中文帮助输出暴露了 cp1252 编码错误。已修复两个脚本的 UTF-8 输出，并加入 UTF-8／cp1252 的真实子进程验收；最终本地 **588 通过、3 项跳过**。这属于 CLI 修复，没有修改官方任务或评分条件。
-
-第二 cohort `39791019726` 已直接导出云端重建 wheel：90 个成员的 payload 完全相同，完整归档字节差异恰好是 90 个创建平台标记。其真实网络探针及清理均通过，但随后 `controls` 输入阶段出现尚未定位的 `ValueError`，参考解与模型均未启动，费用仍为 0。原始结果及 [第二轮最小事实](../reports/cloud-calibration-input-failure-20261022-v2.json) 保留，不把它记成网络失败或模型答题失败。
-
-后续修订将固定两题元数据及镜像提前到无模型预检，已知拒绝使用安全原因枚举，输出仅仓库相对文件／行号／函数的栈帧和逐步镜像白名单观察。另收紧资格、source、pristine 和离线报告的统一资源核验，正式阶段不能通过关闭 runtime 策略取得资格；原 reward 和用量保留。共享工作区完整验证 **675 通过、3 项跳过**，Ruff、格式、MyPy 和 actionlint 通过。正式前协议修订为 v6，10,000 次任务块／仓库簇分析与 seed 不变，新增资源规则身份；新 cloud cohort 的实际结果仍待执行。
-
-该精确修订 `b373c287b62f9ea2bc188698dfe0290173228167` 的 [四环境 CI 已全部通过](https://github.com/saya-ch/sayacode-bench/actions/runs/39796100729)。其后独立关闭模型的冷输入运行 `39797160282` 已完成：两题元数据均通过，第一题不可变镜像及实际平台已确认；准备第二题镜像之前，磁盘低于原定 12 GiB，按门槛停止。没有参考解或模型请求，不能把它计作模型失败，也不能反推第二轮的未定位错误。最小事实见 [冷输入诊断](../reports/cloud-cold-input-diagnostic-20261022-v1.json)。下一修订只在全新托管 VM 移除未使用的固定宿主工具链，保存实际磁盘观察；任务镜像、官方资源和门槛保持原值。
-
-Windows 上曾因缓存路径过长导致 `CreateProcess` 工作目录无效；该未调用模型的门禁记录保留。实际运行改用独立短路径 `C:\sb\s`（源缓存）、`C:\sb\r`（结果），没有改写官方任务内容。
-
-当前没有公开基准成绩或调优收益，不将本地 mock 或单元测试替代这些工作。WSL2 内核缺少 Harbor 原生 allowlist 所需配置，独立网络实现需要真实探针通过才允许正式研究；它属于明确记录的本地协议实现，不冒充官方 Modal 排行榜环境。
-
-## 正式结论保护
-
-最终审查修复两项已复现问题：末次 401／402／403／429 也必须触发止损，离线分析与候选签收重查原记录；正式冻结必须拥有独立的三次参考解与一次空解原生事实，旧单次预检不能晋升。普通功能失败仍计入端到端分母，最后一条达到新派发资源阈值也不伪造未完成。
-
-完整长工具输出在进程停止确认后独立采集，私有工件按文件流式保存与校验。采集命令状态、实际文件覆盖、原始运行和官方 reward 分别记录；强制 kill 后不声称恢复了全部 SQLite 在途状态。协议修订 v5 绑定共享止损与统计源码，全部发生在正式模型试验之前。
+| 内容 | 位置 |
+|---|---|
+| v1 逐 trial 明细 | `C:\sb\hard\formal-240\FINAL-SUMMARY.json` |
+| v1 缺口 job | `C:\sb\hard\formal-240\abandoned-gaps\` |
+| v1 异常审计 / 模型故障清单 | `C:\sb\hard\formal-240\AUDIT.json`、`MODEL-FAULTS.json` |
+| 题集 | `studies/sample-40-final.json` |
+| 任务缓存 | `C:\sb\tmp\hard\cache\swe-bench-pro-v2-*\v2\tasks` |
+| 历史文档 | [docs/archive/](archive/README.md) |

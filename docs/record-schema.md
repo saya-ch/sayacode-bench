@@ -56,7 +56,7 @@
 
 规范化记录新增 `usage_details` 文件路径／SHA 与 `cache_usage` 汇总。宿主、分片恢复和费用发布都会重读旁证，并核对审计 SHA、逐次身份、调用覆盖与输入／输出／总量；不能只信汇总中的 `complete`。缺文件或原生字段时为 `unavailable`，冲突或非法计数时为 `invalid`。原始 `usage` 三项总数保持原义，不因缺缓存数字而补零或覆盖旧记录。
 
-Anthropic 原生输入不包含缓存读取／创建，LangChain 归一化总输入已包含它们。预算只从总输入中减去已确认的缓存读取，不能再把缓存叠加到总量。缓存创建包含普通及 TTL 字段；无已核单价的正创建量阻止新付费派发。失败请求没有 usage 时仍未知，callback 次数也不等于 SDK 内部 HTTP 尝试次数。[计价规则](billing.md)
+Anthropic 原生输入不包含缓存读取／创建，LangChain 归一化总输入已包含它们。预算只从总输入中减去已确认的缓存读取，不能再把缓存叠加到总量。缓存创建包含普通及 TTL 字段；无已核单价的正创建量阻止新付费派发。失败请求没有 usage 时仍未知，callback 次数也不等于 SDK 内部 HTTP 尝试次数。[计价规则](archive/billing.md)
 
 公开记录只导出白名单缓存摘要与文件哈希，不导出旁证路径、逐次调用、COT 或 checkpoint。费用与正式资格先在原件上复核，再脱敏；不能因发布层丢掉文件路径而重新计算出另一份成本。
 
@@ -76,6 +76,6 @@ Anthropic 原生输入不包含缓存读取／创建，LangChain 归一化总输
 
 任务配置保留上游镜像 tag；`runtime.json` 记录实际 image ID／RepoDigest。云端资格第一次解析 tag 后保存唯一 RepoDigest，续批及正式 runner 按该 digest 拉取并核 image ID、平台，不修改官方任务文件。SWE source／pristine 的实际资源仍分别核对。历史单阶段入口没有这套云端准备合同，不能因 tag 名相同就宣称跨机器没有漂移。
 
-云端 sanity 还携带 `qualification_host_cohort` 与 `qualification_host_scope`。后者记录公开仓库、固定源码、cloud-plan SHA 和宿主证据边界。CLI 冻结保留这些字段，分片冻结、恢复和生成器均核对正式 runner 的 `ImageOS / ImageVersion / RUNNER_ARCH`；已知云端 bundle 或已声明的云端字段缺损、漂移时，不能悄悄当作非云流程忽略。没有云端来源字段的既有非云记录不补造宿主信息。公开与私有宿主的总 CPU／内存不同，也不保证同一实体 CPU 或内核，官方容器限额照常核验。[执行合同](sharded-execution.md)
+云端 sanity 还携带 `qualification_host_cohort` 与 `qualification_host_scope`。后者记录公开仓库、固定源码、cloud-plan SHA 和宿主证据边界。CLI 冻结保留这些字段，分片冻结、恢复和生成器均核对正式 runner 的 `ImageOS / ImageVersion / RUNNER_ARCH`；已知云端 bundle 或已声明的云端字段缺损、漂移时，不能悄悄当作非云流程忽略。没有云端来源字段的既有非云记录不补造宿主信息。公开与私有宿主的总 CPU／内存不同，也不保证同一实体 CPU 或内核，官方容器限额照常核验。[执行合同](archive/sharded-execution.md)
 
 本地网络实现、磁盘配额、swap 和网关开销均与官方云环境存在边界，不宣称官方完整榜单的严格环境等价。

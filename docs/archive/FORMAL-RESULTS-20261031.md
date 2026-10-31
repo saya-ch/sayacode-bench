@@ -1,5 +1,8 @@
 # FORMAL RESULTS：三 agent 正式对比（2026-10-31）
 
+> ## ⛔ 已作废（2026-10-31 归档）
+> 本文是 **v1 开发期结果，结论已作废**：分母三套（SAYACODE 55/80、mini-swe 69/80、Codex 56/65），17.4pp 差距是分母假象（Codex 统一 80 分母 = 56/80 = 70.0%）；「改测试率 49%」是产品侧检测率（39/80 = 48.8%），与「patch 含测试文件」（SAYACODE 0% / mini-swe 70.9% / Codex 54.2%）是两个口径；「gold patch 全绿」「坏题率 1/40」不成立（实为 36 good / 1 bad / 3 null）。**当前状态见 [STATUS](../STATUS.md)，交接见 [HANDOFF](../HANDOFF.md)。本文任何数字不得引用。**
+
 > **基准**：SWE-bench Pro V2 public set，40 题（`studies/sample-40-final.json`，gold patch 全绿）
 > **模型**：hy3（`auto-hy3`），上下文 192k / 输出 16k
 > **设计**：3 agent × 40 题 × 2 重复 = 240 trial；配对；Bonferroni α/3 = 0.0167
