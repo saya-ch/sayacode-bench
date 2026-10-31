@@ -406,9 +406,9 @@ def build_agent(name: str, paths: FormalPaths, *, profile_dir: Path | None = Non
                 "reasoning_effort": "high",
                 "litellm_model_registry": {
                     "openai/auto-hy3": {
-                        "max_tokens": 16000,
+                        "max_tokens": 32000,
                         "max_input_tokens": 176000,
-                        "max_output_tokens": 16000,
+                        "max_output_tokens": 32000,
                         "input_cost_per_token": 0.0,
                         "output_cost_per_token": 0.0,
                         "litellm_provider": "openai",
@@ -431,7 +431,7 @@ def build_agent(name: str, paths: FormalPaths, *, profile_dir: Path | None = Non
             kwargs={
                 "reasoning_effort": "high",
                 "web_search": "disabled",
-                "config": {"model_context_window": 192000},
+                "config": {"model_context_window": 192000, "model_max_output_tokens": 32000},
             },
         )
     raise SystemExit(f"unknown agent {name}")
