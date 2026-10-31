@@ -195,12 +195,24 @@ async def run_agent(
     async def one(tid: str, repeat: int) -> None:
         async with sem:
             job = f"{name}-{tid.replace('instance_', '')[:34]}-r{repeat}"
-            # 断点续跑判据：只有「有 reward」或「有显式终态标记」才算完成；不再认 model.patch 文件，
-            # 否则空 patch 会永久 pending（verify_patches 会为它写 terminal.json）。
             job_dir = out / "jobs" / job
+            # 阶段1 用 --skip-verifier，完成时既无 reward.txt 也无 terminal.json，
+            # 只有 normalized.json（record_complete=True）。续跑必须认它，否则会重复进入
+            # run_official_trial 并撞 request hash 不一致的 ValueError。
+            record_complete = False
+            record_path = job_dir / "normalized.json"
+            if record_path.is_file():
+                try:
+                    record_complete = (
+                        json.loads(record_path.read_text(encoding="utf-8")).get("record_complete")
+                        is True
+                    )
+                except (OSError, ValueError):
+                    record_complete = False
             if skip_existing and (
                 list(job_dir.glob("instance_*/verifier/reward.txt"))
                 or list(job_dir.glob("instance_*/verifier/terminal.json"))
+                or record_complete
             ):
                 rows.append({"task_id": tid, "repeat": repeat, "reward": "skipped", "status": "skipped"})
                 return
