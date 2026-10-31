@@ -40,7 +40,7 @@ DEFAULT_TASKS_ROOT = (
 # SAYACODE_BENCH_WHEEL 指回 C:\sb\hard\magpie-hy3.json 与
 # C:\sb\tmp\hard\wheel-release\out\sayacode-3.2.4-py3-none-any.whl。
 DEFAULT_PROFILE = r"C:\sb\hard\magpie-hy3-v2.json"
-DEFAULT_WHEEL = r"C:\sb\tmp\hard\wheel-release-v2\out\sayacode-3.2.4-py3-none-any.whl"
+DEFAULT_WHEEL = r"C:\sb\tmp\hard\wheel-release-3.2.5\out\sayacode-3.2.5-py3-none-any.whl"
 DEFAULT_REQUIREMENTS = (
     r"C:\sb\r\formal-study-v1\prepared-original\mapped-bundle\inputs\product-requirements.txt"
 )
