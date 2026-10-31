@@ -370,6 +370,14 @@ class NoOpAgent(BaseAgent):
 def build_agent(name: str, paths: FormalPaths, *, profile_dir: Path | None = None) -> AgentConfig:
     """构造三 agent 之一；规范模型身份统一为 ``auto-hy3``。"""
     if name == "sayacode":
+        import re
+
+        from sayacode_bench import installation as _installation
+
+        # 从 wheel 文件名推断产品版本，避免 bump 后 installation.PRODUCT_VERSION 漏改。
+        match = re.search(r"sayacode-(\d+\.\d+\.\d+)-", paths.wheel.name)
+        if match:
+            _installation.PRODUCT_VERSION = match.group(1)
         profile = json.loads(paths.profile.read_text(encoding="utf-8"))
         profile["base_url"] = IN_SANDBOX_GATEWAY
         private = (profile_dir or paths.out_root) / "profile-private.json"

@@ -22,6 +22,8 @@ from .resources import compare_runtimes, resource_status
 
 UV_VERSION = "0.12.5"
 UV_INSTALLER_URL = f"https://astral.sh/uv/{UV_VERSION}/install.sh"
+# 版本身份默认值；正式跑批时由 locked_agents 依据 wheel 文件名动态覆盖
+# （见 scripts/locked_agents.py:build_agent），避免 bump 产品版本后遗漏。
 PRODUCT_VERSION = "3.2.4"
 INSTALLATION_RECEIPT = "installation/receipt.json"
 SHA = re.compile(r"[0-9a-f]{64}\Z")
