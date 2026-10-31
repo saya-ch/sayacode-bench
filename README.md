@@ -10,6 +10,10 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 
 | 文档 | 内容 |
 |---|---|
+| **[交接文档](docs/HANDOFF-20261031.md)** | **接手必读**：当前进度、19 条缺口、关键发现、环境、坑、待办 |
+| **[正式结果](docs/FORMAL-RESULTS-20261031.md)** | 三 agent 对比结果（SAYACODE 68.8% / mini-swe 86.2% / Codex 86.2%）|
+| [实验设计](docs/EXPERIMENT-DESIGN-20261030.md) | 从研究问题到执行协议的完整设计 |
+| [调优实验](docs/TUNING-EXPERIMENT-20261031.md) | v2-tuned 变体的设计与 A/B 计划 |
 | **[评测方案](docs/EVALUATION-PLAN-20261030.md)** | 总纲：目标 / 基准 / 题集 / 模型 / 指标 / 方法 / 三 agent |
 | [调优迭代工作流](docs/ITERATION-WORKFLOW.md) | 三层金字塔、指标体系、Go/No-Go、跑前汇报配置 |
 | [路由漂移](docs/ROUTING-DRIFT-20261029.md) | 同一别名 40% 落到 glm 的实测与固定来源方法 |

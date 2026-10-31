@@ -221,7 +221,8 @@ async def main_async(args) -> int:
     install_verifier_throttle(args.verifier_limit)
     out_root = Path(args.out)
     out_root.mkdir(parents=True, exist_ok=True)
-    for name in AGENTS:
+    agent_list = args.agents if args.agents else AGENTS
+    for name in agent_list:
         rows = await run_agent(name, tasks, out_root, args.repeats, args.concurrency, args.skip_existing)
         (out_root / f"{name}-summary.json").write_text(
             json.dumps({"agent": name, "n": len(rows)}, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -236,6 +237,7 @@ def main() -> int:
     p.add_argument("--concurrency", type=int, default=12)
     p.add_argument("--verifier-limit", type=int, default=1)
     p.add_argument("--skip-verifier", action="store_true", help="阶段1：跳过验证器，只跑 agent 产出 patch")
+    p.add_argument("--agents", nargs="+", default=None, help="只跑指定 agent")
     p.add_argument("--skip-existing", action="store_true")
     return asyncio.run(main_async(p.parse_args()))
 
