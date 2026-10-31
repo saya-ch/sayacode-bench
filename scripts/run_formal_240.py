@@ -23,6 +23,8 @@ from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E
 from sayacode_bench.execution import run_official_trial  # noqa: E402
 from test_agent import build as build_agent, env_cfg  # noqa: E402  (复用已验证的三 agent 构造)
 
+VERIFIER_CFG = None
+
 TASKS = Path(r"C:\sb\tmp\hard\cache\swe-bench-pro-v2-66f92766bba642462d4bbe5479e83f91f9211862\v2\tasks")
 SAMPLE = BENCH / "studies" / "sample-40-final.json"
 AGENTS = ("sayacode", "mini-swe", "codex")
@@ -83,7 +85,7 @@ class AdaptiveSemaphore:
             self._cv.notify_all()
 
 
-_VERIFIER_SEM: asyncio.Semaphore | None = None
+_VERIFIER_SEM: AdaptiveSemaphore | None = None
 
 
 def install_verifier_throttle(limit: int) -> None:
@@ -91,7 +93,7 @@ def install_verifier_throttle(limit: int) -> None:
     global _VERIFIER_SEM
     if _VERIFIER_SEM is not None:
         return
-    _VERIFIER_SEM = asyncio.Semaphore(max(1, limit))
+    _VERIFIER_SEM = AdaptiveSemaphore(max(1, limit))
     from harbor.trial.trial import Trial
 
     orig_sep = Trial._run_separate_verifier
@@ -110,21 +112,48 @@ def install_verifier_throttle(limit: int) -> None:
     print(f"已安装 verifier 限流：最多 {limit} 个并发验证", flush=True)
 
 
+# 目标内存利用率：Docker VM 8GB，目标 6GB（75%）。留 2GB 给突发（验证器峰值 2.26GB）。
+TARGET_MEM_MB = 6000.0
+HARD_CEIL_MB = 7000.0  # 超过立即收紧
+
+
 async def mem_supervisor(sem: AdaptiveSemaphore, tag: str) -> None:
-    """每 5s 采样容器总内存：>5GB 降到 2 并发，>3.5GB 降到 4，否则升到 max。"""
+    """EMA 平滑 + 滞回的多级限流，并把目标内存维持在 TARGET_MEM_MB 附近。
+
+    - EMA（α=0.3）平滑采样抖动，避免抖动式开关
+    - 多级阈值 + 滞回（降到某档后要回落到更低档才回升）
+    - 同时动态调整验证器并发（内存紧时 1，宽松时 2）
+    """
+    ema = 0.0
+    verifier_limit = 1
     while True:
         try:
-            mem = container_mem_mb()
-            if mem > 5000:
+            raw = container_mem_mb()
+            ema = raw if ema == 0 else 0.7 * ema + 0.3 * raw
+            # 多级限流（带滞回：降档后需回落到下一档才升回）
+            if ema > HARD_CEIL_MB:
+                await sem.set_limit(1)
+            elif ema > TARGET_MEM_MB:
                 await sem.set_limit(2)
-            elif mem > 3500:
+            elif ema > 5000:
                 await sem.set_limit(4)
+            elif ema > 4000:
+                await sem.set_limit(6)
+            elif ema > 3000:
+                await sem.set_limit(9)
             else:
                 await sem.set_limit(sem.max_limit)
-            print(f"[{tag}] mem={mem:.0f}MB limit={sem.limit} active={sem.active}", flush=True)
+            # 动态验证器并发：内存 >4.5GB 收紧到 1，否则放宽到 2
+            if _VERIFIER_SEM is not None:
+                want = 1 if ema > 4500 else 2
+                if want != verifier_limit:
+                    await _VERIFIER_SEM.set_limit(want)
+                    verifier_limit = want
+            print(f"[{tag}] mem={raw:.0f}MB ema={ema:.0f}MB limit={sem.limit} "
+                  f"verifier={verifier_limit} active={sem.active}", flush=True)
         except Exception:
             pass
-        await asyncio.sleep(5)
+        await asyncio.sleep(3)
 
 
 async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, concurrency: int, skip_existing: bool) -> list[dict]:
@@ -145,7 +174,7 @@ async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, c
         abandoned = out / f"abandoned-{int(_time.time())}"
         moved = 0
         for job_dir in jobs_dir.iterdir():
-            if job_dir.is_dir() and not list(job_dir.glob("instance_*/verifier/reward.txt")):
+            if job_dir.is_dir() and not list(job_dir.glob("instance_*/verifier/reward.txt")) and not list(job_dir.glob("instance_*/agent/model.patch")):
                 abandoned.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(job_dir), str(abandoned / job_dir.name))
                 moved += 1
@@ -155,7 +184,7 @@ async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, c
     async def one(tid: str, repeat: int) -> None:
         async with sem:
             job = f"{name}-{tid.replace('instance_', '')[:34]}-r{repeat}"
-            if skip_existing and list((out / "jobs" / job).glob("instance_*/verifier/reward.txt")):
+            if skip_existing and (list((out / "jobs" / job).glob("instance_*/verifier/reward.txt")) or list((out / "jobs" / job).glob("instance_*/agent/model.patch"))):
                 rows.append({"task_id": tid, "repeat": repeat, "reward": "skipped", "status": "skipped"})
                 return
             print(f"[{name}] RUN {tid[:48]} r{repeat}", flush=True)
@@ -163,7 +192,7 @@ async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, c
                 rec = await run_official_trial(
                     TASKS / tid, out / "jobs", job, agent, env,
                     configuration=name, repeat=repeat, canonical_model="DeepSeek-V4.1-Flash" if name == "sayacode" else "auto-hy3",
-                    endpoint="magpie",
+                    endpoint="magpie", verifier_config=VERIFIER_CFG,
                 )
                 reward, status = rec.get("original_reward"), rec.get("status")
             except Exception as exc:  # noqa: BLE001
@@ -181,6 +210,11 @@ async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, c
 
 
 async def main_async(args) -> int:
+    global VERIFIER_CFG
+    if args.skip_verifier:
+        from harbor.models.trial.config import VerifierConfig
+        VERIFIER_CFG = VerifierConfig(disable=True)
+        print("阶段1：验证器已禁用（只跑 agent 产出 patch）", flush=True)
     spec = json.loads(SAMPLE.read_text(encoding="utf-8"))
     tasks = [t["task_id"] for t in spec["tasks"]]
     print(f"题集: {len(tasks)} 题；agent: {AGENTS}；repeats={args.repeats} concurrency={args.concurrency}", flush=True)
@@ -201,6 +235,7 @@ def main() -> int:
     p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--concurrency", type=int, default=12)
     p.add_argument("--verifier-limit", type=int, default=1)
+    p.add_argument("--skip-verifier", action="store_true", help="阶段1：跳过验证器，只跑 agent 产出 patch")
     p.add_argument("--skip-existing", action="store_true")
     return asyncio.run(main_async(p.parse_args()))
 
