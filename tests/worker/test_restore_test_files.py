@@ -117,5 +117,11 @@ def test_strip_new_test_files() -> None:
         print("验证通过：新增测试剔除，新增源码保留")
 
 
+def main() -> None:
+    test_restore_existing_test_files()
+    test_strip_new_test_files()
+    print("全部通过")
+
+
 if __name__ == "__main__":
     main()

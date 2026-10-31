@@ -1,9 +1,12 @@
 """正式三 agent 对比：3 agent × 40 题 × 2 重复 = 240 次，并发 8。
 
 - 顺序跑三个 agent（避免 24 容器超内存）
-- 每个 trial 唯一 job 名；支持 --skip-existing 断点续跑（Docker 崩溃后继续）
+- 每个 trial 唯一 job 名；支持 --skip-existing 断点续跑（Docker 崩溃后继续）。
+  判据是「有 reward 或显式 terminal 标记」，不再认 model.patch，避免空 patch 永久 pending。
+- 三个 agent 的规范模型身份统一为 ``auto-hy3``（SAYACODE 的 ``DeepSeek-V4.1-Flash`` 只是产品 profile 别名）
 - 每 agent 开始前清理 Docker 网络（每 trial 占 2 个，池约 17）
 - 结果写 <out>/<agent>/rows.json
+- 仓外路径集中在 ``scripts/locked_agents.py:FormalPaths``，可用 ``SAYACODE_BENCH_*`` 或参数覆盖
 """
 
 import argparse
@@ -16,18 +19,13 @@ from pathlib import Path
 BENCH = Path(r"C:\develop\sayacode-bench")
 sys.path.insert(0, str(BENCH / "src"))
 sys.path.insert(0, str(BENCH / "scripts"))
-sys.path.insert(0, r"C:\sb\hard")
 
-from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
+from harbor.models.trial.config import AgentConfig  # noqa: E402,F401  (re-export 给旧调用方)
+from locked_agents import AGENTS, CANONICAL_MODEL, FormalPaths, build_agent, env_cfg  # noqa: E402
 
 from sayacode_bench.execution import run_official_trial  # noqa: E402
-from test_agent import build as build_agent, env_cfg  # noqa: E402  (复用已验证的三 agent 构造)
 
 VERIFIER_CFG = None
-
-TASKS = Path(r"C:\sb\tmp\hard\cache\swe-bench-pro-v2-66f92766bba642462d4bbe5479e83f91f9211862\v2\tasks")
-SAMPLE = BENCH / "studies" / "sample-40-final.json"
-AGENTS = ("sayacode", "mini-swe", "codex")
 
 
 def prune_networks() -> None:
@@ -156,17 +154,25 @@ async def mem_supervisor(sem: AdaptiveSemaphore, tag: str) -> None:
         await asyncio.sleep(3)
 
 
-async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, concurrency: int, skip_existing: bool) -> list[dict]:
+async def run_agent(
+    name: str,
+    tasks: list[str],
+    out_root: Path,
+    repeats: int,
+    concurrency: int,
+    skip_existing: bool,
+    paths: FormalPaths,
+) -> list[dict]:
     out = out_root / name
     out.mkdir(parents=True, exist_ok=True)
     prune_networks()
-    agent = build_agent(name)
-    env = env_cfg()
+    agent = build_agent(name, paths, profile_dir=out)
+    env = env_cfg(paths)
     sem = AdaptiveSemaphore(concurrency)
     monitor = asyncio.create_task(mem_supervisor(sem, name))
     rows: list[dict] = []
 
-    # 归档无 reward 的残留 job（Docker 崩溃导致），否则 Harbor 以身份冲突拒绝重跑。
+    # 归档无 reward、无终态标记、也无 patch 的残留 job（Docker 崩溃导致），否则 Harbor 以身份冲突拒绝重跑。
     import shutil
     import time as _time
     jobs_dir = out / "jobs"
@@ -174,7 +180,12 @@ async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, c
         abandoned = out / f"abandoned-{int(_time.time())}"
         moved = 0
         for job_dir in jobs_dir.iterdir():
-            if job_dir.is_dir() and not list(job_dir.glob("instance_*/verifier/reward.txt")) and not list(job_dir.glob("instance_*/agent/model.patch")):
+            if not job_dir.is_dir():
+                continue
+            has_reward = list(job_dir.glob("instance_*/verifier/reward.txt"))
+            has_terminal = list(job_dir.glob("instance_*/verifier/terminal.json"))
+            has_patch = list(job_dir.glob("instance_*/agent/model.patch"))
+            if not has_reward and not has_terminal and not has_patch:
                 abandoned.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(job_dir), str(abandoned / job_dir.name))
                 moved += 1
@@ -184,14 +195,20 @@ async def run_agent(name: str, tasks: list[str], out_root: Path, repeats: int, c
     async def one(tid: str, repeat: int) -> None:
         async with sem:
             job = f"{name}-{tid.replace('instance_', '')[:34]}-r{repeat}"
-            if skip_existing and (list((out / "jobs" / job).glob("instance_*/verifier/reward.txt")) or list((out / "jobs" / job).glob("instance_*/agent/model.patch"))):
+            # 断点续跑判据：只有「有 reward」或「有显式终态标记」才算完成；不再认 model.patch 文件，
+            # 否则空 patch 会永久 pending（verify_patches 会为它写 terminal.json）。
+            job_dir = out / "jobs" / job
+            if skip_existing and (
+                list(job_dir.glob("instance_*/verifier/reward.txt"))
+                or list(job_dir.glob("instance_*/verifier/terminal.json"))
+            ):
                 rows.append({"task_id": tid, "repeat": repeat, "reward": "skipped", "status": "skipped"})
                 return
             print(f"[{name}] RUN {tid[:48]} r{repeat}", flush=True)
             try:
                 rec = await run_official_trial(
-                    TASKS / tid, out / "jobs", job, agent, env,
-                    configuration=name, repeat=repeat, canonical_model="DeepSeek-V4.1-Flash" if name == "sayacode" else "auto-hy3",
+                    paths.tasks_root / tid, out / "jobs", job, agent, env,
+                    configuration=name, repeat=repeat, canonical_model=CANONICAL_MODEL,
                     endpoint="magpie", verifier_config=VERIFIER_CFG,
                 )
                 reward, status = rec.get("original_reward"), rec.get("status")
@@ -215,7 +232,13 @@ async def main_async(args) -> int:
         from harbor.models.trial.config import VerifierConfig
         VERIFIER_CFG = VerifierConfig(disable=True)
         print("阶段1：验证器已禁用（只跑 agent 产出 patch）", flush=True)
-    spec = json.loads(SAMPLE.read_text(encoding="utf-8"))
+    overrides = {}
+    if args.tasks_root is not None:
+        overrides["tasks_root"] = args.tasks_root
+    if args.sample is not None:
+        overrides["sample"] = args.sample
+    paths = FormalPaths.from_env(**overrides)
+    spec = json.loads(paths.sample.read_text(encoding="utf-8"))
     tasks = [t["task_id"] for t in spec["tasks"]]
     print(f"题集: {len(tasks)} 题；agent: {AGENTS}；repeats={args.repeats} concurrency={args.concurrency}", flush=True)
     install_verifier_throttle(args.verifier_limit)
@@ -223,7 +246,9 @@ async def main_async(args) -> int:
     out_root.mkdir(parents=True, exist_ok=True)
     agent_list = args.agents if args.agents else AGENTS
     for name in agent_list:
-        rows = await run_agent(name, tasks, out_root, args.repeats, args.concurrency, args.skip_existing)
+        rows = await run_agent(
+            name, tasks, out_root, args.repeats, args.concurrency, args.skip_existing, paths
+        )
         (out_root / f"{name}-summary.json").write_text(
             json.dumps({"agent": name, "n": len(rows)}, indent=2, ensure_ascii=False), encoding="utf-8")
     print("全部完成", flush=True)
@@ -239,6 +264,8 @@ def main() -> int:
     p.add_argument("--skip-verifier", action="store_true", help="阶段1：跳过验证器，只跑 agent 产出 patch")
     p.add_argument("--agents", nargs="+", default=None, help="只跑指定 agent")
     p.add_argument("--skip-existing", action="store_true")
+    p.add_argument("--tasks-root", type=Path, default=None, help="默认取 SAYACODE_BENCH_TASKS_ROOT")
+    p.add_argument("--sample", type=Path, default=None, help="冻结题集，默认 studies/sample-40-final.json")
     return asyncio.run(main_async(p.parse_args()))
 
 

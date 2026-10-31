@@ -4,7 +4,6 @@
 每个 trial 目录需含 verifier/reward.txt。按 task_id 聚合（同题多次重复取 best-of 或 pass@1）。
 """
 
-import json
 import math
 import re
 import sys

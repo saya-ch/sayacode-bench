@@ -1,217 +1,172 @@
-"""最终汇总（修复版）：按 job 名合并 native + verify 结果，每 trial 一个 reward。"""
+"""最终汇总：计划分母、缺失分类、三口径与题级统计。
 
-import json
-import math
-import re
-import statistics as st
-from collections import defaultdict
+用法::
+
+    uv run --no-sync python scripts/final_summary.py \\
+        --root C:\\sb\\hard\\formal-240 \\
+        --sample studies/sample-40-final.json \\
+        --out C:\\sb\\hard\\formal-240\\FINAL-SUMMARY.json
+
+口径：``planned`` 是冻结题集每题 × 计划重复数（默认 40×2=80），缺失按未通过计入；
+``observed`` 只统计真正拿到 reward 或显式终态标记的 trial。禁止把 65 当 80 用。
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
 from pathlib import Path
 
-ROOT = Path(r"C:\sb\hard\formal-240")
-AGENTS = ("sayacode", "mini-swe", "codex")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from sayacode_bench.formal import (  # noqa: E402
+    missing_gap_report,
+    summarize,
+    write_summary,
+)
+from sayacode_bench.formal_stats import summarize_stats  # noqa: E402
+
+DEFAULT_ROOT = Path(r"C:\sb\hard\formal-240")
 
 
-def wilson(k, n, z=1.96):
-    if n == 0:
-        return (0.0, 0.0)
-    p = k / n
-    d = 1 + z * z / n
-    c = (p + z * z / (2 * n)) / d
-    hw = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
-    return (max(0, c - hw), min(1, c + hw))
+def _fmt_rate(value: float | None) -> str:
+    return "—" if value is None else f"{value:.1%}"
 
 
-def reward_of(inner: Path):
-    rw = inner / "verifier" / "reward.txt"
-    if rw.is_file():
-        try:
-            return float(rw.read_text().strip())
-        except Exception:
-            return None
-    return None
+def _print_table(summary: dict) -> None:
+    print("=" * 96)
+    print(
+        f"三 agent 正式对比 · 计划 {summary['sample']['size']} 题 × "
+        f"{summary['repeats']} 重复 = {summary['sample']['size'] * summary['repeats']} trial/agent"
+    )
+    print("=" * 96)
+    header = (
+        f"{'agent':<10}{'planned':>9}{'observed':>10}{'pass':>7}"
+        f"{'planned%':>11}{'observed%':>12}{'worst':>9}{'best':>9}"
+    )
+    print(header)
+    for agent, data in summary["agents"].items():
+        rates = data["rates"]
+        print(
+            f"{agent:<10}{data['planned']:>9}{data['observed']:>10}{data['passes']:>7}"
+            f"{_fmt_rate(rates['planned_pass_rate']):>11}"
+            f"{_fmt_rate(rates['observed_pass_rate']):>12}"
+            f"{_fmt_rate(rates['worst_bound']):>9}"
+            f"{_fmt_rate(rates['best_bound']):>9}"
+        )
 
 
-def partial_of(inner: Path):
-    for so in inner.rglob("test-stdout.txt"):
-        txt = so.read_text(encoding="utf-8", errors="replace")
-        mr = re.search(r"Required tests:\s*(\d+)", txt)
-        mp = re.search(r"Required tests that passed:\s*(\d+)", txt)
-        if mr and mp and int(mr.group(1)):
-            return int(mp.group(1)) / int(mr.group(1))
-        break
-    return None
+def _print_gaps(summary: dict) -> None:
+    gaps = missing_gap_report(summary)
+    print("\n=== 缺口分类（共 %d 条）===" % gaps["total"])
+    print(f"{'agent':<10}" + "".join(f"{name:>14}" for name in sorted(gaps["by_class"])))
+    for agent, data in gaps["by_agent"].items():
+        cells = "".join(f"{data['classes'].get(name, 0):>14}" for name in sorted(gaps["by_class"]))
+        print(f"{agent:<10}{cells}")
+    print(f"{'合计':<10}" + "".join(f"{gaps['by_class'][name]:>14}" for name in sorted(gaps["by_class"])))
+    print("\n缺失明细：")
+    for agent, data in summary["agents"].items():
+        for item in data["missing_trials"]:
+            print(
+                f"  [{agent}] {item['class']:<11} {item['task'][:52]:<52} "
+                f"r{item['repeat']}  {item['detail']}"
+            )
+    accounting = summary.get("fault_accounting") or []
+    if accounting:
+        print("\nMODEL-FAULTS 归因落点：")
+        for item in accounting:
+            print(
+                f"  [{item['agent']}] {item['job']}  faults={','.join(item['faults'])} "
+                f"-> {item['outcome']}"
+            )
 
 
-def hacked_of(inner: Path) -> bool:
-    for name in ("restored-test-files.json", "stripped-new-test-files.json"):
-        f = inner / "agent" / name
-        if f.is_file():
-            try:
-                j = json.loads(f.read_text(encoding="utf-8"))
-                if j:
-                    return True
-            except Exception:
-                return True
-    return False
+def _print_stats(stats: dict) -> None:
+    print("\n=== 题级统计（任务块为独立单位，重复不增加样本量）===")
+    for agent, data in stats["agents"].items():
+        macro = data["task_macro"]
+        boot = data["task_block_bootstrap"]
+        wilson = data["wilson_task_level"]
+        interval = boot.get("interval_95")
+        text = "—" if interval is None else f"[{interval[0]:.1%}, {interval[1]:.1%}]"
+        print(
+            f"  {agent:<10} 完整题 {macro['complete_tasks']:>2}/{macro['planned_tasks']:<2} "
+            f"task-macro={_fmt_rate(macro['mean'])}  bootstrap95={text}"
+        )
+        print(
+            f"  {'':<10} 题级全通过 {wilson['k']}/{wilson['n']} = {_fmt_rate(wilson['rate'])} "
+            f"Wilson={_fmt_rate(wilson['interval_95'][0] if wilson['interval_95'] else None)}"
+            f"–{_fmt_rate(wilson['interval_95'][1] if wilson['interval_95'] else None)}"
+        )
+        pass_at = data["pass_at_k"]
+        if "pass_at_2" in pass_at:
+            any_pass = pass_at["pass_at_2"]
+            all_pass = pass_at["pass_pow_2"]
+            print(
+                f"  {'':<10} pass@2={any_pass['successes']}/{pass_at['tasks']}="
+                f"{_fmt_rate(any_pass['rate'])}  pass^2={all_pass['successes']}/{pass_at['tasks']}="
+                f"{_fmt_rate(all_pass['rate'])}"
+            )
+    print("\n=== 两两配对（题级，非 best-of-2 冒充 pass@1）===")
+    for name, data in stats["pairwise"].items():
+        mcnemar = data["mcnemar_all_repeats_pass"]
+        print(
+            f"  {data['a']} vs {data['b']}：共同题 {data['common_tasks']}，"
+            f"delta={_fmt_rate(data['task_macro_delta'])}，"
+            f"全通过 McNemar a独过 {mcnemar['a_only']} / b独过 {mcnemar['b_only']} "
+            f"p={mcnemar['p_value']:.3f}"
+        )
 
 
-def patch_of(inner: Path):
-    mp = inner / "agent" / "model.patch"
-    if mp.is_file():
-        return mp.stat().st_size
-    return None
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(os.environ.get("SAYACODE_BENCH_FORMAL_ROOT", DEFAULT_ROOT)),
+        help="结果根目录（含 sayacode/mini-swe/codex 子目录）",
+    )
+    parser.add_argument(
+        "--sample",
+        type=Path,
+        default=ROOT / "studies" / "sample-40-final.json",
+        help="冻结题集；计划分母只由它决定",
+    )
+    parser.add_argument("--repeats", type=int, default=2)
+    parser.add_argument("--agents", nargs="+", default=["sayacode", "mini-swe", "codex"])
+    parser.add_argument("--faults", type=Path, default=None, help="默认读取 <root>/MODEL-FAULTS.json")
+    parser.add_argument("--out", type=Path, default=None, help="默认写 <root>/FINAL-SUMMARY.json")
+    parser.add_argument("--no-write", action="store_true")
+    args = parser.parse_args()
 
+    if not args.root.is_dir():
+        parser.error(f"结果根目录不存在：{args.root}；用 --root 或 SAYACODE_BENCH_FORMAL_ROOT 指定")
+    if not args.sample.is_file():
+        parser.error(f"题集不存在：{args.sample}")
 
-def gold_of(inner: Path):
-    c = inner / "config.json"
-    if not c.is_file():
-        return None
-    try:
-        tp = (json.loads(c.read_text(encoding="utf-8")).get("task") or {}).get("path")
-        if tp:
-            gp = Path(tp) / "solution" / "gold_patch.diff"
-            if gp.is_file():
-                return gp.stat().st_size
-    except Exception:
-        pass
-    return None
+    summary = summarize(
+        args.root,
+        sample=args.sample,
+        repeats=args.repeats,
+        agents=args.agents,
+        faults_path=args.faults,
+    )
+    stats = summarize_stats(summary)
+    summary["stats"] = stats
+    summary["gaps"] = missing_gap_report(summary)
 
+    _print_table(summary)
+    _print_gaps(summary)
+    _print_stats(stats)
 
-def collect(agent_dir: Path) -> dict:
-    """返回 {task: [ {job, repeat, reward, partial, hacked, patch, gold} ]}，按 job 名合并两阶段。"""
-    native = {}   # job_name -> inner dir
-    verified = {}  # orig job_name -> inner dir
-    for base, prefix in ((agent_dir / "jobs", ""), (agent_dir / "verify" / "jobs", "verify-")):
-        if not base.is_dir():
-            continue
-        for job in base.iterdir():
-            if not job.is_dir():
-                continue
-            inner = next((d for d in job.iterdir() if d.is_dir() and d.name.startswith("instance_")), None)
-            if inner is None:
-                continue
-            orig = job.name[len(prefix):] if prefix and job.name.startswith(prefix) else job.name
-            if prefix:
-                verified[orig] = inner
-            else:
-                native[orig] = inner
-
-    by_task = defaultdict(list)
-    for job_name in set(native) | set(verified):
-        reward = None
-        partial = None
-        patch = None
-        gold = None
-        hacked = False
-        if job_name in native:
-            n = native[job_name]
-            reward = reward_of(n)
-            partial = partial_of(n)
-            patch = patch_of(n)
-            gold = gold_of(n)
-            hacked = hacked_of(n)
-        if reward is None and job_name in verified:
-            v = verified[job_name]
-            reward = reward_of(v)
-            if partial is None:
-                partial = partial_of(v)
-            if patch is None:
-                patch = patch_of(v)
-            if gold is None:
-                gold = gold_of(v)
-        # task 名：从 result.json 拿
-        task = None
-        for cand in (native.get(job_name), verified.get(job_name)):
-            if cand is None:
-                continue
-            rj = cand / "result.json"
-            if rj.is_file():
-                try:
-                    task = (json.loads(rj.read_text(encoding="utf-8")).get("task_name") or "").split("/")[-1]
-                except Exception:
-                    pass
-            if task:
-                break
-        if not task:
-            task = job_name
-        rep = 1 if job_name.endswith("r1") else (2 if job_name.endswith("r2") else 0)
-        by_task[task].append({"job": job_name, "repeat": rep, "reward": reward,
-                              "partial": partial, "hacked": hacked,
-                              "patch": patch, "gold": gold})
-    return by_task
-
-
-def main():
-    print("=" * 74)
-    print("三 agent 正式对比 · 最终汇总（SWE-bench Pro V2，40 题 × 2 重复）")
-    print("=" * 74)
-
-    stats = {}
-    for agent in AGENTS:
-        d = ROOT / agent
-        if not d.is_dir():
-            continue
-        by_task = collect(d)
-        trials = [t for lst in by_task.values() for t in lst if t["reward"] is not None]
-        stats[agent] = {"by_task": by_task, "trials": trials}
-
-    print(f"\n{'agent':<10}{'有效trial':>9}{'pass@1':>10}{'95%CI':>18}{'partial':>9}{'改测试':>8}{'空patch':>8}{'bloat':>7}")
-    for agent, s in stats.items():
-        trials = s["trials"]
-        n = len(trials)
-        p = sum(1 for t in trials if t["reward"] == 1.0)
-        lo, hi = wilson(p, n)
-        parts = [t["partial"] for t in trials if t["partial"] is not None]
-        hacked = sum(1 for t in trials if t["hacked"])
-        empty = sum(1 for t in trials if t["patch"] == 0)
-        bloat = [t["patch"] / t["gold"] for t in trials if t["patch"] and t["gold"]]
-        print(f"{agent:<10}{n:>9}{p/n:>9.1%}{f'[{lo:.0%},{hi:.0%}]':>18}"
-              f"{(st.mean(parts) if parts else 0):>9.1%}{hacked/n:>8.0%}{empty:>8}"
-              f"{(st.median(bloat) if bloat else 0):>7.2f}")
-
-    print("\n=== pass@2（任一次过）/ pass^2（两次都过）===")
-    for agent, s in stats.items():
-        bt = s["by_task"]
-        multi = {k: v for k, v in bt.items() if len([x for x in v if x["reward"] is not None]) >= 2}
-        if not multi:
-            continue
-        p2 = sum(1 for v in multi.values() if any(x["reward"] == 1.0 for x in v))
-        ph2 = sum(1 for v in multi.values() if all(x["reward"] == 1.0 for x in v if x["reward"] is not None))
-        print(f"  {agent:<10} 题 {len(multi):>2}  pass@2={p2}/{len(multi)}={p2/len(multi):.1%}  "
-              f"pass^2={ph2}/{len(multi)}={ph2/len(multi):.1%}")
-
-    print("\n=== 两两配对（同题取最好）· McNemar ===")
-    names = [a for a in stats if stats[a]["trials"]]
-    for i in range(len(names)):
-        for j in range(i + 1, len(names)):
-            A, B = names[i], names[j]
-            ba, bb = stats[A]["by_task"], stats[B]["by_task"]
-            common = set(ba) & set(bb)
-            b = c = 0
-            for k in common:
-                ra = max((x["reward"] for x in ba[k] if x["reward"] is not None), default=None)
-                rb = max((x["reward"] for x in bb[k] if x["reward"] is not None), default=None)
-                if ra == 1.0 and rb == 0.0:
-                    b += 1
-                elif ra == 0.0 and rb == 1.0:
-                    c += 1
-            n = b + c
-            if n:
-                kk = min(b, c)
-                pv = min(1.0, 2 * sum(math.comb(n, x) for x in range(0, kk + 1)) / (2 ** n))
-            else:
-                pv = 1.0
-            print(f"  {A} vs {B}: 共同 {len(common)}，A独过 {b} / B独过 {c}，p={pv:.3f}")
-
-    # 逐题明细
-    out = ROOT / "FINAL-SUMMARY.json"
-    out.write_text(json.dumps({
-        a: {"n": len(s["trials"]),
-            "pass": sum(1 for x in s["trials"] if x["reward"] == 1.0),
-            "trials": s["trials"]}
-        for a, s in stats.items()}, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\n明细已写 {out}")
+    if not args.no_write:
+        out = args.out or args.root / "FINAL-SUMMARY.json"
+        write_summary(out, summary)
+        print(f"\n明细已写 {out}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
