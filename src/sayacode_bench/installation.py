@@ -7,6 +7,7 @@ import importlib.metadata
 import json
 import re
 import shlex
+import shutil
 import tarfile
 import time
 import tomllib
@@ -110,7 +111,12 @@ async def prepare_uv_installer(
     evidence: Path,
     ensure_dependencies: Callable[[BaseEnvironment, tuple[str, ...]], Awaitable[None]],
 ) -> dict[str, Any]:
-    """真实下载同时验证现有信任链；仅 60/77 允许一次官方 CA 安装修复。"""
+    """真实下载同时验证现有信任链；仅 60/77 允许一次官方 CA 安装修复。
+
+    同一 trial 重跑时安装证据目录可能已存在：清空后重建，避免 ``exclusive``
+    写入撞到旧文件而把可恢复的重跑变成 ``FileExistsError``。"""
+    if evidence.exists():
+        shutil.rmtree(evidence)
     evidence.mkdir(parents=True, exist_ok=False)
     state: dict[str, Any] = {
         "schema_version": 1,
