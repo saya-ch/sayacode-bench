@@ -22,6 +22,7 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [预注册协议](docs/protocol.md) | 正式对外研究的预注册（**未启动**）|
 | [归档索引](docs/archive/README.md) | 已作废/过期/一次性文档，逐份说明能否引用 |
 | [真实踩坑与教训](docs/LESSONS-20261102-v2.md) | v2 重跑遇到的环境/管线/agent/统计问题与处置（现象/根因/预防）|
+| **[v2 完整重跑结果](docs/FORMAL-RESULTS-20261102-v2.md)** | 三 agent 终版五指标、McNemar、缺失分类、补跑效应与边界 |
 
 ## 固定基准
 
