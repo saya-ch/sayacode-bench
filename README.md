@@ -26,6 +26,9 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [真实踩坑与教训](docs/LESSONS-20261102-v2.md) | v2 重跑遇到的环境/管线/agent/统计问题与处置（现象/根因/预防）|
 | **[v2 完整重跑结果](docs/FORMAL-RESULTS-20261102-v2.md)** | 三 agent 终版五指标、McNemar、缺失分类、补跑效应与边界 |
 | [报告模板](docs/REPORT-TEMPLATE.md) | 出 `FORMAL-RESULTS-<批次>.md` 的固定版式与不可声称清单 |
+| [改测试真相](docs/TEST-EDIT-ANALYSIS-20261102.md) | 测试代码被 verifier 重置、仅 `.snap` 快照有效；严格口径差异 |
+| [协作场景验证](docs/COLLABORATION-CHECK-20261102.md) | team/single 小样本；autonomous 题 task_count=0 的原因 |
+| [task_count 归因](docs/TASKCOUNT-ATTRIBUTION.md) | 团队工具链完好；显式分工题下 task_count=2，及提示/开关一致性 bug |
 
 ## 固定基准
 
