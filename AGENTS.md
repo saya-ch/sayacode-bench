@@ -4,7 +4,7 @@
 
 ## 必须遵守
 
-1. **维护文档**：每次实验或方案变更后，更新 [STATUS](docs/STATUS.md)、[HANDOFF](docs/HANDOFF.md)，必要时更新 [EVALUATION-PLAN](docs/EVALUATION-PLAN-20261030.md)、[ITERATION-WORKFLOW](docs/ITERATION-WORKFLOW.md)。被推翻的结论要显式标「已作废」及原因，并移到 `docs/archive/`；不要静默删改，也不要在 `docs/` 根继续摆着作废文档。
+1. **维护文档**：每次实验或方案变更后，更新 [STATUS](docs/STATUS.md)、[HANDOFF](docs/HANDOFF.md)，必要时更新 [EVALUATION-PLAN](docs/EVALUATION-PLAN-20261030.md)、[ITERATION-WORKFLOW](docs/ITERATION-WORKFLOW.md)。被推翻的结论要显式标「已作废」及原因，并移到 `docs/archive/`；不要静默删改，也不要在 `docs/` 根继续摆着作废文档。**真实踩坑写进 [LESSONS](docs/LESSONS-20261102-v2.md)**（现象/根因/处置/预防），不要只留在聊天记录里。
 2. **时常推送**：完成一批改动就 `git commit` + `git push origin main`，不要在本地长期累积未推送的提交。
 3. **跑前汇报配置**：每次评测启动前用 `python scripts/profile_summary.py <profile>` 汇报模型 / 上下文 / 摘要触发点 / max_output，并取得确认（见 ITERATION-WORKFLOW §8）。
 4. **诚实边界**：开发期数字不当正式成绩；作废数字不引用；过程指标（步数/token/改测试）只作诊断，不作「模型更强」的证据；分母不一致不得并列比较。
@@ -25,7 +25,7 @@
 - **Docker 磁盘**：构建缓存与旧镜像可回收约 **142GB**（`docker system prune -a` 前先确认没有要保留的镜像；这是实测可回收量，不是当前占用）。
 - **网络**：Clash Verge 已开 TUN + fake-ip；规则模板 `profiles/rNSaXJaGi0rv.yaml` 已加国内镜像（tuna/aliyun/ustc/tencent/huawei）**DIRECT** 规则——否则国内源被代理拖到 30KB/s。改规则后需重启 Clash Verge 生效。
 - **每个 trial 占 2 个 Docker 网络**（`instance_*__env_default` + `saya-isolated-*`），默认地址池约 17 个；跑批前后必须 `docker network prune -f`，否则「all predefined address pools have been fully subnetted」。
-- 结果目录：v1 在 `C:\sb\hard\formal-240`；v2 在 `C:\sb\hard\v2`。
+- 结果目录：v1 在 `C:\sb\hard\formal-240`；v2 在 `C:\sb\hard\v2-325`（旧 `v2` 是 3.2.4 预览批次，已归档）。
 
 ## 常见坑
 
@@ -42,6 +42,16 @@
 11. **别把 `context_length` 配小**：hy3 实际 192k；曾误配 65536 导致长任务早摘要。
 12. **报告 `pass@1` 必须带 Wilson CI 与样本量**；只说「通过率 52%」会误导。
 13. **Docker / 网络偶发 TLS 失败**（`uv` 下载 `curl exit=18`、`git push` SSL 握手），重试或重启 Docker Desktop。
+14. **apt 502 是 Clash TUN/fake-ip 问题**：`deb.debian.org` / `archive.ubuntu.com` 返回 502 `[IP: 198.18.x.x]`。修法是改 **Clash Verge profile 的 `prepend`**（`profiles/rNSaXJaGi0rv.yaml`）加 `DOMAIN-SUFFIX,debian.org,DIRECT` 等；**Merge.yaml 的 prepend-rules 不生效**。改完重启 Clash。
+15. **给容器注入代理必须补 NO_PROXY**：Docker CLI 的 `proxies` 会把 `HTTP(S)_PROXY` 注入所有容器；`NO_PROXY` 必须含 `saya-model-gateway`、`saya-gateway` 与私网段，否则 agent 调内部网关报 `gaierror`、patch=0。更稳的是**无代理直连**（实测 astral.sh 直连可用）。
+16. **astral.sh `curl exit=35` 是间歇性 TLS 失败**（不是被墙，宿主实测 301）；补跑成功率高，下一批应把 uv installer 预置进镜像。
+17. **阶段1 续跑判据**：`--skip-verifier` 完成时只有 `normalized.json`（无 reward/terminal），skip 判据必须认 `record_complete=True`，否则重复进入 `run_official_trial` 撞 `ValueError`。
+18. **`verify_patches.collect_pending` 只认 stage1 的 reward**（不看 `verify/jobs/`），重跑 verify 会报「已 verified 冲突」；临时办法是把 verify 的 `reward.txt` 同步回 stage1 jobs，长期应在代码里修。
+19. **stage1 与 verify 不要并行**：验证器峰值 2.26GB，并行会把宿主压到 <0.6GB，kill 后留下「未收尾 Harbor job」，后续 verify 连锁 ValueError。
+20. **归档与 retry sample 必须同源**：先列要补的 job，再由同一清单生成 `--sample`，最后归档；否则会出现「归档 28 个、sample 只覆盖 8 题」的 22 条 `no_job`。
+21. **`.wslconfig` 只能合并、不能覆盖**：原文件有 `networkingMode=mirrored`、`dnsTunneling`、`firewall`、`autoProxy`，覆盖会让容器网络失效；改前备份，改后用 `docker info` 的 MemTotal 验证。
+22. **Docker vhdx 删镜像不缩容**：`docker_data.vhdx` 是稀疏文件，删镜像后 C: 不会自动涨；需管理员 `diskpart compact vdisk`（脚本 `C:\sb\hard\v2\logs\compact-docker-vhdx.ps1`）。
+23. **补跑后数字会变**：v2 中 SAYACODE 72.5%→约 78.8%、mini-swe 47.5%→68.8%；任何 >1pp 变化都要更新报告，不能拿补跑前快照当终版。
 
 ## 目录速览
 
