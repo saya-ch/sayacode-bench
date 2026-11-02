@@ -88,7 +88,8 @@ class FormalPaths:
             gateway=os.environ.get("SAYACODE_BENCH_GATEWAY", DEFAULT_GATEWAY),
             sample=_env_path("SAYACODE_BENCH_SAMPLE", ROOT / "studies" / "sample-40-final.json"),
             mini_config=_env_path(
-                "SAYACODE_BENCH_MINI_CONFIG", ROOT / "scripts" / "formal_configs" / "mini_toolcall.yaml"
+                "SAYACODE_BENCH_MINI_CONFIG",
+                ROOT / "scripts" / "formal_configs" / "mini_toolcall.yaml",
             ),
             codex_tarball=(
                 Path(os.environ["SAYACODE_BENCH_CODEX_TARBALL"])
@@ -131,7 +132,9 @@ _CAPTURE = (
     'cd "$repo" && git add -A 2>/dev/null; git diff --cached > /logs/agent/model.patch 2>/dev/null; git reset -q 2>/dev/null; '
     "wc -c < /logs/agent/model.patch; true"
 )
-_CAPTURE_CODEX = _CAPTURE.replace("pkill -f '[m]ini-swe-agent --yolo' >/dev/null 2>&1; sleep 3; ", "")
+_CAPTURE_CODEX = _CAPTURE.replace(
+    "pkill -f '[m]ini-swe-agent --yolo' >/dev/null 2>&1; sleep 3; ", ""
+)
 
 
 class LockedMiniSwe(MiniSweAgent):
@@ -156,7 +159,7 @@ class LockedMiniSwe(MiniSweAgent):
                     "-e 's|security.debian.org|archive.debian.org|g' "
                     "-e 's|deb.debian.org|archive.debian.org|g' -e '/buster-updates/d' -e '/bullseye-updates/d' "
                     "/etc/apt/sources.list 2>/dev/null; "
-                    'echo \'Acquire::Check-Valid-Until "false";\' > /etc/apt/conf.d/99no-check-valid 2>/dev/null || true; '
+                    "echo 'Acquire::Check-Valid-Until \"false\";' > /etc/apt/conf.d/99no-check-valid 2>/dev/null || true; "
                     "apt-get -o Acquire::Check-Valid-Until=false update >/dev/null 2>&1; "
                     "apt-get install -y --no-install-recommends curl bash git python3 python3-pip "
                     "build-essential >/dev/null 2>&1 || true"
@@ -194,7 +197,9 @@ class LockedMiniSwe(MiniSweAgent):
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
         return await super().exec_as_agent(environment, command, **kwargs)
 
-    async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
         try:
             await super().run(instruction, environment, context)
         finally:
@@ -250,9 +255,7 @@ class LockedCodex(Codex):
             if tarball is None or not tarball.is_file():
                 raise RuntimeError(f"codex 下载失败且没有可上传的 tarball：{tarball}")
             await environment.upload_file(tarball, "/tmp/codex.tar.gz")
-            extract = self._EXTRACT.replace(
-                " bin/codex bin/codex-code-mode-host codex-path/rg", ""
-            )
+            extract = self._EXTRACT.replace(" bin/codex bin/codex-code-mode-host codex-path/rg", "")
         else:
             extract = self._EXTRACT
         result = await environment.exec(command="set -e; " + extract, user="root", timeout_sec=120)
@@ -269,12 +272,16 @@ class LockedCodex(Codex):
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
         return await super().exec_as_agent(environment, command, **kwargs)
 
-    async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
         try:
             await super().run(instruction, environment, context)
         finally:
             try:
-                result = await environment.exec(command=_CAPTURE_CODEX, user="root", timeout_sec=300)
+                result = await environment.exec(
+                    command=_CAPTURE_CODEX, user="root", timeout_sec=300
+                )
                 self.logger.info(f"model.patch bytes: {(result.stdout or '').strip()}")
             except Exception as exc:  # noqa: BLE001
                 self.logger.warning(f"patch capture failed: {exc}")
@@ -283,7 +290,9 @@ class LockedCodex(Codex):
 class PatchReplayAgent(BaseAgent):
     """把上一阶段 job 的 ``agent/model.patch`` 在干净沙箱重放，消除验证器被篡改的可能。"""
 
-    def __init__(self, *args: Any, source_job: str, patch_name: str = "model.patch", **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, source_job: str, patch_name: str = "model.patch", **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._source_job = Path(source_job)
         self._patch_name = patch_name
@@ -309,7 +318,9 @@ class PatchReplayAgent(BaseAgent):
                 return patch if patch.exists() else None
         return None
 
-    async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
         try:
             config = json.loads((self.logs_dir.parent / "config.json").read_text(encoding="utf-8"))
             task_name = Path(config["task"]["path"]).name
@@ -362,7 +373,9 @@ class NoOpAgent(BaseAgent):
     async def setup(self, environment: BaseEnvironment) -> None:
         return None
 
-    async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         (self.logs_dir / "model.patch").write_text("", encoding="utf-8")
 

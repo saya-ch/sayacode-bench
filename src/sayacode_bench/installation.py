@@ -141,6 +141,17 @@ async def prepare_uv_installer(
         "attempts": [],
     }
     try:
+        # 先建安装目录：本地 installer 需要上传到该目录，在线下载也写同一路径。
+        state["phase"] = "prepare_directory"
+        directory = await _record_exec(
+            environment,
+            f"mkdir -p {shlex.quote(str(installer.parent))}",
+            evidence,
+            "directory",
+            user="root",
+        )
+        if directory["return_code"] != 0:
+            raise RuntimeError("uv 安装目录创建失败")
         if local_installer is not None:
             state["phase"] = "local_installer"
             if Path(local_installer).is_file():
@@ -164,17 +175,8 @@ async def prepare_uv_installer(
                     installer_sha256=local["sha256"],
                 )
                 return state
+        state["phase"] = "ensure_curl"
         await ensure_dependencies(environment, ("curl",))
-        state["phase"] = "prepare_directory"
-        directory = await _record_exec(
-            environment,
-            f"mkdir -p {shlex.quote(str(installer.parent))}",
-            evidence,
-            "directory",
-            user="root",
-        )
-        if directory["return_code"] != 0:
-            raise RuntimeError("uv 安装目录创建失败")
         for attempt in (1, 2):
             state["phase"] = "download"
             # -q 必须排首位，防止镜像 curlrc 关闭校验；重定向也只允许 HTTPS。

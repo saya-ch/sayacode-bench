@@ -65,8 +65,11 @@ def main():
                 dist[f"{served}/{prov}"] += 1
                 agg_all[f"{served}/{prov}"] += 1
         (start / "served-distribution.json").write_text(
-            json.dumps({"window": [str(t0), str(t1)], "served": dict(dist)}, ensure_ascii=False, indent=2),
-            encoding="utf-8")
+            json.dumps(
+                {"window": [str(t0), str(t1)], "served": dict(dist)}, ensure_ascii=False, indent=2
+            ),
+            encoding="utf-8",
+        )
         n_trials += 1
         top = sorted(dist.items(), key=lambda x: -x[1])[:3]
         print(f"  {start.name[:44]:<46} {dict(top)}")

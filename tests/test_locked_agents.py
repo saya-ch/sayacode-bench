@@ -44,7 +44,10 @@ def test_sayacode_profile_is_rewritten_to_in_sandbox_gateway(tmp_path: Path) -> 
     paths = make_paths(tmp_path)
     config = locked_agents.build_agent("sayacode", paths, profile_dir=tmp_path)
     private = Path(config.kwargs["profile_path"])
-    assert json.loads(private.read_text(encoding="utf-8"))["base_url"] == locked_agents.IN_SANDBOX_GATEWAY
+    assert (
+        json.loads(private.read_text(encoding="utf-8"))["base_url"]
+        == locked_agents.IN_SANDBOX_GATEWAY
+    )
 
 
 def test_formal_paths_from_env(monkeypatch, tmp_path: Path) -> None:

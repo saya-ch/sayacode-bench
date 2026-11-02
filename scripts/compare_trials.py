@@ -53,7 +53,7 @@ def binom_two_sided_p(b: int, c: int) -> float:
         return 1.0
     k = min(b, c)
     # sum_{i=0}^{k} C(n,i) * 0.5^n * 2
-    s = sum(math.comb(n, i) for i in range(0, k + 1)) / (2 ** n)
+    s = sum(math.comb(n, i) for i in range(0, k + 1)) / (2**n)
     return min(1.0, 2 * s)
 
 
@@ -82,7 +82,7 @@ def main() -> None:
             tbl["A败B过"] += 1
         else:
             tbl["A败B败"] += 1
-        print(f"{t.replace('instance_','')[:42]:<44}{ra:>6}{rb:>6}")
+        print(f"{t.replace('instance_', '')[:42]:<44}{ra:>6}{rb:>6}")
 
     n = len(common)
     if n == 0:
@@ -98,12 +98,12 @@ def main() -> None:
     print(f"\n=== 配对结果（n={n} 题，{'best-of' if best_of else 'pass@1(多数)'}）===")
     print(f"  A 通过 {a_pass}/{n} = {pa:.1%}")
     print(f"  B 通过 {b_pass}/{n} = {pb:.1%}")
-    print(f"  效应量 risk difference = {rd*100:+.1f}pp")
+    print(f"  效应量 risk difference = {rd * 100:+.1f}pp")
     print(f"  2x2: {tbl}")
     print(f"  McNemar 精确检验 p = {p:.4f} {'（显著）' if p < 0.05 else '（不显著）'}")
     z = NormalDist().inv_cdf(0.975)
     lo, hi = rd - z * se, rd + z * se
-    print(f"  risk difference 95%CI 约 [{lo*100:+.1f}pp, {hi*100:+.1f}pp]")
+    print(f"  risk difference 95%CI 约 [{lo * 100:+.1f}pp, {hi * 100:+.1f}pp]")
 
 
 if __name__ == "__main__":

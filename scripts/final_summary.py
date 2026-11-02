@@ -65,7 +65,10 @@ def _print_gaps(summary: dict) -> None:
     for agent, data in gaps["by_agent"].items():
         cells = "".join(f"{data['classes'].get(name, 0):>14}" for name in sorted(gaps["by_class"]))
         print(f"{agent:<10}{cells}")
-    print(f"{'合计':<10}" + "".join(f"{gaps['by_class'][name]:>14}" for name in sorted(gaps["by_class"])))
+    print(
+        f"{'合计':<10}"
+        + "".join(f"{gaps['by_class'][name]:>14}" for name in sorted(gaps["by_class"]))
+    )
     print("\n缺失明细：")
     for agent, data in summary["agents"].items():
         for item in data["missing_trials"]:
@@ -136,7 +139,9 @@ def main() -> int:
     )
     parser.add_argument("--repeats", type=int, default=2)
     parser.add_argument("--agents", nargs="+", default=["sayacode", "mini-swe", "codex"])
-    parser.add_argument("--faults", type=Path, default=None, help="默认读取 <root>/MODEL-FAULTS.json")
+    parser.add_argument(
+        "--faults", type=Path, default=None, help="默认读取 <root>/MODEL-FAULTS.json"
+    )
     parser.add_argument("--out", type=Path, default=None, help="默认写 <root>/FINAL-SUMMARY.json")
     parser.add_argument("--no-write", action="store_true")
     args = parser.parse_args()

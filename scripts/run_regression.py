@@ -72,15 +72,28 @@ async def main_async(args: argparse.Namespace) -> int:
             print(f"RUN {expect:4} {task_id[:40]} r{repeat}", flush=True)
             try:
                 rec = await run_official_trial(
-                    tasks_root / task_id, out / "jobs", job, agent, env,
-                    configuration="regression", repeat=repeat, endpoint="magpie",
+                    tasks_root / task_id,
+                    out / "jobs",
+                    job,
+                    agent,
+                    env,
+                    configuration="regression",
+                    repeat=repeat,
+                    endpoint="magpie",
                 )
                 reward = rec.get("original_reward")
                 status = rec.get("status")
             except Exception as exc:  # noqa: BLE001
                 reward, status = None, f"exception:{type(exc).__name__}"
-            rows.append({"task_id": task_id, "expect": expect, "repeat": repeat,
-                         "reward": reward, "status": status})
+            rows.append(
+                {
+                    "task_id": task_id,
+                    "expect": expect,
+                    "repeat": repeat,
+                    "reward": reward,
+                    "status": status,
+                }
+            )
             print(f"    -> {status} reward={reward}", flush=True)
 
     # 判定：优先使用「该模型自己的基线」，否则用 regression-set 的期望但只作参考
@@ -91,7 +104,9 @@ async def main_async(args: argparse.Namespace) -> int:
     judged = baseline_path.is_file()
     if judged:
         base = json.loads(baseline_path.read_text(encoding="utf-8"))
-        expect_map = {t["task_id"]: ("pass" if t["reward"] == 1.0 else "fail") for t in base["tasks"]}
+        expect_map = {
+            t["task_id"]: ("pass" if t["reward"] == 1.0 else "fail") for t in base["tasks"]
+        }
     else:
         expect_map = {item["task_id"]: item["expect"] for item in spec["tasks"]}
     for item in spec["tasks"]:
@@ -106,17 +121,27 @@ async def main_async(args: argparse.Namespace) -> int:
         if got:
             ok += 1
 
-    report = {"summary": {"runs": len(rows), "with_reward": ok,
-                          "baseline_model": args.model_label, "baseline_used": judged,
-                          "regressions": breaks, "fixes": fixed},
-              "rows": rows}
+    report = {
+        "summary": {
+            "runs": len(rows),
+            "with_reward": ok,
+            "baseline_model": args.model_label,
+            "baseline_used": judged,
+            "regressions": breaks,
+            "fixes": fixed,
+        },
+        "rows": rows,
+    }
     (out / "regression-report.json").write_text(
-        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     print("\n=== 回归判定 ===")
     print(f"  有效运行 {ok}/{len(rows)}")
     print(f"  回归破坏（原 PASS 现非 PASS）: {breaks or '无'}")
     print(f"  修复生效（原 FAIL 现 PASS）: {fixed or '无'}")
-    print(f"  基线: {args.model_label} ({'已用该模型基线' if judged else '无该模型基线，判定仅供参考'})")
+    print(
+        f"  基线: {args.model_label} ({'已用该模型基线' if judged else '无该模型基线，判定仅供参考'})"
+    )
     print(f"  结论: {'Go（无回归）' if not breaks else 'No-Go（有回归，回退）'}")
     return 0 if not breaks else 1
 
@@ -130,7 +155,11 @@ def main() -> int:
     p.add_argument("--variant", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--repeats", type=int, default=1)
-    p.add_argument("--model-label", default="deepseek-v4.1-flash", help="用于匹配 studies/regression-baseline-<label>.json")
+    p.add_argument(
+        "--model-label",
+        default="deepseek-v4.1-flash",
+        help="用于匹配 studies/regression-baseline-<label>.json",
+    )
     return asyncio.run(main_async(p.parse_args()))
 
 

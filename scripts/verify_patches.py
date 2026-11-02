@@ -33,7 +33,11 @@ TERMINAL_EMPTY_PATCH = "skipped_empty_patch"
 
 def _inner_dir(job: Path) -> Path | None:
     return next(
-        (child for child in sorted(job.iterdir()) if child.is_dir() and child.name.startswith("instance_")),
+        (
+            child
+            for child in sorted(job.iterdir())
+            if child.is_dir() and child.name.startswith("instance_")
+        ),
         None,
     )
 
@@ -103,8 +107,14 @@ def collect_pending(jobs: Path) -> list[tuple[str, str, int, Path]]:
 
 
 async def main_async(args: argparse.Namespace) -> int:
-    subprocess.run(["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False)
-    paths = FormalPaths.from_env(tasks_root=args.tasks_root) if args.tasks_root else FormalPaths.from_env()
+    subprocess.run(
+        ["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False
+    )
+    paths = (
+        FormalPaths.from_env(tasks_root=args.tasks_root)
+        if args.tasks_root
+        else FormalPaths.from_env()
+    )
     out_root = Path(args.out)
     sem = asyncio.Semaphore(max(1, args.concurrency))
     total = 0
@@ -151,7 +161,10 @@ async def main_async(args: argparse.Namespace) -> int:
                         flush=True,
                     )
                 except Exception as exc:  # noqa: BLE001
-                    print(f"[{name}]   -> exception {type(exc).__name__}: {str(exc)[:100]}", flush=True)
+                    print(
+                        f"[{name}]   -> exception {type(exc).__name__}: {str(exc)[:100]}",
+                        flush=True,
+                    )
 
         await asyncio.gather(*[one(job, task, size, inner) for job, task, size, inner in pending])
         total += len(pending)
@@ -165,7 +178,9 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--agents", nargs="+", default=["sayacode", "mini-swe", "codex"])
     parser.add_argument("--concurrency", type=int, default=4)
-    parser.add_argument("--tasks-root", type=Path, default=None, help="默认取 SAYACODE_BENCH_TASKS_ROOT")
+    parser.add_argument(
+        "--tasks-root", type=Path, default=None, help="默认取 SAYACODE_BENCH_TASKS_ROOT"
+    )
     return asyncio.run(main_async(parser.parse_args()))
 
 

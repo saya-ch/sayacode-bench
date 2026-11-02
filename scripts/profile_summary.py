@@ -30,7 +30,9 @@ def derive(profile: dict) -> dict:
         "usable_input": configured_input,
         "margin": margin,
         "summary_trigger": min(cands) if (ratio is not None or explicit is not None) else None,
-        "trigger_ratio_of_context": (min(cands) / ctx) if (ratio is not None or explicit is not None) else None,
+        "trigger_ratio_of_context": (min(cands) / ctx)
+        if (ratio is not None or explicit is not None)
+        else None,
     }
 
 
@@ -45,7 +47,9 @@ def summary_text(path: str | Path) -> str:
         f"  协议 protocol   {profile.get('protocol')}",
         f"  上下文          {d['context_length']:,} tokens（可用输入 {d['usable_input']:,}）",
         f"  最大输出        {d['max_output_tokens']:,} tokens",
-        f"  摘要触发点      {trig:,} tokens（占上下文 {d['trigger_ratio_of_context']:.1%}）" if trig else "  摘要触发点      关闭",
+        f"  摘要触发点      {trig:,} tokens（占上下文 {d['trigger_ratio_of_context']:.1%}）"
+        if trig
+        else "  摘要触发点      关闭",
         f"  摘要保留消息    {profile.get('summary_keep_messages')}",
         f"  上下文编辑      {profile.get('context_edit_trigger')!r}",
         f"  重试 model/tool {profile.get('model_retries')}/{profile.get('tool_retries')}",

@@ -30,9 +30,7 @@ def write_sample(path: Path) -> Path:
             {
                 "schema_version": 1,
                 "size": len(TASKS),
-                "tasks": [
-                    {"task_id": task_id, "repo": repo} for task_id, repo in TASKS
-                ],
+                "tasks": [{"task_id": task_id, "repo": repo} for task_id, repo in TASKS],
             }
         ),
         encoding="utf-8",
@@ -160,9 +158,18 @@ def test_classify_missing_directly() -> None:
     from sayacode_bench.formal import Trial
 
     base = dict(
-        agent="a", job="j", kind="native", task_id="instance_x", repository="r", repeat=1,
-        reward=None, terminal=None, patch_bytes=None, partial=None,
-        restored_tests=False, stripped_tests=False,
+        agent="a",
+        job="j",
+        kind="native",
+        task_id="instance_x",
+        repository="r",
+        repeat=1,
+        reward=None,
+        terminal=None,
+        patch_bytes=None,
+        partial=None,
+        restored_tests=False,
+        stripped_tests=False,
     )
     assert classify_missing(None) == "no_job"
     assert classify_missing(Trial(**base)) == "empty_patch"
@@ -177,11 +184,14 @@ def test_restored_and_stripped_are_separate_flags(tmp_path: Path) -> None:
     root = tmp_path / "results"
     job = make_job(root, "sayacode", TASKS[0][0], 2, reward=1.0, patch=10)
     inner = next(job.glob("instance_*"))
-    (inner / "agent" / "restored-test-files.json").write_text(json.dumps(["t.py"]), encoding="utf-8")
+    (inner / "agent" / "restored-test-files.json").write_text(
+        json.dumps(["t.py"]), encoding="utf-8"
+    )
     (inner / "agent" / "stripped-new-test-files.json").write_text("[]", encoding="utf-8")
     summary = summarize(root, sample=sample, repeats=2, agents=["sayacode"])
     row = next(
-        item for item in summary["agents"]["sayacode"]["trials"]
+        item
+        for item in summary["agents"]["sayacode"]["trials"]
         if item.get("task_id") == TASKS[0][0] and item.get("kind")
     )
     assert row["restored_tests"] is True

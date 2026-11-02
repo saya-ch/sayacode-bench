@@ -29,15 +29,22 @@ VERIFIER_CFG = None
 
 
 def prune_networks() -> None:
-    subprocess.run(["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False)
+    subprocess.run(
+        ["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False
+    )
 
 
 def container_mem_mb() -> float:
     """当前所有 trial 容器的总内存（MB）。"""
     import re as _re
+
     try:
-        out = subprocess.run(["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}"],
-                             capture_output=True, text=True, timeout=30)
+        out = subprocess.run(
+            ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
     except Exception:
         return 0.0
     total = 0.0
@@ -147,8 +154,11 @@ async def mem_supervisor(sem: AdaptiveSemaphore, tag: str) -> None:
                 if want != verifier_limit:
                     await _VERIFIER_SEM.set_limit(want)
                     verifier_limit = want
-            print(f"[{tag}] mem={raw:.0f}MB ema={ema:.0f}MB limit={sem.limit} "
-                  f"verifier={verifier_limit} active={sem.active}", flush=True)
+            print(
+                f"[{tag}] mem={raw:.0f}MB ema={ema:.0f}MB limit={sem.limit} "
+                f"verifier={verifier_limit} active={sem.active}",
+                flush=True,
+            )
         except Exception:
             pass
         await asyncio.sleep(3)
@@ -175,6 +185,7 @@ async def run_agent(
     # 归档无 reward、无终态标记、也无 patch 的残留 job（Docker 崩溃导致），否则 Harbor 以身份冲突拒绝重跑。
     import shutil
     import time as _time
+
     jobs_dir = out / "jobs"
     if jobs_dir.is_dir():
         abandoned = out / f"abandoned-{int(_time.time())}"
@@ -214,14 +225,23 @@ async def run_agent(
                 or list(job_dir.glob("instance_*/verifier/terminal.json"))
                 or record_complete
             ):
-                rows.append({"task_id": tid, "repeat": repeat, "reward": "skipped", "status": "skipped"})
+                rows.append(
+                    {"task_id": tid, "repeat": repeat, "reward": "skipped", "status": "skipped"}
+                )
                 return
             print(f"[{name}] RUN {tid[:48]} r{repeat}", flush=True)
             try:
                 rec = await run_official_trial(
-                    paths.tasks_root / tid, out / "jobs", job, agent, env,
-                    configuration=name, repeat=repeat, canonical_model=CANONICAL_MODEL,
-                    endpoint="magpie", verifier_config=VERIFIER_CFG,
+                    paths.tasks_root / tid,
+                    out / "jobs",
+                    job,
+                    agent,
+                    env,
+                    configuration=name,
+                    repeat=repeat,
+                    canonical_model=CANONICAL_MODEL,
+                    endpoint="magpie",
+                    verifier_config=VERIFIER_CFG,
                 )
                 reward, status = rec.get("original_reward"), rec.get("status")
             except Exception as exc:  # noqa: BLE001
@@ -242,6 +262,7 @@ async def main_async(args) -> int:
     global VERIFIER_CFG
     if args.skip_verifier:
         from harbor.models.trial.config import VerifierConfig
+
         VERIFIER_CFG = VerifierConfig(disable=True)
         print("阶段1：验证器已禁用（只跑 agent 产出 patch）", flush=True)
     overrides = {}
@@ -252,7 +273,10 @@ async def main_async(args) -> int:
     paths = FormalPaths.from_env(**overrides)
     spec = json.loads(paths.sample.read_text(encoding="utf-8"))
     tasks = [t["task_id"] for t in spec["tasks"]]
-    print(f"题集: {len(tasks)} 题；agent: {AGENTS}；repeats={args.repeats} concurrency={args.concurrency}", flush=True)
+    print(
+        f"题集: {len(tasks)} 题；agent: {AGENTS}；repeats={args.repeats} concurrency={args.concurrency}",
+        flush=True,
+    )
     install_verifier_throttle(args.verifier_limit)
     out_root = Path(args.out)
     out_root.mkdir(parents=True, exist_ok=True)
@@ -262,7 +286,9 @@ async def main_async(args) -> int:
             name, tasks, out_root, args.repeats, args.concurrency, args.skip_existing, paths
         )
         (out_root / f"{name}-summary.json").write_text(
-            json.dumps({"agent": name, "n": len(rows)}, indent=2, ensure_ascii=False), encoding="utf-8")
+            json.dumps({"agent": name, "n": len(rows)}, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
     print("全部完成", flush=True)
     return 0
 
@@ -273,11 +299,15 @@ def main() -> int:
     p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--concurrency", type=int, default=12)
     p.add_argument("--verifier-limit", type=int, default=1)
-    p.add_argument("--skip-verifier", action="store_true", help="阶段1：跳过验证器，只跑 agent 产出 patch")
+    p.add_argument(
+        "--skip-verifier", action="store_true", help="阶段1：跳过验证器，只跑 agent 产出 patch"
+    )
     p.add_argument("--agents", nargs="+", default=None, help="只跑指定 agent")
     p.add_argument("--skip-existing", action="store_true")
     p.add_argument("--tasks-root", type=Path, default=None, help="默认取 SAYACODE_BENCH_TASKS_ROOT")
-    p.add_argument("--sample", type=Path, default=None, help="冻结题集，默认 studies/sample-40-final.json")
+    p.add_argument(
+        "--sample", type=Path, default=None, help="冻结题集，默认 studies/sample-40-final.json"
+    )
     return asyncio.run(main_async(p.parse_args()))
 
 

@@ -49,7 +49,7 @@ class TaskSpec:
     def task(self) -> str:
         """去掉 ``instance_`` 前缀的可读短名。"""
         prefix = "instance_"
-        return self.task_id[len(prefix):] if self.task_id.startswith(prefix) else self.task_id
+        return self.task_id[len(prefix) :] if self.task_id.startswith(prefix) else self.task_id
 
 
 @dataclass(frozen=True)
@@ -137,7 +137,7 @@ def _short_task(task_id: str | None) -> str:
     if not task_id:
         return ""
     prefix = "instance_"
-    return task_id[len(prefix):] if task_id.startswith(prefix) else task_id
+    return task_id[len(prefix) :] if task_id.startswith(prefix) else task_id
 
 
 def load_sample(path: Path) -> tuple[list[TaskSpec], dict[str, Any]]:
@@ -276,19 +276,23 @@ def _repeat_of_job(job_name: str) -> int:
 def _job_name_stem(job_name: str, agent: str) -> str:
     """job 名 = ``{agent}-{task_id 去掉 instance_ 的前 34 字符}-rN``。"""
     prefix = f"{agent}-"
-    stem = job_name[len(prefix):] if job_name.startswith(prefix) else job_name
+    stem = job_name[len(prefix) :] if job_name.startswith(prefix) else job_name
     return re.sub(r"-r\d+$", "", stem)
 
 
 def _planned_job_name(agent: str, task_id: str, repeat: int) -> str:
     """复刻 run_formal_240 的 job 命名，用于把 MODEL-FAULTS 归因对回计划项。"""
-    short = task_id[len("instance_"):] if task_id.startswith("instance_") else task_id
+    short = task_id[len("instance_") :] if task_id.startswith("instance_") else task_id
     return f"{agent}-{short[:34]}-r{repeat}"
 
 
 def _match_task_by_job_name(stem: str, tasks: Sequence[TaskSpec]) -> str | None:
-    candidates = [task.task_id for task in tasks if task.task_id.startswith("instance_")
-                  and task.task_id[len("instance_"):].startswith(stem)]
+    candidates = [
+        task.task_id
+        for task in tasks
+        if task.task_id.startswith("instance_")
+        and task.task_id[len("instance_") :].startswith(stem)
+    ]
     return candidates[0] if len(candidates) == 1 else None
 
 
@@ -310,7 +314,11 @@ def _iter_jobs(base: Path) -> Iterable[Path]:
 
 def _inner_dir(job: Path) -> Path | None:
     return next(
-        (child for child in sorted(job.iterdir()) if child.is_dir() and child.name.startswith("instance_")),
+        (
+            child
+            for child in sorted(job.iterdir())
+            if child.is_dir() and child.name.startswith("instance_")
+        ),
         None,
     )
 
@@ -326,14 +334,20 @@ def _collect_phase(
     collected: dict[str, Trial] = {}
     for job in _iter_jobs(base):
         inner = _inner_dir(job)
-        original = job.name[len("verify-"):] if kind == "verify" and job.name.startswith("verify-") else job.name
+        original = (
+            job.name[len("verify-") :]
+            if kind == "verify" and job.name.startswith("verify-")
+            else job.name
+        )
         task_id = _resolve_task(inner, original, agent, tasks)
         repository = next((task.repository for task in tasks if task.task_id == task_id), None)
         reward = _read_reward(inner) if inner is not None else None
         terminal = _read_terminal(inner) if inner is not None else None
         patch_bytes = _read_patch_bytes(inner) if inner is not None else None
         partial = _read_partial(inner) if inner is not None else None
-        restored, stripped = _read_modification_flags(inner) if inner is not None else (False, False)
+        restored, stripped = (
+            _read_modification_flags(inner) if inner is not None else (False, False)
+        )
         job_key = original if kind == "verify" else job.name
         fault_key = (agent, "verify/jobs" if kind == "verify" else "jobs", job.name)
         collected[job_key] = Trial(
@@ -355,12 +369,16 @@ def _collect_phase(
 
 
 def scan_agent(
-    agent_dir: Path, agent: str, tasks: Sequence[TaskSpec],
+    agent_dir: Path,
+    agent: str,
+    tasks: Sequence[TaskSpec],
     faults: Mapping[tuple[str, str, str], tuple[str, ...]] | None = None,
 ) -> list[Trial]:
     """扫描一个 agent 的 native 与 verify 阶段，verify 只在 native 缺 reward 时接管。"""
     faults = faults or {}
-    native = _collect_phase(agent_dir / "jobs", agent=agent, tasks=tasks, faults=faults, kind="native")
+    native = _collect_phase(
+        agent_dir / "jobs", agent=agent, tasks=tasks, faults=faults, kind="native"
+    )
     verified = _collect_phase(
         agent_dir / "verify" / "jobs", agent=agent, tasks=tasks, faults=faults, kind="verify"
     )
@@ -396,7 +414,9 @@ def scan_agent(
 def build_plan(tasks: Sequence[TaskSpec], repeats: int) -> list[PlanItem]:
     if repeats < 1:
         raise ValueError("repeats 必须至少为 1")
-    return [PlanItem(task=task, repeat=repeat) for task in tasks for repeat in range(1, repeats + 1)]
+    return [
+        PlanItem(task=task, repeat=repeat) for task in tasks for repeat in range(1, repeats + 1)
+    ]
 
 
 def classify_missing(trial: Trial | None) -> str | None:

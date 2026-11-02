@@ -494,9 +494,7 @@ def _looks_like_test_path(path: str) -> bool:
     return bool(_TEST_NAME_PATTERN.match(segments[-1]))
 
 
-def restore_existing_test_files(
-    execute: Any, repo: Path, base_commit: str
-) -> list[str]:
+def restore_existing_test_files(execute: Any, repo: Path, base_commit: str) -> list[str]:
     """把 Agent 对「base 中已存在的测试文件」的修改/删除恢复为 base 版本。
 
     返回被恢复的路径清单。新增测试文件（base 中不存在）不受影响。
@@ -596,7 +594,10 @@ def capture_patch(baseline_path: Path, patch_path: Path) -> dict[str, Any]:
         if stripped:
             write_json(
                 patch_path.with_name("stripped-new-test-files.json"),
-                {"stripped": stripped, "reason": "newly added test files do not affect official score"},
+                {
+                    "stripped": stripped,
+                    "reason": "newly added test files do not affect official score",
+                },
             )
         with patch_path.open("wb") as stream:
             execute(

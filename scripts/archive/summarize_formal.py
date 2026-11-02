@@ -29,7 +29,7 @@ def binom_two_sided_p(b, c):
     if n == 0:
         return 1.0
     k = min(b, c)
-    s = sum(math.comb(n, i) for i in range(0, k + 1)) / (2 ** n)
+    s = sum(math.comb(n, i) for i in range(0, k + 1)) / (2**n)
     return min(1.0, 2 * s)
 
 
@@ -37,8 +37,18 @@ def analyze_trial(job: Path):
     inner = next((d for d in job.iterdir() if d.is_dir() and d.name.startswith("instance_")), None)
     if inner is None:
         return None
-    out = {"task": None, "reward": None, "partial": None, "steps": None, "tokens": None,
-           "patch": None, "gold": None, "restored": 0, "stripped": 0, "empty": False}
+    out = {
+        "task": None,
+        "reward": None,
+        "partial": None,
+        "steps": None,
+        "tokens": None,
+        "patch": None,
+        "gold": None,
+        "restored": 0,
+        "stripped": 0,
+        "empty": False,
+    }
     d = {}
     rj = inner / "result.json"
     if rj.is_file():
@@ -66,10 +76,17 @@ def analyze_trial(job: Path):
     if isinstance(ti, int) and isinstance(to, int):
         out["tokens"] = ti + to
     for ev in inner.rglob("events.jsonl"):
-        n = sum(1 for line in ev.read_text(encoding="utf-8", errors="replace").splitlines() if '"tool.started"' in line)
+        n = sum(
+            1
+            for line in ev.read_text(encoding="utf-8", errors="replace").splitlines()
+            if '"tool.started"' in line
+        )
         out["steps"] = n
         break
-    for name, key in (("restored-test-files.json", "restored"), ("stripped-new-test-files.json", "stripped")):
+    for name, key in (
+        ("restored-test-files.json", "restored"),
+        ("stripped-new-test-files.json", "stripped"),
+    ):
         f = inner / "agent" / name
         if f.is_file():
             try:
@@ -115,7 +132,9 @@ def main():
                     trials.append(t)
         stats[agent] = trials
 
-    print(f"{'agent':<12}{'n':>4}{'pass@1':>9}{'95%CI':>16}{'partial':>9}{'tok/成功':>10}{'step/成功':>10}{'改测试':>8}{'空转':>6}")
+    print(
+        f"{'agent':<12}{'n':>4}{'pass@1':>9}{'95%CI':>16}{'partial':>9}{'tok/成功':>10}{'step/成功':>10}{'改测试':>8}{'空转':>6}"
+    )
     for agent, trials in stats.items():
         n = len(trials)
         p = sum(1 for t in trials if t["reward"] == 1.0)
@@ -125,10 +144,12 @@ def main():
         stps = [t["steps"] for t in trials if t["steps"]]
         hacked = sum(1 for t in trials if t["restored"] or t["stripped"])
         empty = sum(1 for t in trials if t["empty"])
-        cp = f"{sum(toks)/max(p,1)/1000:.0f}K" if toks else "-"
-        sp = f"{sum(stps)/max(p,1):.0f}" if stps else "-"
-        print(f"{agent:<12}{n:>4}{p/n:>8.1%}{f'[{lo:.0%},{hi:.0%}]':>16}"
-              f"{(st.mean(parts) if parts else 0):>8.1%}{cp:>10}{sp:>10}{hacked:>8}{empty:>6}")
+        cp = f"{sum(toks) / max(p, 1) / 1000:.0f}K" if toks else "-"
+        sp = f"{sum(stps) / max(p, 1):.0f}" if stps else "-"
+        print(
+            f"{agent:<12}{n:>4}{p / n:>8.1%}{f'[{lo:.0%},{hi:.0%}]':>16}"
+            f"{(st.mean(parts) if parts else 0):>8.1%}{cp:>10}{sp:>10}{hacked:>8}{empty:>6}"
+        )
 
     # 两两配对（同题、按多数或 best）
     print("\n=== 两两配对（同题）===")

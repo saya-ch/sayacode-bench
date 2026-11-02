@@ -256,10 +256,10 @@ async def test_bundled_installer_is_used_before_network(tmp_path: Path) -> None:
     assert report["installer_sha256"] == UV_INSTALLER_SHA256
     # 本地成功不需要 curl，也不发起在线下载。
     assert requested == []
+    # 上传前必须先创建安装目录，否则 docker compose cp 会因目录不存在失败。
+    assert any(command.startswith("mkdir -p") for command, _ in environment.commands)
     assert not any(command.startswith("curl ") for command, _ in environment.commands)
-    assert environment.uploads == [
-        (UV_INSTALLER_ASSET, "/installed-agent/sayacode/install-uv.sh")
-    ]
+    assert environment.uploads == [(UV_INSTALLER_ASSET, "/installed-agent/sayacode/install-uv.sh")]
     # 收据兼容：attempts 仍是一条成功的原生记录，url 保持官方地址。
     assert [row["return_code"] for row in report["attempts"]] == [0]
     assert report["url"] == UV_INSTALLER_URL

@@ -38,7 +38,9 @@ DEFAULT_SAMPLE = ROOT / "studies" / "sample-40-final.json"
 async def main_async(args: argparse.Namespace) -> int:
     import subprocess
 
-    subprocess.run(["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False)
+    subprocess.run(
+        ["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False
+    )
 
     sample = args.sample or DEFAULT_SAMPLE
     spec = json.loads(sample.read_text(encoding="utf-8"))
@@ -59,8 +61,15 @@ async def main_async(args: argparse.Namespace) -> int:
             print(f"[{mode}] RUN {tid[:46]} r{repeat}", flush=True)
             try:
                 record = await run_official_trial(
-                    tasks_root / tid, out / "jobs", job, agent, env_cfg(paths),
-                    configuration=mode, repeat=repeat, canonical_model=mode, endpoint="magpie",
+                    tasks_root / tid,
+                    out / "jobs",
+                    job,
+                    agent,
+                    env_cfg(paths),
+                    configuration=mode,
+                    repeat=repeat,
+                    canonical_model=mode,
+                    endpoint="magpie",
                 )
                 reward, status = record.get("original_reward"), record.get("status")
             except Exception as exc:  # noqa: BLE001
@@ -86,8 +95,14 @@ async def main_async(args: argparse.Namespace) -> int:
         by_task[row["task_id"]].append(row)
 
     good = [tid for tid, values in by_task.items() if any(v["reward"] == 1.0 for v in values)]
-    bad = [tid for tid, values in by_task.items() if values and all(v["reward"] == 0.0 for v in values)]
-    suspicious = [tid for tid, values in by_task.items() if not values or any(v["reward"] is None for v in values)]
+    bad = [
+        tid for tid, values in by_task.items() if values and all(v["reward"] == 0.0 for v in values)
+    ]
+    suspicious = [
+        tid
+        for tid, values in by_task.items()
+        if not values or any(v["reward"] is None for v in values)
+    ]
     unstable = [
         tid
         for tid, values in by_task.items()
@@ -106,7 +121,9 @@ async def main_async(args: argparse.Namespace) -> int:
             "oracle_repeats": args.oracle_repeats,
             "single_run_insufficient": args.oracle_repeats < 2,
             "detail": (
-                f"全部 {args.oracle_repeats} 次通过" if not unstable else f"不稳定题 {len(unstable)}"
+                f"全部 {args.oracle_repeats} 次通过"
+                if not unstable
+                else f"不稳定题 {len(unstable)}"
             ),
         },
         "nop_fails": {
@@ -119,8 +136,11 @@ async def main_async(args: argparse.Namespace) -> int:
             ),
         },
         "complete": {
-            "passed": len(suspicious) == 0 and all(len(values) == args.oracle_repeats for values in by_task.values()),
-            "detail": f"每题 {args.oracle_repeats} 次 oracle 结果齐全" if not suspicious else f"缺结果 {len(suspicious)}",
+            "passed": len(suspicious) == 0
+            and all(len(values) == args.oracle_repeats for values in by_task.values()),
+            "detail": f"每题 {args.oracle_repeats} 次 oracle 结果齐全"
+            if not suspicious
+            else f"缺结果 {len(suspicious)}",
         },
     }
     required = [gates["oracle_pass"], gates["oracle_stable"], gates["complete"]]
@@ -146,7 +166,10 @@ async def main_async(args: argparse.Namespace) -> int:
     )
 
     print("\n=== Gold patch 三加一门禁 ===")
-    print(f"  oracle_repeats={args.oracle_repeats}" + ("（单次不足，正式门禁建议 ≥2）" if args.oracle_repeats < 2 else ""))
+    print(
+        f"  oracle_repeats={args.oracle_repeats}"
+        + ("（单次不足，正式门禁建议 ≥2）" if args.oracle_repeats < 2 else "")
+    )
     for name, gate in gates.items():
         state = {True: "PASS", False: "FAIL", None: "SKIP"}[gate["passed"]]
         print(f"  [{state}] {name}: {gate['detail']}")
@@ -167,7 +190,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tasks-root", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--sample", type=Path, default=None, help="默认 studies/sample-40-final.json")
+    parser.add_argument(
+        "--sample", type=Path, default=None, help="默认 studies/sample-40-final.json"
+    )
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument(
         "--oracle-repeats",

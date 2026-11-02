@@ -105,7 +105,9 @@ def repository_cluster_bootstrap(
         "estimate": statistics.mean(rates.values()) if rates else None,
         "repository_equal_weight_mean": statistics.mean(
             statistics.mean(groups[name]) for name in names
-        ) if names else None,
+        )
+        if names
+        else None,
         "repository_rates": {name: statistics.mean(groups[name]) for name in names},
         "interval_95": None,
         "samples": samples,
@@ -193,7 +195,7 @@ def mcnemar_task_level(
         p_value = 1.0
     else:
         smaller = min(a_only, b_only)
-        tail = sum(math.comb(discordant, x) for x in range(0, smaller + 1)) / (2 ** discordant)
+        tail = sum(math.comb(discordant, x) for x in range(0, smaller + 1)) / (2**discordant)
         p_value = min(1.0, 2 * tail)
     return {
         "definition": definition,
@@ -248,13 +250,11 @@ def summarize_stats(summary: Mapping[str, Any]) -> dict[str, Any]:
     names = sorted(per_agent)
     pairwise: dict[str, Any] = {}
     for index, left in enumerate(names):
-        for right in names[index + 1:]:
+        for right in names[index + 1 :]:
             rates_left = per_agent[left]["task_rates"]
             rates_right = per_agent[right]["task_rates"]
             common = sorted(set(rates_left) & set(rates_right))
-            deltas = {
-                task_id: rates_left[task_id] - rates_right[task_id] for task_id in common
-            }
+            deltas = {task_id: rates_left[task_id] - rates_right[task_id] for task_id in common}
             pairwise[f"{left}_vs_{right}"] = {
                 "a": left,
                 "b": right,

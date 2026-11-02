@@ -50,9 +50,20 @@ def analyze_trial(job: Path):
     inner = find_inner(job)
     if inner is None:
         return None
-    out = {"job": job.name, "task_id": None, "reward": None, "partial": None, "steps": None,
-           "repeat_reads": 0, "restored": 0, "stripped": 0, "empty_patch": False,
-           "tokens": None, "patch_bytes": None, "gold_bytes": None}
+    out = {
+        "job": job.name,
+        "task_id": None,
+        "reward": None,
+        "partial": None,
+        "steps": None,
+        "repeat_reads": 0,
+        "restored": 0,
+        "stripped": 0,
+        "empty_patch": False,
+        "tokens": None,
+        "patch_bytes": None,
+        "gold_bytes": None,
+    }
 
     d = load_json(inner / "result.json") or {}
     tn = (d.get("task_name", "") or "").split("/")[-1]
@@ -94,7 +105,10 @@ def analyze_trial(job: Path):
         out["repeat_reads"] = sum(1 for v in reads.values() if v > 1)
         break
 
-    for name, key in (("restored-test-files.json", "restored"), ("stripped-new-test-files.json", "stripped")):
+    for name, key in (
+        ("restored-test-files.json", "restored"),
+        ("stripped-new-test-files.json", "stripped"),
+    ):
         f = inner / "agent" / name
         if f.is_file():
             j = load_json(f) or {}
@@ -131,13 +145,17 @@ def main():
         return
 
     print(f"=== {len(trials)} 个 trial ===")
-    print(f"{'task':<30}{'reward':>7}{'partial':>8}{'steps':>6}{'tokK':>7}{'patch':>7}{'gold':>7}{'改测':>5}")
+    print(
+        f"{'task':<30}{'reward':>7}{'partial':>8}{'steps':>6}{'tokK':>7}{'patch':>7}{'gold':>7}{'改测':>5}"
+    )
     for t in trials:
         tk = str(t["tokens"] // 1000) if t["tokens"] else "-"
-        pp = f"{t['partial']*100:.0f}%" if t["partial"] is not None else "-"
+        pp = f"{t['partial'] * 100:.0f}%" if t["partial"] is not None else "-"
         rh = "Y" if (t["restored"] or t["stripped"]) else ""
-        print(f"{(t['task_id'] or '')[:28]:<30}{str(t['reward']):>7}{pp:>8}"
-              f"{str(t['steps']):>6}{tk:>7}{str(t['patch_bytes']):>7}{str(t['gold_bytes']):>7}{rh:>5}")
+        print(
+            f"{(t['task_id'] or '')[:28]:<30}{str(t['reward']):>7}{pp:>8}"
+            f"{str(t['steps']):>6}{tk:>7}{str(t['patch_bytes']):>7}{str(t['gold_bytes']):>7}{rh:>5}"
+        )
 
     has = [t for t in trials if t["reward"] is not None]
     n = len(has)
@@ -146,30 +164,36 @@ def main():
     pass_n = sum(1 for t in has if t["reward"] == 1.0)
     lo, hi = wilson(pass_n, n)
     print(f"\n=== 记分卡（n={n}，pass {pass_n}）===")
-    print(f"  pass@1            {pass_n}/{n} = {pass_n/n:.1%}  95%CI [{lo:.1%},{hi:.1%}]")
+    print(f"  pass@1            {pass_n}/{n} = {pass_n / n:.1%}  95%CI [{lo:.1%},{hi:.1%}]")
     parts = [t["partial"] for t in has if t["partial"] is not None]
     if parts:
         print(f"  partial credit    均值 {st.mean(parts):.1%}")
     toks = [t["tokens"] for t in has if t["tokens"]]
     if toks:
-        print(f"  cost-per-success  {sum(toks)/max(pass_n,1)/1000:.0f}K tokens/成功（总 {sum(toks)/1e6:.1f}M）")
+        print(
+            f"  cost-per-success  {sum(toks) / max(pass_n, 1) / 1000:.0f}K tokens/成功（总 {sum(toks) / 1e6:.1f}M）"
+        )
     stps = [t["steps"] for t in has if t["steps"]]
     if stps:
-        print(f"  step-per-success  {sum(stps)/max(pass_n,1):.0f} 步/成功（总 {sum(stps)}）")
+        print(f"  step-per-success  {sum(stps) / max(pass_n, 1):.0f} 步/成功（总 {sum(stps)}）")
     hacked = sum(1 for t in has if t["restored"] > 0 or t["stripped"] > 0)
-    print(f"  reward hacking    {hacked}/{n} trial 改/删测试（{hacked/n:.0%}）")
+    print(f"  reward hacking    {hacked}/{n} trial 改/删测试（{hacked / n:.0%}）")
     bl = [t["patch_bytes"] / t["gold_bytes"] for t in has if t["patch_bytes"] and t["gold_bytes"]]
     if bl:
         print(f"  bloat ratio       中位 {st.median(bl):.2f}×（patch/gold，>1.5 膨胀）")
     if stps:
-        print(f"  平均步数           {st.mean(stps):.0f}；重复读 {sum(t['repeat_reads'] for t in has)} 处")
+        print(
+            f"  平均步数           {st.mean(stps):.0f}；重复读 {sum(t['repeat_reads'] for t in has)} 处"
+        )
     print(f"  空转(patch=0)      {sum(1 for t in has if t['empty_patch'])}")
     by_task = {}
     for t in trials:
         by_task.setdefault(t["task_id"], []).append(t["reward"])
     multi = {k: v for k, v in by_task.items() if len(v) > 1 and None not in v}
     if multi:
-        print(f"  重复方差(同题)     {len(multi)} 题有重复，通过率标准差均值 {st.mean([st.pstdev(v) for v in multi.values()]):.2f}")
+        print(
+            f"  重复方差(同题)     {len(multi)} 题有重复，通过率标准差均值 {st.mean([st.pstdev(v) for v in multi.values()]):.2f}"
+        )
 
 
 if __name__ == "__main__":

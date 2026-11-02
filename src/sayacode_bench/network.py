@@ -269,7 +269,9 @@ class IsolatedDockerEnvironment(DockerEnvironment):  # type: ignore[misc]
         responses_upstream: str | None = None,
         **kwargs: Any,
     ) -> None:
-        self.gateway = ModelGateway(GatewayConfig(chat_upstream, messages_upstream, responses_upstream))
+        self.gateway = ModelGateway(
+            GatewayConfig(chat_upstream, messages_upstream, responses_upstream)
+        )
         self._container_id: str | None = None
         self._public_networks: dict[str, dict[str, Any]] = {}
         self._network_lock = asyncio.Lock()

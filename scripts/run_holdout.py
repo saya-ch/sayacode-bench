@@ -72,7 +72,9 @@ async def main_async(args: argparse.Namespace) -> int:
             tasks.append(tid)
 
     # 每 trial 占 2 个 Docker 网络，默认地址池 ~17；跑前必须清理，避免 fully subnetted。
-    subprocess.run(["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False)
+    subprocess.run(
+        ["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False
+    )
     print("已清理未使用 Docker 网络", flush=True)
 
     print(summary_text(args.profile), flush=True)
@@ -101,8 +103,14 @@ async def main_async(args: argparse.Namespace) -> int:
             print(f"RUN {tid[:48]} r{repeat}", flush=True)
             try:
                 rec = await run_official_trial(
-                    tasks_root / tid, out / "jobs", job, agent, env,
-                    configuration=args.model_label, repeat=repeat, endpoint="magpie",
+                    tasks_root / tid,
+                    out / "jobs",
+                    job,
+                    agent,
+                    env,
+                    configuration=args.model_label,
+                    repeat=repeat,
+                    endpoint="magpie",
                 )
                 reward, status = rec.get("original_reward"), rec.get("status")
             except Exception as exc:  # noqa: BLE001
@@ -114,12 +122,22 @@ async def main_async(args: argparse.Namespace) -> int:
 
     valid = [r for r in rows if r["reward"] is not None]
     passed = sum(1 for r in valid if r["reward"] == 1.0)
-    summary = {"model_label": args.model_label, "runs": len(rows),
-               "with_reward": len(valid), "pass": passed}
+    summary = {
+        "model_label": args.model_label,
+        "runs": len(rows),
+        "with_reward": len(valid),
+        "pass": passed,
+    }
     (out / "holdout-summary.json").write_text(
-        json.dumps({"summary": summary, "rows": rows}, indent=2, ensure_ascii=False), encoding="utf-8")
+        json.dumps({"summary": summary, "rows": rows}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     print(f"\n=== {args.model_label} holdout 结果 ===")
-    print(f"  有效 {len(valid)}/{len(rows)}，通过 {passed}（{passed/len(valid)*100:.1f}%）" if valid else "  无有效结果")
+    print(
+        f"  有效 {len(valid)}/{len(rows)}，通过 {passed}（{passed / len(valid) * 100:.1f}%）"
+        if valid
+        else "  无有效结果"
+    )
     return 0
 
 
@@ -134,8 +152,15 @@ def main() -> int:
     p.add_argument("--repeats", type=int, default=1)
     p.add_argument("--model-label", default="hy3")
     p.add_argument("--skip-existing", action="store_true", help="跳过已有验证结果的题（断点续跑）")
-    p.add_argument("--sample-file", default=None, help="studies/sample-40.json 等题集文件；缺省用 holdout")
-    p.add_argument("--concurrency", type=int, default=8, help="并发 trial 数；实测单容器峰值约 0.5GB，Docker 8GB 可支撑 8 并发")
+    p.add_argument(
+        "--sample-file", default=None, help="studies/sample-40.json 等题集文件；缺省用 holdout"
+    )
+    p.add_argument(
+        "--concurrency",
+        type=int,
+        default=8,
+        help="并发 trial 数；实测单容器峰值约 0.5GB，Docker 8GB 可支撑 8 并发",
+    )
     p.add_argument("--exclude-repos", nargs="*", default=["gravitational", "protonmail"])
     return asyncio.run(main_async(p.parse_args()))
 

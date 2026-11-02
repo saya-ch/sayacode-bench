@@ -114,8 +114,8 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
                 "set -eu; ok=0; "
                 "for attempt in 1 2 3; do "
                 f"if ( set -eu; {install_steps} ); then ok=1; break; fi; "
-                "echo \"install attempt $attempt failed, retrying\"; sleep 5; done; "
-                "[ \"$ok\" = 1 ]"
+                'echo "install attempt $attempt failed, retrying"; sleep 5; done; '
+                '[ "$ok" = 1 ]'
             ),
         )
         if bootstrap is None:
