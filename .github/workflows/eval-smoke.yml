@@ -1,0 +1,57 @@
+# 评测冒烟门禁：只做 2 题 dry-run 与脚本单测，不跑付费模型、不读取任何模型凭据。
+name: 评测冒烟门禁
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/ci_smoke.py
+      - scripts/auto_resume.py
+      - scripts/locked_agents.py
+      - tests/test_ci_smoke.py
+      - tests/test_auto_resume.py
+      - studies/sample-40-final.json
+      - .github/workflows/eval-smoke.yml
+  pull_request:
+    paths:
+      - scripts/ci_smoke.py
+      - scripts/auto_resume.py
+      - scripts/locked_agents.py
+      - tests/test_ci_smoke.py
+      - tests/test_auto_resume.py
+      - studies/sample-40-final.json
+      - .github/workflows/eval-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.5'
+          python-version: '3.13'
+          enable-cache: true
+      - name: 安装锁定依赖
+        run: uv sync --frozen
+      - name: 断点自愈与冒烟脚本单测（不联网、不跑模型）
+        run: uv run --no-sync pytest -q tests/test_auto_resume.py tests/test_ci_smoke.py
+      - name: 2 题 dry-run 门禁（校验题集/命名/输出目录，缺运行时输入记 skipped）
+        env:
+          SAYACODE_BENCH_SMOKE_OUT: ${{ runner.temp }}/smoke-out
+        run: >-
+          uv run --no-sync python scripts/ci_smoke.py --dry-run
+          --out "$RUNNER_TEMP/smoke-out"
+          --json-out "$RUNNER_TEMP/smoke-report.json"
+      - name: 上传冒烟报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-smoke-report
+          path: ${{ runner.temp }}/smoke-report.json
+          retention-days: 7
+          if-no-files-found: warn
