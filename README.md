@@ -4,13 +4,13 @@
 
 Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续运行生产应用里的 LangChain / LangGraph 图、工具、检查点与异步子任务。两者用独立 Python 环境，避免评测依赖覆盖产品依赖。
 
-**当前状态：开发期重建中。** 没有对外正式成绩，也没有已证实的调优收益。v1 开发期跑批（3 agent × 40 题 × 2 重复）已收尾但不完整，**其对比结论已作废**：分母三套（SAYACODE 55/80、mini-swe 69/80、Codex 56/65）、17.4pp 差距是分母假象（Codex 统一 80 分母为 70.0%）、改测试口径混用、「40 题全绿」不成立。当前正按统一口径重跑 v2，详见 [STATUS](docs/STATUS.md) 与 [HANDOFF](docs/HANDOFF.md)。
+**当前状态：v2 已完成，开发期诊断。** 三 agent planned **78.8% / 70.0% / 68.8%**（80 分母，缺失按失败），task_macro **80.8% / 84.8% / 68.8%**，缺失 15 条已分类；题级 McNemar 校正后均不显著，**不能声称谁更强**；`task_count` 全 0，本批不能评价多 agent。v1 结论仍作废（见 [archive](docs/archive/README.md)）。详见 [STATUS](docs/STATUS.md)、[v2 结果](docs/FORMAL-RESULTS-20261102-v2.md)。
 
 ## 文档索引（只列现行文档）
 
 | 文档 | 内容 |
 |---|---|
-| **[HANDOFF](docs/HANDOFF.md)** | **接手必读**：当前进度、v1 教训、19 条缺口、坑、下一步 |
+| **[HANDOFF](docs/HANDOFF.md)** | **接手必读**：v2 进度、关键事实、环境、坑、下一步 |
 | **[STATUS](docs/STATUS.md)** | **当前真实状态**：已核实数字、作废结论、已知局限、下一步 |
 | **[评测方案](docs/EVALUATION-PLAN-20261030.md)** | 总纲：目标 / 基准 / 题集 / 模型 / 指标 / 方法 / 三 agent |
 | [实验设计](docs/EXPERIMENT-DESIGN-20261030.md) | 从研究问题到执行协议的完整设计 |
@@ -19,10 +19,13 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [路由漂移](docs/ROUTING-DRIFT-20261029.md) | 同一别名 40% 落到 glm 的实测与固定来源方法 |
 | [记录格式](docs/record-schema.md) | 字段、来源与预算边界 |
 | [环境资格门禁](docs/fixture-gates.md) | 正式模型运行前的三加一资格（**当前开发期未使用**）|
-| [预注册协议](docs/protocol.md) | 正式对外研究的预注册（**未启动**）|
+| [预注册协议](docs/protocol.md) | v1 预注册（保留历史；现行口径见 PROTOCOL-V2）|
+| **[PROTOCOL-V2](docs/PROTOCOL-V2.md)** | **现行正式协议**：planned 分母、缺失分类、bootstrap、补跑与签收 |
+| [多模型扩展](docs/MULTI-MODEL-PLAN.md) | 第二模型设计：协议对齐、路由固定、成本、模型×harness 矩阵 |
 | [归档索引](docs/archive/README.md) | 已作废/过期/一次性文档，逐份说明能否引用 |
 | [真实踩坑与教训](docs/LESSONS-20261102-v2.md) | v2 重跑遇到的环境/管线/agent/统计问题与处置（现象/根因/预防）|
 | **[v2 完整重跑结果](docs/FORMAL-RESULTS-20261102-v2.md)** | 三 agent 终版五指标、McNemar、缺失分类、补跑效应与边界 |
+| [报告模板](docs/REPORT-TEMPLATE.md) | 出 `FORMAL-RESULTS-<批次>.md` 的固定版式与不可声称清单 |
 
 ## 固定基准
 
@@ -64,7 +67,7 @@ docs/              现行方案、协议、记录格式；作废文档在 docs/a
 
 ## 安装与检查
 
-需要 Python 3.12–3.13、uv 与运行 Linux 容器的 Docker。实际任务资源以官方 `task.toml` 为准。Windows 建议短路径（如 `C:\sb\s` 存固定源、`C:\sb\v2` 存原始结果）。
+需要 Python 3.12–3.13、uv 与运行 Linux 容器的 Docker。实际任务资源以官方 `task.toml` 为准。Windows 建议短路径（如 `C:\sb\s` 存固定源、`C:\sb\hard\v2-325` 存原始结果）。
 
 ```powershell
 uv sync --frozen
@@ -94,7 +97,7 @@ uv run --no-sync mypy
 
 历史一次性工具与「被测试/代码身份绑定、不可移动」的脚本见 [scripts/README.md](scripts/README.md)。
 
-横向对比：SAYACODE vs mini-swe-agent vs Codex CLI（同 hy3）。对比时**分母必须一致**，缺 trial 就写 79/80，不换分母。
+横向对比：SAYACODE vs mini-swe-agent vs Codex CLI（同 hy3）。对比时**分母必须统一为 planned 80**（缺失按失败，主报 planned），不换分母。
 
 ## 证据与结果原则
 
@@ -103,7 +106,7 @@ uv run --no-sync mypy
 - 每次试验一个补丁、一轮干净环境重判，避免重复试验串补丁。
 - 主差值与区间用任务块配对统计（bootstrap / McNemar），重复跟随任务抽样。
 - 过程指标（步数/token/改测试）是**诊断**，不作为「模型更强」的证据；partial 必须与 reward hacking 同报（防刷）。
-- **改测试的两种口径不可混**：产品侧检测率（SAYACODE 39/80 = 48.8%）与 patch 含测试文件比例（SAYACODE 0% / mini-swe 70.9% / Codex 54.2%）是不同量。
+- **改测试的两种口径不可混**（均为 v1 口径，v2 尚未采集，引用须注明已作废）：产品侧检测率（SAYACODE 39/80 = 48.8%）与 patch 含测试文件比例（SAYACODE 0% / mini-swe 70.9% / Codex 54.2%）是不同量。
 - 轨迹保存不等于已完成工具语义质量评分；没有实际子任务时不声称协作收益。
 - Linux 容器结果不代替原生 Windows/PowerShell 验证。
 

@@ -64,11 +64,11 @@
 | 配置汇报 | `scripts/profile_summary.py <profile>` |
 | served 记录 | `scripts/annotate_served.py <jobs>` |
 
-## 9. 当前状态与下一步（2026-10-31 更新）
+## 9. 当前状态与下一步（2026-11-02 更新）
 
 - 网络环境已支持 chat/messages/**responses** 三种上游（`network.py`）。
 - ✅ 三 agent 单题可行性验证完成；窗口/权限/依赖已对齐。
 - ⚠️ gold patch 筛 40 题：实际 **36 good / 1 bad / 3 null**，bad 不在 40 题内；「40 题全绿」不成立，3 个 null 需补齐或替换。
-- ⛔ v1 240 次跑批已收尾但**结论作废**：221/240 完整，分母三套（SAYACODE 55/80、mini-swe 69/80、Codex 56/65），17.4pp 差距是分母假象（Codex 统一 80 分母 70.0%）。
-- 🔄 下一步：**v2 重跑**（40 题 × 2 重复 × 3 agent，输出 `C:\sb\hard\v2`，`max_output_tokens=32000`），汇总必须统一 80 分母、改测试分两口径、模型故障逐条列明。
-- 当前真实状态见 [STATUS](STATUS.md)，交接见 [HANDOFF](HANDOFF.md)。
+- ⛔ v1 240 次跑批**结论作废**：221/240 完整，分母三套（SAYACODE 55/80、mini-swe 69/80、Codex 56/65），17.4pp 差距是分母假象（Codex 统一 80 分母 70.0%）。
+- ✅ **v2 已完成**（`C:\sb\hard\v2-325`，240 trial）：planned **78.8% / 70.0% / 68.8%**，缺失 15 条已分类，校正后均不显著。见 [FORMAL-RESULTS-20261102-v2](FORMAL-RESULTS-20261102-v2.md) 与 [PROTOCOL-V2](PROTOCOL-V2.md)。
+- 🔄 下一步：消除 TLS 环境噪声、补 partial/轨迹、扩样 100 题、多 agent 场景、第二模型（见 [STATUS](STATUS.md) §6）。
