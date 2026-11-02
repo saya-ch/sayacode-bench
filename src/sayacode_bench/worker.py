@@ -30,6 +30,7 @@ PROFILE_OVERRIDES = frozenset(
         "model_retries",
         "tool_retries",
         "file_search",
+        "completion_guard",
         "tool_selector_max_tools",
         "native_tool_search_tools",
     }

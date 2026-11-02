@@ -9,7 +9,16 @@ from typing import Any
 
 import pytest
 
-from sayacode_bench.installation import prepare_uv_installer, verify_installed_runtime
+from sayacode_bench import installation
+from sayacode_bench.artifacts import file_sha256
+from sayacode_bench.installation import (
+    UV_INSTALLER_ASSET,
+    UV_INSTALLER_SHA256,
+    UV_INSTALLER_URL,
+    bundled_uv_installer,
+    prepare_uv_installer,
+    verify_installed_runtime,
+)
 
 
 class Environment:
@@ -18,6 +27,10 @@ class Environment:
     def __init__(self, codes: tuple[int, ...] = (0,)) -> None:
         self.codes = iter(codes)
         self.commands: list[tuple[str, Any]] = []
+        self.uploads: list[tuple[Path, str]] = []
+
+    async def upload_file(self, source: Path, target: str) -> None:
+        self.uploads.append((Path(source), target))
 
     async def exec(self, command: str, **kwargs: Any) -> SimpleNamespace:
         self.commands.append((command, kwargs.get("user")))
@@ -36,6 +49,20 @@ class Environment:
         elif "worker.py --help" in command:
             stdout = "usage: worker.py --profile PROFILE --variant VARIANT --instruction INPUT\n"
         return SimpleNamespace(return_code=code, stdout=stdout, stderr=stderr)
+
+
+class LocalEnvironment(Environment):
+    """容器内校验返回预置脚本的真实摘要。"""
+
+    async def exec(self, command: str, **kwargs: Any) -> SimpleNamespace:
+        if "sha256sum" in command:
+            self.commands.append((command, kwargs.get("user")))
+            return SimpleNamespace(
+                return_code=0,
+                stdout=f"{UV_INSTALLER_SHA256}  /installed-agent/sayacode/install-uv.sh\n",
+                stderr="",
+            )
+        return await super().exec(command, **kwargs)
 
 
 @pytest.mark.parametrize("codes", [(0,), (60, 0), (77, 0)])
@@ -190,3 +217,120 @@ async def test_runtime_checks_use_actual_agent_user_and_fail_closed(
     receipt = json.loads((tmp_path / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["passed"] is (broken is None)
     assert receipt["model_execution_performed"] is False
+
+
+def test_bundled_installer_matches_recorded_trial_identity() -> None:
+    """预置脚本必须与真实 trial 记录的原件逐字节一致。"""
+
+    assert UV_INSTALLER_ASSET.is_file()
+    assert file_sha256(UV_INSTALLER_ASSET) == UV_INSTALLER_SHA256
+    assert bundled_uv_installer() == UV_INSTALLER_ASSET
+
+
+def test_bundled_installer_is_rejected_when_digest_differs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tampered = tmp_path / "uv-install.sh"
+    tampered.write_text("echo replaced\n", encoding="utf-8")
+    monkeypatch.setattr(installation, "UV_INSTALLER_ASSET", tampered)
+    assert bundled_uv_installer() is None
+
+
+async def test_bundled_installer_is_used_before_network(tmp_path: Path) -> None:
+    environment = LocalEnvironment()
+    requested: list[tuple[str, ...]] = []
+
+    async def dependencies(env: Any, names: tuple[str, ...]) -> None:
+        requested.append(names)
+
+    evidence = tmp_path / "installation"
+    report = await prepare_uv_installer(
+        environment,
+        PurePosixPath("/installed-agent/sayacode/install-uv.sh"),
+        evidence,
+        dependencies,
+        local_installer=UV_INSTALLER_ASSET,
+    )
+    assert report["passed"] is True
+    assert report["source"] == "local"
+    assert report["installer_sha256"] == UV_INSTALLER_SHA256
+    # 本地成功不需要 curl，也不发起在线下载。
+    assert requested == []
+    assert not any(command.startswith("curl ") for command, _ in environment.commands)
+    assert environment.uploads == [
+        (UV_INSTALLER_ASSET, "/installed-agent/sayacode/install-uv.sh")
+    ]
+    # 收据兼容：attempts 仍是一条成功的原生记录，url 保持官方地址。
+    assert [row["return_code"] for row in report["attempts"]] == [0]
+    assert report["url"] == UV_INSTALLER_URL
+    assert report["ca_repair_attempted"] is False
+    assert report["tls_verification_required"] is True
+
+
+async def test_missing_local_installer_falls_back_to_network(tmp_path: Path) -> None:
+    environment = Environment((0,))
+    requested: list[tuple[str, ...]] = []
+
+    async def dependencies(env: Any, names: tuple[str, ...]) -> None:
+        requested.append(names)
+
+    report = await prepare_uv_installer(
+        environment,
+        PurePosixPath("/installed-agent/sayacode/install-uv.sh"),
+        tmp_path / "installation",
+        dependencies,
+        local_installer=tmp_path / "absent.sh",
+    )
+    assert report["passed"] is True
+    assert report["source"] == "online"
+    assert report["local_installer"]["uploaded"] is False
+    assert requested == [("curl",)]
+    assert any(command.startswith("curl ") for command, _ in environment.commands)
+
+
+async def test_tampered_local_installer_falls_back_to_network(tmp_path: Path) -> None:
+    tampered = tmp_path / "uv-install.sh"
+    tampered.write_text("echo replaced\n", encoding="utf-8")
+    environment = Environment((0,))
+
+    async def dependencies(env: Any, names: tuple[str, ...]) -> None:
+        return None
+
+    report = await prepare_uv_installer(
+        environment,
+        PurePosixPath("/installed-agent/sayacode/install-uv.sh"),
+        tmp_path / "installation",
+        dependencies,
+        local_installer=tampered,
+    )
+    assert report["passed"] is True
+    assert report["source"] == "online"
+    assert report["local_installer"]["uploaded"] is True
+    assert report["local_installer"]["passed"] is False
+    assert report["local_installer"]["sha256"] == "a" * 64
+    # 本地失败记录不进入 attempts，收据仍只看到成功的在线下载。
+    assert [row["return_code"] for row in report["attempts"]] == [0]
+    assert any(command.startswith("curl ") for command, _ in environment.commands)
+
+
+async def test_upload_failure_falls_back_to_network(tmp_path: Path) -> None:
+    class UploadFails(Environment):
+        async def upload_file(self, source: Path, target: str) -> None:
+            raise OSError("upload broken")
+
+    environment = UploadFails((0,))
+
+    async def dependencies(env: Any, names: tuple[str, ...]) -> None:
+        return None
+
+    report = await prepare_uv_installer(
+        environment,
+        PurePosixPath("/installed-agent/sayacode/install-uv.sh"),
+        tmp_path / "installation",
+        dependencies,
+        local_installer=UV_INSTALLER_ASSET,
+    )
+    assert report["passed"] is True
+    assert report["source"] == "online"
+    assert report["local_installer"]["error_type"] == "OSError"
+    assert report["attempts"] and report["attempts"][0]["return_code"] == 0

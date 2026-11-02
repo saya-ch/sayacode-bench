@@ -22,6 +22,10 @@ from .resources import compare_runtimes, resource_status
 
 UV_VERSION = "0.12.5"
 UV_INSTALLER_URL = f"https://astral.sh/uv/{UV_VERSION}/install.sh"
+# 随仓库分发的安装脚本与真实 trial 记录的原件逐字节一致：
+# 预置后正常安装不再依赖 astral.sh 的 TLS 链，只在本地不可用时回退在线下载。
+UV_INSTALLER_ASSET = Path(__file__).with_name("assets") / f"uv-{UV_VERSION}-install.sh"
+UV_INSTALLER_SHA256 = "504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111"
 # 版本身份默认值；正式跑批时由 locked_agents 依据 wheel 文件名动态覆盖
 # （见 scripts/locked_agents.py:build_agent），避免 bump 产品版本后遗漏。
 PRODUCT_VERSION = "3.2.4"
@@ -112,8 +116,13 @@ async def prepare_uv_installer(
     installer: PurePosixPath,
     evidence: Path,
     ensure_dependencies: Callable[[BaseEnvironment, tuple[str, ...]], Awaitable[None]],
+    *,
+    local_installer: Path | None = None,
 ) -> dict[str, Any]:
-    """真实下载同时验证现有信任链；仅 60/77 允许一次官方 CA 安装修复。
+    """优先使用预置安装脚本，本地不可用时回退在线下载。
+
+    预置脚本上传后仍在容器内核对 SHA256，摘要不符就当本地失败回退在线，
+    绝不执行未核对的字节。回退路径保持原有 TLS 校验与 CA 修复语义。
 
     同一 trial 重跑时安装证据目录可能已存在：清空后重建，避免 ``exclusive``
     写入撞到旧文件而把可恢复的重跑变成 ``FileExistsError``。"""
@@ -127,9 +136,34 @@ async def prepare_uv_installer(
         "passed": False,
         "ca_repair_attempted": False,
         "phase": "ensure_curl",
+        "source": "online",
+        "local_installer": None,
         "attempts": [],
     }
     try:
+        if local_installer is not None:
+            state["phase"] = "local_installer"
+            if Path(local_installer).is_file():
+                local = await _prepare_local_installer(
+                    environment, local_installer, installer, evidence
+                )
+            else:
+                local = {
+                    "path": str(local_installer),
+                    "uploaded": False,
+                    "passed": False,
+                    "error_type": "FileNotFound",
+                }
+            state["local_installer"] = local
+            if local["passed"]:
+                state["attempts"].append(local["record"])
+                state.update(
+                    source="local",
+                    passed=True,
+                    phase="complete",
+                    installer_sha256=local["sha256"],
+                )
+                return state
         await ensure_dependencies(environment, ("curl",))
         state["phase"] = "prepare_directory"
         directory = await _record_exec(
@@ -181,6 +215,46 @@ async def prepare_uv_installer(
         raise
     finally:
         write_json(evidence / "bootstrap.json", state)
+
+
+def bundled_uv_installer() -> Path | None:
+    """返回随仓库分发的 uv 安装脚本，缺失或摘要不符时返回空。
+
+    摘要必须与真实 trial 记录的原件一致；不符时不使用，由调用方回退在线，
+    避免执行被替换的脚本。"""
+    if not UV_INSTALLER_ASSET.is_file():
+        return None
+    if file_sha256(UV_INSTALLER_ASSET) != UV_INSTALLER_SHA256:
+        return None
+    return UV_INSTALLER_ASSET
+
+
+async def _prepare_local_installer(
+    environment: BaseEnvironment,
+    source: Path,
+    installer: PurePosixPath,
+    evidence: Path,
+) -> dict[str, Any]:
+    """上传预置安装脚本并在容器内核对摘要，失败只记录不抛出。"""
+    result: dict[str, Any] = {"path": str(source), "uploaded": False, "passed": False}
+    try:
+        await environment.upload_file(source, str(installer))
+        result["uploaded"] = True
+    except Exception as exc:
+        result["error_type"] = type(exc).__name__
+        return result
+    observed = await _record_exec(
+        environment,
+        f"test -s {shlex.quote(str(installer))} && sha256sum {shlex.quote(str(installer))}",
+        evidence,
+        "local-installer",
+        user="root",
+    )
+    result["record"] = observed
+    digest = str(observed.get("stdout") or "").split()
+    result["sha256"] = digest[0] if digest else None
+    result["passed"] = observed["return_code"] == 0 and result["sha256"] == UV_INSTALLER_SHA256
+    return result
 
 
 async def verify_installed_runtime(

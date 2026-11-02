@@ -88,6 +88,15 @@ def test_variant_only_changes_declared_algorithm_fields() -> None:
     ) == {"api_key": "private", "summary_trigger_ratio": 0.6}
 
 
+def test_variant_can_toggle_completion_guard() -> None:
+    """收尾保护 A/B 只能切换公开算法字段，不改连接或模型身份。"""
+
+    assert variant_profile(
+        {"api_key": "private", "completion_guard": False},
+        {"profile_overrides": {"completion_guard": True}},
+    ) == {"api_key": "private", "completion_guard": True}
+
+
 def test_secret_embedded_in_error_or_tool_text_is_redacted() -> None:
     payload = {
         "response": 'tool returned {"api_key":"sensitive-key"}',

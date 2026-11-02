@@ -14,7 +14,7 @@ from harbor.agents.installed.base import BaseInstalledAgent, NonZeroAgentExitCod
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
-from .installation import prepare_uv_installer, verify_installed_runtime
+from .installation import bundled_uv_installer, prepare_uv_installer, verify_installed_runtime
 from .worker import audit_metrics, read_object, variant_profile, write_json
 
 ROOT = PurePosixPath("/installed-agent/sayacode")
@@ -63,8 +63,10 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
 
     async def install(self, environment: BaseEnvironment) -> None:
         evidence = self.logs_dir / "installation"
-        # install.sh 下载受网络抖动影响（curl exit=18 传输中断等）；在此重试 3 次。
-        bootstrap = None
+        # 优先使用仓库预置的 install.sh；只有本地不可用时才回退在线下载。
+        # 在线下载仍受网络抖动影响（curl exit=18 传输中断等）；在此重试 3 次。
+        local_installer = bundled_uv_installer()
+        bootstrap: dict[str, Any] | None = None
         for attempt in range(1, 4):
             try:
                 bootstrap = await prepare_uv_installer(
@@ -72,6 +74,7 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
                     ROOT / "install-uv.sh",
                     evidence,
                     self.ensure_system_dependencies,
+                    local_installer=local_installer,
                 )
                 break
             except RuntimeError as exc:
@@ -115,6 +118,8 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
                 "[ \"$ok\" = 1 ]"
             ),
         )
+        if bootstrap is None:
+            raise RuntimeError("uv 安装引导未完成")
         await verify_installed_runtime(
             environment,
             ROOT,
