@@ -29,6 +29,7 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [改测试真相](docs/TEST-EDIT-ANALYSIS-20261102.md) | 测试代码被 verifier 重置、仅 `.snap` 快照有效；严格口径差异 |
 | [协作场景验证](docs/COLLABORATION-CHECK-20261102.md) | team/single 小样本；autonomous 题 task_count=0 的原因 |
 | [task_count 归因](docs/TASKCOUNT-ATTRIBUTION.md) | 团队工具链完好；显式分工题下 task_count=2，及提示/开关一致性 bug |
+| [v2 深挖分析](docs/DEEP-DIVE-20261102.md) | 方差轨迹、element-hq 归因、语义 diff、成本-部分相关、磁盘盘点 |
 
 ## 固定基准
 

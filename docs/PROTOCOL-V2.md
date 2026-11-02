@@ -67,6 +67,28 @@
 4. **仓库簇 bootstrap**（9 仓库）只作敏感性分析，不能独立证明生产泛化。
 5. 区间跨零或 p 未过校正 → 写「证据不足 / 不显著」，不写「已证明提升」。v2 三 agent 校正后**均不显著**。
 
+### 5.1 改快照通过（snapshot-modification pass，单列）
+
+**verifier 的 reset 范围**（以 `tests/test.sh` 为准）：
+
+- **测试代码**（`tests/`、`test`、`__tests__`、`spec`、`specs` 目录；`*_test.go`、`*.test.tsx`、`test_*.py` 等）→ 判分前 `git checkout HEAD -- <path>` **重置**，对 reward **无效**。
+- **数据/快照目录**（`testdata`、`test_data`、`fixtures`、`fixture`、`mocks`、`mock`、**`__snapshots__`**）→ 命中则**排除、不重置**；因此修改 `__snapshots__/*.snap` 对 reward **有效**。
+
+**结论：**「修改快照而后通过」是**有效但必须单列的类别**——它不是作弊（快照本就是允许更新的数据），也不能混进 pass@1 主表当作普通 pass。纯改测试代码（如 `test_pip.py`、`*_test.go`）会被重置，**不构成作弊**。
+
+**严格口径（扣除靠改 `.snap` 通过）**：
+
+| agent | 主表 planned | 改 `.snap` 通过的 pass | 严格 planned% |
+|---|---|---|---|
+| SAYACODE | 78.8% | 0 | **78.8%** |
+| mini-swe | 70.0% | 4 | **65.0%** |
+| Codex | 68.8% | 3 | **65.0%** |
+
+- **主表仍用 planned（78.8 / 70.0 / 68.8）**；快照项作为**敏感性分析**单列，不替换主表。
+- 差距方向不变（SAYACODE 仍最高），但对 mini-swe 从 8.8pp 扩到 13.8pp、对 Codex 从 10.0pp 扩到 13.8pp；修订幅度有限，**不能把对手说成「一半靠改测试」**。
+- 依据与逐题明细：[TEST-EDIT-ANALYSIS-20261102.md](TEST-EDIT-ANALYSIS-20261102.md)。
+- **报告要求**：每张成绩表附「改 `.snap` 通过的条数」与严格口径；**不得**用「patch 含测试文件」当作弊指标——它混入了大量会被 verifier 重置的无效改动。
+
 ## 6. 补跑规则（v2 最大教训）
 
 - **可补**：`infra` / `no_job` / `unverified`——这些与模型能力无关，是环境噪声。

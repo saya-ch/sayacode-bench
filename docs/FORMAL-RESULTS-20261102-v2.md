@@ -12,6 +12,8 @@
 | mini-swe | 80 | 66 | 56 | **70.0%** | 84.8% | 84.8% | [75.8, 92.4] | 33/40 | 72.7% | 97.0% |
 | Codex | 80 | 80 | 55 | **68.8%** | 68.8% | 68.8% | [57.5, 80.0] | 40/40 | 52.5% | 85.0% |
 
+> **严格口径（扣除「靠改 `.snap` 快照通过」）**：SAYACODE **78.8%** / mini-swe **65.0%** / Codex **65.0%**（mini −4、Codex −3 个 pass）。verifier 会重置测试代码（`tests/`、`*_test.go`）但**不重置 `__snapshots__/*.snap`**；主表仍用 planned，快照项作敏感性分析。详见 [TEST-EDIT-ANALYSIS](TEST-EDIT-ANALYSIS-20261102.md)。
+
 ## 二、题级 McNemar（任务块）
 
 | 对比 | 共同题 | delta | p | 结论 |

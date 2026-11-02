@@ -30,7 +30,7 @@
 ## 常见坑
 
 1. **分母三套（最严重的坑）**：v1 的 SAYACODE 55/80、mini-swe 69/80、Codex **56/65** 被并列成 68.8%/86.2%/86.2%，制造 17.4pp 假差距；Codex 统一 80 分母是 **70.0%**。任何对比表分母必须一致，缺 trial 就写 79/80，不换分母。
-2. **改测试两个口径混用**：产品侧检测率 SAYACODE **39/80 = 48.8%**（被验证器恢复）与 patch 含测试文件比例（SAYACODE **0%** / mini-swe **70.9%** / Codex **54.2%**）是不同量，**不可跨 agent 比**。旧数字 49%/73%/42% 全部作废。
+2. **改测试 / 改快照的口径**：verifier 会重置**测试代码**（`tests/`、`*_test.go` 等），所以「patch 含测试文件」绝大部分对分数无效，**不能当作弊指标**；只有 `__snapshots__/*.snap` 不被重置、改它才有效（见坑 24）。历史上把「产品侧检测率 48.8%（39/80）」与「patch 含测试 0% / 70.9% / 54.2%」并列是两个不同的量，旧数字 49%/73%/42% 全部作废。
 3. **空 patch 死循环**：阶段1 跳过验证器时没有 `reward.txt`，旧的归档/`--skip-existing` 逻辑会把有 patch 的 job 反复归档或全量重跑。现行规则是「**有 reward 或 有 patch 都不归档、都跳过**」。判断「空 patch」必须看 `agent/model.patch` 是否 0 字节，不能只看 reward。
 4. **tutanota 超配**：`tutao-51818218` r1/r2 在 v1 出现 `completed + verified + reward=0` 的**空 patch**，曾被误报为模型故障并算进「3 条故障」。重跑时注意该题的资源与上下文预算；**空 patch 不等于 API 故障**，只有 ECONNRESET 这类才是真故障（v1 仅 `vuls-f6cc8c-r1` 一条）。
 5. **Docker 网络池耗尽**：并发 14 时 28 个网络必爆。跑前 `docker network prune -f`，并发 ≤ 6。
@@ -51,7 +51,10 @@
 20. **归档与 retry sample 必须同源**：先列要补的 job，再由同一清单生成 `--sample`，最后归档；否则会出现「归档 28 个、sample 只覆盖 8 题」的 22 条 `no_job`。
 21. **`.wslconfig` 只能合并、不能覆盖**：原文件有 `networkingMode=mirrored`、`dnsTunneling`、`firewall`、`autoProxy`，覆盖会让容器网络失效；改前备份，改后用 `docker info` 的 MemTotal 验证。
 22. **Docker vhdx 删镜像不缩容**：`docker_data.vhdx` 是稀疏文件，删镜像后 C: 不会自动涨；需管理员 `diskpart compact vdisk`（脚本 `C:\sb\hard\v2\logs\compact-docker-vhdx.ps1`）。
-23. **补跑后数字会变**：v2 中 SAYACODE 72.5%→约 78.8%、mini-swe 47.5%→68.8%；任何 >1pp 变化都要更新报告，不能拿补跑前快照当终版。
+23. **补跑后数字会变**：v2 中 SAYACODE 67.5%→78.8%、mini-swe 47.5%→70.0%；任何 >1pp 变化都要更新报告，不能拿补跑前快照当终版。
+24. **`.snap` 快照不被 verifier 重置，不能用「patch 含测试文件」当作弊指标**：`tests/test.sh` 只 reset 测试**代码**目录（`tests`/`spec`/`__tests__` 等，`git checkout HEAD`），`__snapshots__` 属 data 目录被**排除、不重置**。真正「靠改快照通过」的 v2 只有 mini-swe 4、Codex 3、SAYACODE 0；严格口径（扣除后）78.8% / 65.0% / 65.0%，**主表仍用 planned（78.8/70.0/68.8）**，快照项作敏感性单列。详见 [TEST-EDIT-ANALYSIS](docs/TEST-EDIT-ANALYSIS-20261102.md)。
+25. **`team_enabled=False` 时必须裁剪系统提示的 Dispatch 段**：否则模型会反复探测团队工具、甚至谎称已派发（浪费 token、污染轨迹）。已修 `prompts.py` 并新增测试；改提示模板时务必保持该裁剪。
+26. **`evals.run` 用 CLI subprocess 调 docker，在「Python 子进程无法访问 npipe」的环境不可用**：`python -m evals.run` 会报 `permission denied ... npipe:////./pipe/dockerDesktopLinuxEngine`（DSH 沙箱限制子进程访问 named pipe）。已加 `evals/docker_backend.py`（SDK + CLI 回退）；仍失败时按 [COLLABORATION-CHECK](docs/COLLABORATION-CHECK-20261102.md) 手动复刻流程。
 
 ## 目录速览
 
