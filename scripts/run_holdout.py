@@ -37,6 +37,15 @@ def build_agent(args: argparse.Namespace, work: Path) -> tuple[AgentConfig, Envi
     profile["base_url"] = "http://saya-model-gateway:8080"
     private = work / "profile-private.json"
     private.write_text(json.dumps(profile), encoding="utf-8")
+    # 从 wheel 文件名推断产品版本，避免 bump 后 installation.PRODUCT_VERSION 漏改导致
+    # 「安装后 version 检查失败」。与 scripts/locked_agents.py 的动态推断逻辑保持一致。
+    import re
+
+    from sayacode_bench import installation as _installation
+
+    match = re.search(r"sayacode-(\d+\.\d+\.\d+)-", Path(args.wheel).name)
+    if match:
+        _installation.PRODUCT_VERSION = match.group(1)
     agent = AgentConfig(
         import_path="sayacode_bench.adapter:SayacodeAgent",
         model_name=CANONICAL_MODEL,
