@@ -2,7 +2,7 @@
 
 > 目的：验证 `completion_guard`（纯文本收尾保护）是否值得默认开启。
 > 设计：20 题（sample-40 分层抽样）× 2 重复 × 2 变体（guard-off / guard-on）= **80 trial**；产品 SAYACODE 3.2.6；模型 hy3；本地并发 2；¥0（Magpie 免费额度）。
-> 结论先行：**guard 确实触发、但 pass@1 提升不显著（+10pp, p≈0.29），而 token 成本 +53%（远超 <15% 护栏）→ 不建议默认开启。**
+> 结论先行：**guard 确实触发（on 36/40 = 90%，off 0%，以 `checkpoints.sqlite3` 实测为准），pass@1 方向为正（+10pp）但统计不显著（p≈0.29，n=20），而 token 成本 +53%（远超 <15% 护栏）→ 仍不建议默认开启。**
 
 ## 一、结果（trial 级，两组均 40/40 完整）
 
@@ -25,7 +25,9 @@
 | mean output_tokens / trial | 29.6K | 42.8K | **+44%** |
 
 - **A/B 设计文档的成本护栏是「token 增幅 < 15%」——实际 +53%，严重超护栏**。
-- `events.jsonl` 不记录 nudge 消息（`sayacode_continue_nudge` 在 events 里 0 次），但 **model_calls/tokens 的显著上升证明 guard 实际触发了**（每轮最多 1 次 nudge，触发后模型继续执行多步，导致调用与 token 大增）。**不能用 events 里搜 nudge 来算触发率**（会误判为 0%）。
+- **guard 触发率（正确口径）= on 36/40 = 90%，off 0/40 = 0%**：用 `agent/sayacode/checkpoints.sqlite3`（LangGraph 持久化 messages）实测——on 的 checkpoints 含 55 处 `continue_nudge` 明文，off 为 0 处。
+- **不能用 `events.jsonl` 算触发率**：它只记 `assistant.delta/tool.started/model.completed` 等，不含 message 内容，搜 `sayacode_continue_nudge` 会**假阴性 0%**（最初 `analyze_ab.py` 就踩了这个坑，已用 `analyze_ab_fixed.py` / `verify_nudge.py` 更正）。
+- model_calls/tokens 的上升（+38% / +53%）与 90% 触发一致：每轮最多 1 次 nudge，触发后模型继续执行多步。
 
 ## 三、解读
 
