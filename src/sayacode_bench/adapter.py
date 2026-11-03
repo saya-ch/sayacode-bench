@@ -99,19 +99,22 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             "export UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple; "
             "export UV_HTTP_TIMEOUT=600 UV_CONCURRENT_DOWNLOADS=4; "
             # 确保 {ROOT}/bin/uv 始终可用，绕过「本地 installer 跳过 ensure_curl、
-            # 但 install-uv.sh 自身仍需要 curl/wget」的死结（3.2.6 起本地 installer 优先）：
-            #   1) 系统/镜像已有 uv（如 pip3 装的）→ 软链到 {ROOT}/bin/uv；
-            #   2) 有 curl/wget → 走本地 install-uv.sh（原本路径）；
-            #   3) 都没有（如部分 Debian 镜像）→ pip3 从国内源装 uv 后软链。
+            # 但 install-uv.sh 自身仍需要 curl/wget」的死结（3.2.6 起本地 installer 优先）。
+            # 顺序按可靠性排列：
+            #   1) 有 pip3 → 从国内 PyPI 源装 uv（最可靠；容器内 astral.sh 可能 403/不稳定，
+            #      有 curl 的镜像走 install-uv.sh 反而会失败）；
+            #   2) 系统/镜像已有 uv → 直接软链；
+            #   3) 有 curl/wget 且无 pip3 → 回退本地 install-uv.sh；
+            #   4) 都没有 → 报错退出（不再静默跳过，避免后续 rc=127 难定位）。
             f"mkdir -p {ROOT}/bin; "
-            "if command -v uv >/dev/null 2>&1; then "
+            "if command -v pip3 >/dev/null 2>&1; then "
+            "( pip3 install -q --break-system-packages uv -i https://pypi.tuna.tsinghua.edu.cn/simple 2>/dev/null || pip3 install -q uv -i https://pypi.tuna.tsinghua.edu.cn/simple ) "
+            f'&& ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
+            "elif command -v uv >/dev/null 2>&1; then "
             f'ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
             "elif command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then "
             f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
-            "else "
-            "pip3 install -q uv -i https://pypi.tuna.tsinghua.edu.cn/simple "
-            f'&& ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
-            "fi; "
+            "else echo 'no pip3/uv/curl available' >&2; exit 1; fi; "
             f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; "
             f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv; "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --require-hashes "
