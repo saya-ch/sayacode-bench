@@ -73,7 +73,8 @@ def nginx_config(config: GatewayConfig) -> str:
         locations.append(
             f"""        location = {path} {{
             if ($request_method != POST) {{ return 405; }}
-            if ($args != "") {{ return 400; }}
+            # Claude Code SDK 在 /v1/messages 上带 beta query（?beta=true）；
+            # 精确路径白名单已足够约束端点，不再拦 query（此前一律 400 会让首个请求就失败）。
             proxy_set_header Host {authority};
             proxy_ssl_name {host};
             proxy_pass {parsed.scheme}://{name}{parsed.path};

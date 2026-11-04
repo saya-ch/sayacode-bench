@@ -412,7 +412,10 @@ async def test_install_preserves_task_python_and_never_uploads_private_profile(
     assert all("profile" not in target for _, target in environment.uploads)
     assert requested == [("curl",)]
     assert sum(command.startswith("curl ") for command in environment.commands) == 1
-    assert "curl " not in next(c for c in environment.commands if "UV_PYTHON_INSTALL_DIR=" in c)
+    # 主链路改用本地 installer / pip3；install 命令里允许出现
+    # `command -v curl` 这类「存在性检测」，但不得再出现 curl 下载调用。
+    install_cmd = next(c for c in environment.commands if "UV_PYTHON_INSTALL_DIR=" in c)
+    assert "curl -" not in install_cmd
     assert json.loads((agent.logs_dir / "installation/receipt.json").read_text())["passed"]
 
 

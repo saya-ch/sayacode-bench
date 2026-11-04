@@ -23,6 +23,7 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 from harbor.agents.base import BaseAgent  # noqa: E402
+from harbor.agents.installed.claude_code import ClaudeCode  # noqa: E402
 from harbor.agents.installed.codex import Codex  # noqa: E402
 from harbor.agents.installed.mini_swe_agent import MiniSweAgent  # noqa: E402
 from harbor.environments.base import BaseEnvironment  # noqa: E402
@@ -30,7 +31,10 @@ from harbor.models.agent.context import AgentContext  # noqa: E402
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
 
 CANONICAL_MODEL = "auto-hy3"
-AGENTS = ("sayacode", "mini-swe", "codex")
+# v3 基线：Codex 因 apply_patch 工具契约与 /v1/responses websocket 405 全组失效
+# （见 docs/CODEX-BASELINE-INVALID.md），第三个基线换为 Claude Code（/v1/messages 原生协议）。
+# "codex" 分支仍保留在 build_agent 中，供 v2 历史结果复现。
+AGENTS = ("sayacode", "mini-swe", "claude-code")
 IN_SANDBOX_GATEWAY = "http://saya-model-gateway:8080"
 DEFAULT_GATEWAY = "http://host.docker.internal:3425/v1"
 DEFAULT_TASKS_ROOT = (
@@ -134,6 +138,12 @@ _CAPTURE = (
 )
 _CAPTURE_CODEX = _CAPTURE.replace(
     "pkill -f '[m]ini-swe-agent --yolo' >/dev/null 2>&1; sleep 3; ", ""
+)
+_CAPTURE_CLAUDE = _CAPTURE_CODEX
+# Claude Code 2.1.311 起按平台分发原生二进制；宿主预下载 linux-x64 tarball，
+# 每 trial 上传解压即可，容器内不需要 node/npm，也不访问 GitHub / npm registry。
+_CLAUDE_TARBALL = Path(
+    os.environ.get("SAYACODE_CLAUDE_TARBALL", r"C:\sb\tmp\hard\claude-linux.tgz")
 )
 
 
@@ -337,6 +347,59 @@ class LockedCodex(Codex):
                 self.logger.warning(f"patch capture failed: {exc}")
 
 
+class LockedClaudeCode(ClaudeCode):
+    """Harbor ClaudeCode + 固定版本原生二进制 + 收尾时抓取 model.patch。
+
+    Claude Code 2.1.311 起按平台分发原生二进制（无需 node/npm）。为避免容器内
+    访问 GitHub / npm registry 与 Codex 那次 websocket 405，这里由宿主预下载
+    linux-x64 tarball，每 trial 上传解压；协议走 Magpie 原生的 /v1/messages。
+    """
+
+    @staticmethod
+    def name() -> str:
+        return "claude-code-locked"
+
+    async def install(self, environment: BaseEnvironment) -> None:
+        if not _CLAUDE_TARBALL.is_file():
+            raise RuntimeError(f"Claude Code linux tarball 不存在：{_CLAUDE_TARBALL}")
+        await environment.upload_file(_CLAUDE_TARBALL, "/tmp/claude-linux.tgz")
+        result = await environment.exec(
+            command=(
+                "set -e; rm -rf /opt/claude-code; mkdir -p /opt/claude-code; "
+                "tar -xzf /tmp/claude-linux.tgz -C /opt/claude-code; "
+                "install -m 755 /opt/claude-code/package/claude /usr/local/bin/claude; "
+                "rm -f /tmp/claude-linux.tgz; claude --version"
+            ),
+            user="root",
+            timeout_sec=300,
+        )
+        self.logger.info(
+            f"claude-code install: rc={result.return_code} {(result.stdout or '').strip()}"
+        )
+        if result.return_code != 0:
+            raise RuntimeError(f"claude-code install failed: {result.stderr}")
+
+    async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
+        if "claude " in command or command.lstrip().startswith("claude"):
+            budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
+            command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
+        return await super().exec_as_agent(environment, command, **kwargs)
+
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
+        try:
+            await super().run(instruction, environment, context)
+        finally:
+            try:
+                result = await environment.exec(
+                    command=_CAPTURE_CLAUDE, user="root", timeout_sec=300
+                )
+                self.logger.info(f"model.patch bytes: {(result.stdout or '').strip()}")
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning(f"patch capture failed: {exc}")
+
+
 class PatchReplayAgent(BaseAgent):
     """把上一阶段 job 的 ``agent/model.patch`` 在干净沙箱重放，消除验证器被篡改的可能。"""
 
@@ -488,6 +551,18 @@ def build_agent(name: str, paths: FormalPaths, *, profile_dir: Path | None = Non
                 },
             },
         )
+    if name == "claude-code":
+        return AgentConfig(
+            import_path="locked_agents:LockedClaudeCode",
+            model_name=CANONICAL_MODEL,
+            extra_allowed_hosts=["saya-model-gateway"],
+            override_setup_timeout_sec=1800,
+            env={
+                "ANTHROPIC_API_KEY": "magpie",
+                "ANTHROPIC_BASE_URL": IN_SANDBOX_GATEWAY,  # 容器内网关，原生 /v1/messages
+            },
+            kwargs={"permission_mode": "bypassPermissions", "max_turns": 200},
+        )
     if name == "codex":
         LockedCodex.tarball_path = paths.resolved_codex_tarball()
         return AgentConfig(
@@ -514,6 +589,7 @@ __all__ = [
     "DEFAULT_GATEWAY",
     "FormalPaths",
     "IN_SANDBOX_GATEWAY",
+    "LockedClaudeCode",
     "LockedCodex",
     "LockedMiniSwe",
     "NoOpAgent",
