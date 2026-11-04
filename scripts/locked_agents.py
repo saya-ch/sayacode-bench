@@ -145,6 +145,53 @@ class LockedMiniSwe(MiniSweAgent):
         return "mini-swe-agent-locked"
 
     async def install(self, environment: BaseEnvironment) -> None:
+        # 容器内 deb.debian.org / archive.ubuntu.com 经 Clash fake-ip 返回 198.18.x，
+        # 而 TUN 不还原 Docker 容器的出站流量，apt 必然 Connection failed。
+        # 改为清华 HTTPS 镜像（容器内直连可达，已实测 HTTP/2 200）：只替换源域名，
+        # 不触碰 agent 行为、模型输入或评测口径。
+        # CPython 3.12 tarball 由宿主预先下载（GitHub 在容器内不可达/不稳定）：
+        # 每 trial 先上传解压到共享 UV_PYTHON_INSTALL_DIR，uv 即可离线找到 3.12。
+        py_tar = Path(os.environ.get("SAYACODE_PY312_TARBALL", r"C:\sb\tmp\hard\py312.tar.gz"))
+        if py_tar.is_file():
+            try:
+                await environment.upload_file(py_tar, "/tmp/py312.tar.gz")
+                await environment.exec(
+                    command=(
+                        "rm -rf /opt/uv-python; mkdir -p /opt/uv-python; "
+                        "tar -xzf /tmp/py312.tar.gz -C /opt/uv-python && "
+                        "chmod -R a+rX /opt/uv-python && rm -f /tmp/py312.tar.gz"
+                    ),
+                    user="root",
+                    timeout_sec=240,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning(
+                    f"py312 tarball upload failed ({str(exc)[:120]}); will rely on uv download"
+                )
+        # 容器内 deb.debian.org / archive.ubuntu.com 经 Clash fake-ip 返回 198.18.x，
+        # 而 TUN 不还原 Docker 容器的出站流量，apt 必然 Connection failed。
+        # 改为清华 HTTPS 镜像（容器内直连可达，已实测 HTTP/2 200）：只替换源域名，
+        # 不触碰 agent 行为、模型输入或评测口径；apt 全程带网络超时，失败不阻断
+        # （uv 与 CPython 3.12 已预置，ensure_system_dependencies 失败还有下方回退）。
+        await environment.exec(
+            command=(
+                "sed -i -e 's|http://deb.debian.org/debian-security|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' "
+                "-e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' "
+                "-e 's|http://deb.debian.org/debian|https://mirrors.tuna.tsinghua.edu.cn/debian|g' "
+                "-e 's|http://[a-z0-9.-]*archive\\.ubuntu\\.com/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu|g' "
+                "-e 's|http://security\\.ubuntu\\.com/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu|g' "
+                "/etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true; "
+                "echo 'Acquire::Check-Valid-Until \"false\";' > /etc/apt/conf.d/99no-check-valid 2>/dev/null || true; "
+                "timeout 420 apt-get -o Acquire::Check-Valid-Until=false -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25 -o Acquire::Retries=1 update -qq >/dev/null 2>&1 || true; "
+                "timeout 240 apt-get -o Acquire::http::Timeout=25 -o Acquire::Retries=1 install -y -qq --no-install-recommends curl bash git python3 python3-pip build-essential >/dev/null 2>&1 || true; "
+                "if ! command -v uv >/dev/null 2>&1; then "
+                "  (pip3 install -q --break-system-packages uv -i https://pypi.tuna.tsinghua.edu.cn/simple "
+                "   || pip3 install -q uv -i https://pypi.tuna.tsinghua.edu.cn/simple) >/dev/null 2>&1 || true; "
+                "fi"
+            ),
+            user="root",
+            timeout_sec=900,
+        )
         try:
             await self.ensure_system_dependencies(
                 environment, ("curl", "bash", "build_tools", "git", "python3", "python_pip")
@@ -180,6 +227,9 @@ class LockedMiniSwe(MiniSweAgent):
             environment,
             command=(
                 "set -euo pipefail; "
+                "export UV_PYTHON_INSTALL_DIR=/opt/uv-python; "
+                "export UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple; "
+                "export UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple; "
                 "if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi && "
                 'if ! grep -q \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null; then'
                 '  echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"; fi && '
