@@ -51,5 +51,8 @@ npm pack opencode-linux-x64@1.19.5 --registry=https://registry.npmmirror.com --p
 
 ## 诚实限制
 
-- 与其余三组一样，跑的是 `auto-hy3`，不是 OpenCode 的原生模型；**不能据此评价 OpenCode 产品能力**。
+- **OpenCode 没有「原生模型」**：它是开源、provider-agnostic 的脚手架，接入任意 provider 都是其常规用法，
+  所以这里接 `auto-hy3` **不构成模型错配**（这点和 Claude Code / Codex 本质不同）。
+  它的低分更可能来自脚手架自身的重量（默认工具 / skills / slash-commands 更多、system prompt 更长、
+  agent loop 探索轮次更多）以及 6 个 snap pass 所反映的「改快照而非改产品代码」倾向。
 - 单题内存峰值约 3.9GB（vuls），必须走高内存分片（`split_sample.py` + 并发 1），否则会打爆 WSL 7GB。

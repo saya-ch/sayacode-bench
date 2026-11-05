@@ -91,7 +91,13 @@
 
 ## 五、必须诚实标注的限制
 
-1. **模型错配仍在**：Claude Code / OpenCode / mini-swe / SAYACODE 的 prompt 与工具契约都非为 hy3 调优。但这是**四组共同承受**（不像 Codex 是单向伤害），故组间比较仍有意义；**不能据此评价任一产品的真实能力**。
+1. **各组的模型适配前提不同，必须分开说清**（不能用一句「都非为 hy3 调优」糊过去）：
+   - **Claude Code**：Anthropic 自家产品，system prompt / 工具契约围绕 Claude 模型深度调优 → 跑 hy3 有**方向性适配损耗**。
+   - **Codex CLI**：OpenAI 自家产品，同理（且还叠加了工具契约与协议缺陷，整组作废）。
+   - **OpenCode**：**开源、provider-agnostic**，设计上就接入任意模型（Anthropic/OpenAI/Google/OpenRouter 等），**接 hy3 是它的常规用法，不存在「对自家模型的偏好」**。它的低分不能归因于模型错配，更可能来自脚手架自身的重量（默认工具/skills/slash-commands 更多、system prompt 更长、agent loop 探索轮次更多）以及 **6 个 snap pass（四组最多）**所反映的行为倾向。
+   - **mini-swe-agent**：模型无关的最简脚手架，短任务上几乎无额外故障面。
+   - **SAYACODE**：prompt / 摘要降级 / 输出预算等围绕 hy3 所在网关打磨过（这是它的现实优势），但同时自带相应复杂度。
+   因此「四组同模型」只统一了**模型变量**，没有统一**脚手架-模型适配度**；组间比较有意义，但**不能据此评价任一产品的真实能力**。
 2. **40 题样本功效不足**：检测 10pp 需约 330 题（`docs/MULTI-MODEL-PLAN.md` 口径）。当前 CI 宽 ±12pp，任何「更强」都谈不上。
 3. **strict 口径下 OpenCode 最低（67.5%）、Claude Code 次低（73.8%）**，但 planned 口径下差距都缩到 2–5 个 pass；四组配对 McNemar 全不显著（最接近的 p=0.070）。
 4. **v2 的 Codex 组与 v3/v4 四组不同口径**：Codex 组因适配缺陷整体作废，不参与排名。
