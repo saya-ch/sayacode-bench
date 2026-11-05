@@ -130,3 +130,37 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 | 踩坑记录 | [LESSONS-20261102-v2.md](LESSONS-20261102-v2.md) |
 | 交接 | [HANDOFF.md](HANDOFF.md) |
 | 历史/作废 | [docs/archive/](archive/README.md) |
+
+## 9. 进行中的批次（P0）：SAYACODE 3.2.7 + served pin
+
+**目的**：让数字对应**第三方可获取的制品**（PyPI 3.2.7），并消除 `hy3-x` 的 served 混杂。
+
+| 项 | 值 |
+|---|---|
+| 制品 | `C:\sb\tmp\hard\wheel-release-3.2.7\out\sayacode-3.2.7-py3-none-any.whl`（PyPI，sha256 `49db58d1…`）|
+| 依赖 | `C:\sb\hard\product-requirements-3.2.6.txt`（实测 3.2.7 运行时依赖与 3.2.6 **完全相同**，只多一个 `evals` extra）|
+| profile | `C:\sb\hard\magpie-hy3-pinned.json`（`model_id=workbuddy/hy3`）|
+| 记录身份 | `SAYACODE_BENCH_CANONICAL_MODEL=workbuddy/hy3` → `normalized.json` 的 `canonical_model` 与实际 served 对齐 |
+| 结果根 | `C:\sb\hard\v4-327`（80 trial）|
+| 启动器 | `C:\sb\tmp\launch-v4-327.cmd`（WMI 创建，脱离会话进程树，见 AGENTS 坑 36）|
+| 日志 | `C:\sb\hard\v4-327-run2.log` |
+
+**served pin 的实测依据**（8 次 `/v1/messages` 探测 + smoke 25 次调用）：
+
+- `auto-hy3` 有概率漂到 `deepseek/deepseek-v4.1-flash`（实测 1/6 与 1/8 两次都出现）；
+- `workbuddy/hy3` 在 `/v1/messages` 上 8/8 稳定，smoke 的 25 次调用 **25/25 `hy3/workbuddy`**；
+- 但**没有**任何 model_id 能 100% 保证（`workbuddy-ai/hy3` 也有 1/8 漂移）→ 跑完必须用 `annotate_served.py` 逐 trial 核验，漂移的 trial 单独标注。
+
+**接续方式**（若进程中断）：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\sb\tmp\run-v4-327.ps1   # 内含 --skip-existing
+# 或脱离会话：
+Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c "C:\sb\tmp\launch-v4-327.cmd"'}
+```
+
+**跑完后**：`final_summary.py` + `strict_compare.py` + `annotate_served.py`；对比 v2-325 的 3.2.5 结果，得到"产品修复是否有效"的第一份评测证据。
+
+## 10. P1（待 P0 完成后执行）
+
+设计见 [EXPERIMENT-CONTEXT-AB.md](EXPERIMENT-CONTEXT-AB.md)；工具已就绪：`scripts/make_context_noise.py`（确定性噪声生成，已 smoke）、`scripts/analyze_context_ab.py`（配对退化分析）。**噪声注入钩子尚未加入 `locked_agents.py`**——P0 跑批进程依赖该文件，改它会污染 P0 结果。
