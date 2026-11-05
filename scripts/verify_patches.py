@@ -84,8 +84,23 @@ def record_empty_patch(inner: Path, patch_bytes: int) -> Path:
     return terminal
 
 
+def _has_outcome(inner: Path | None) -> bool:
+    if inner is None:
+        return False
+    return (inner / "verifier" / "reward.txt").is_file() or (
+        inner / "verifier" / "terminal.json"
+    ).is_file()
+
+
 def collect_pending(jobs: Path) -> list[tuple[str, str, int, Path]]:
-    """待验证 = 无 reward、无终态标记、但已有 patch 文件的 trial。"""
+    """待验证 = 无 reward、无终态标记、但已有 patch 文件的 trial。
+
+    阶段 2 产物写在 ``<agent>/verify/jobs/verify-<job_name>``，stage1 的 job 目录里
+    **不会**出现 reward。只看 stage1 会让「重跑 verify」把已完成的 trial 再次排队，
+    进而撞 ``run_official_trial`` 的「已有记录未收尾」ValueError（AGENTS 坑 18）。
+    watchdog 触发续跑时必然走到这里，所以必须同时认 verify 目录的终态。
+    """
+    verify_jobs = jobs.parent / "verify" / "jobs"
     pending: list[tuple[str, str, int, Path]] = []
     for job in sorted(jobs.iterdir()):
         if not job.is_dir():
@@ -93,9 +108,10 @@ def collect_pending(jobs: Path) -> list[tuple[str, str, int, Path]]:
         inner = _inner_dir(job)
         if inner is None:
             continue
-        if (inner / "verifier" / "reward.txt").is_file():
+        if _has_outcome(inner):
             continue
-        if (inner / "verifier" / "terminal.json").is_file():
+        vjob = verify_jobs / f"verify-{job.name}"
+        if vjob.is_dir() and _has_outcome(_inner_dir(vjob)):
             continue
         patch = inner / "agent" / "model.patch"
         if not patch.is_file():

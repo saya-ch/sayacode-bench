@@ -50,7 +50,7 @@
 15. **给容器注入代理必须补 NO_PROXY**：Docker CLI 的 `proxies` 会把 `HTTP(S)_PROXY` 注入所有容器；`NO_PROXY` 必须含 `saya-model-gateway`、`saya-gateway` 与私网段，否则 agent 调内部网关报 `gaierror`、patch=0。更稳的是**无代理直连**（实测 astral.sh 直连可用）。
 16. **astral.sh `curl exit=35` 是间歇性 TLS 失败**（不是被墙，宿主实测 301）；补跑成功率高，下一批应把 uv installer 预置进镜像。
 17. **阶段1 续跑判据**：`--skip-verifier` 完成时只有 `normalized.json`（无 reward/terminal），skip 判据必须认 `record_complete=True`，否则重复进入 `run_official_trial` 撞 `ValueError`。
-18. **`verify_patches.collect_pending` 只认 stage1 的 reward**（不看 `verify/jobs/`），重跑 verify 会报「已 verified 冲突」；临时办法是把 verify 的 `reward.txt` 同步回 stage1 jobs，长期应在代码里修。
+18. **`verify_patches.collect_pending` 曾只认 stage1 的 reward**（不看 `verify/jobs/`）：重跑 verify 会把已完成的 trial 再次排队、撞「已 verified 冲突」。**已修**（2026-11-05）：现在同时检查 `<agent>/verify/jobs/verify-<job>` 的 `reward.txt` / `terminal.json`，回归测试见 `tests/test_verify_patches.py`。watchdog 续跑会走到这条路径，不要再手工同步 reward。
 19. **stage1 与 verify 不要并行**：验证器峰值 2.26GB，并行会把宿主压到 <0.6GB，kill 后留下「未收尾 Harbor job」，后续 verify 连锁 ValueError。
 20. **归档与 retry sample 必须同源**：先列要补的 job，再由同一清单生成 `--sample`，最后归档；否则会出现「归档 28 个、sample 只覆盖 8 题」的 22 条 `no_job`。
 21. **`.wslconfig` 只能合并、不能覆盖**：原文件有 `networkingMode=mirrored`、`dnsTunneling`、`firewall`、`autoProxy`，覆盖会让容器网络失效；改前备份，改后用 `docker info` 的 MemTotal 验证。
