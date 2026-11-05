@@ -1,4 +1,4 @@
-# SWE-bench Pro V2 三方对照最终结果（2026-11-05）
+# SWE-bench Pro V2 多方对照最终结果（2026-11-05）
 
 > 题集：冻结 `studies/sample-40-final.json` 40 题 × 2 重复 = 80 trial/组
 > 模型：统一 `auto-hy3`（DeepSeek-V4.1-Flash）；同题集、同预算、同口径
@@ -12,6 +12,7 @@
 | **SAYACODE** | **78.8%** (63/80) | 79.7% | **78.8%** (63) | 1 | **80.8%** | [69.2, 91.0] | 29/39 = 74.4% |
 | **mini-swe-agent** | 85.0% (68/80) | 87.2% | **80.0%** (64) | 2 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% |
 | **Claude Code** | 77.5% (62/80) | 78.5% | **73.8%** (59) | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% |
+| **OpenCode** | 75.0% (60/80) | 75.0% | **67.5%** (54) | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% |
 | ~~Codex CLI~~ | 68.8% | 69.6% | 65.0% | 1 | — | — | **不可比**（见下） |
 
 ### 两两配对（题级全通过，McNemar exact）
@@ -20,21 +21,37 @@
 |---|---|---|---|---|
 | Claude Code vs mini-swe | 38 | −7.9% | 3 / 7 | 0.344 |
 | Claude Code vs SAYACODE | 38 | **0.0%** | 4 / 7 | 0.549 |
+| Claude Code vs OpenCode | 39 | +3.8% | 9 / 6 | 0.607 |
 | mini-swe vs SAYACODE | 38 | +7.9% | 6 / 5 | 1.000 |
+| mini-swe vs OpenCode | 39 | +11.5% | 11 / 4 | 0.118 |
+| **OpenCode vs SAYACODE** | 39 | **−3.8%** | 1 / 7 | **0.070** |
 
-**三组两两差异全部不显著（p ≥ 0.34）**。bootstrap95 区间大幅重叠。
+**四组两两差异全部不显著（p ≥ 0.070）**。最接近显著的是 OpenCode vs SAYACODE（p=0.070，未过 Bonferroni α/3≈0.017）。bootstrap95 区间大幅重叠。
 
 ### 口径为什么重要（同一份数据，三种排名）
 
 | 口径 | 排名 |
 |---|---|
-| planned | mini-swe 85.0% > SAYACODE 78.8% > Claude Code 77.5% > Codex 68.8% |
-| observed | mini-swe 87.2% > SAYACODE 79.7% > Claude Code 78.5% > Codex 69.6% |
-| **strict** | mini-swe 80.0% > **SAYACODE 78.8%** > Claude Code 73.8% > Codex 65.0% |
+| planned | mini-swe 85.0% > SAYACODE 78.8% > Claude Code 77.5% > OpenCode 75.0% > Codex 68.8% |
+| observed | mini-swe 87.2% > SAYACODE 79.7% > Claude Code 78.5% > OpenCode 75.0% > Codex 69.6% |
+| **strict** | mini-swe 80.0% > **SAYACODE 78.8%** > Claude Code 73.8% > OpenCode 67.5% > Codex 65.0% |
 
-- mini-swe 的 planned 85.0% 里有 **4 个 pass 是改 `.snap` 快照换来的**（verifier 的 DATA_DIRS 包含 `__snapshots__`，不重置）；strict 口径扣掉后降到 80.0%。
+- mini-swe 的 planned 85.0% 里有 **4 个 pass 是改 `.snap` 快照换来的**；strict 扣掉后 80.0%。
+- **OpenCode 的 snap pass 最多（6 个）**，planned 75.0% → strict 67.5%（−7.5pp），是四组里被快照口径影响最大的。
 - SAYACODE **0 个改快照**（strict = planned）。
 - 因此「谁最强」完全取决于口径——**报告必须同时给三个口径，不给单一排名**。
+
+### 四组的适配健康度（`scripts/audit_agent_traj.py`）
+
+| agent | API Error | unsupported call | websocket 405 | tool_use |
+|---|---|---|---|---|
+| SAYACODE | 0 | 0 | 0 | — |
+| mini-swe | 0 | 0 | 0 | — |
+| Claude Code | **0** | **0** | **0** | 3468 / 80 trial |
+| OpenCode | **0** | **0** | **0** | 2480 / 80 trial |
+| ~~Codex~~ | 960 | **373（78/80 trial）** | 960（80/80 trial） | apply_patch 不可用 |
+
+四个可用基线的轨迹全部健康；只有 Codex 是整组失效。
 
 ## 二、Codex 组为何不可比
 
@@ -74,21 +91,21 @@
 
 ## 五、必须诚实标注的限制
 
-1. **模型错配仍在**：Claude Code / mini-swe / SAYACODE 的 prompt 与工具契约都非为 hy3 调优。但这是**三组共同承受**（不像 Codex 是单向伤害），故组间比较仍有意义；**不能据此评价任一产品的真实能力**。
+1. **模型错配仍在**：Claude Code / OpenCode / mini-swe / SAYACODE 的 prompt 与工具契约都非为 hy3 调优。但这是**四组共同承受**（不像 Codex 是单向伤害），故组间比较仍有意义；**不能据此评价任一产品的真实能力**。
 2. **40 题样本功效不足**：检测 10pp 需约 330 题（`docs/MULTI-MODEL-PLAN.md` 口径）。当前 CI 宽 ±12pp，任何「更强」都谈不上。
-3. **strict 口径下 Claude Code 最低（73.8%）**，planned 口径下却与 SAYACODE 几乎相同（77.5% vs 78.8%），差异全在噪声内。
-4. **v2 的 Codex 组与 v3 三组不同口径**：Codex 组因适配缺陷整体作废，不参与排名。
-5. **未做的对照**：Claude Code + 原生 Claude 模型（付费 API，超 ¥50 预算）；同题集上的 holdout 提示词检验。
+3. **strict 口径下 OpenCode 最低（67.5%）、Claude Code 次低（73.8%）**，但 planned 口径下差距都缩到 2–5 个 pass；四组配对 McNemar 全不显著（最接近的 p=0.070）。
+4. **v2 的 Codex 组与 v3/v4 四组不同口径**：Codex 组因适配缺陷整体作废，不参与排名。
+5. **未做的对照**：任一 agent + 其原生模型（付费 API，超 ¥50 预算）；同题集上的 holdout 提示词检验。
 
 ## 六、可写进简历的口径（保守版）
 
-> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2（40 题 × 2 重复，官方 Harbor 验证）上 pass@1 **78.8%**（strict 口径同为 78.8%，0 个改快照通过），与 mini-swe-agent（80.0% strict）、Claude Code（73.8% strict）**同量级，题级 McNemar 均不显著**（p ≥ 0.34）。单任务成本 1.43M tokens。建设可复现评测体系（三口径分母、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位修复 5 个产品缺陷与 8 个评测基建缺陷。」
+> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2（40 题 × 2 重复，官方 Harbor 验证）上 pass@1 **78.8%**（strict 口径同为 78.8%，0 个改快照通过），与 mini-swe-agent（80.0% strict）、Claude Code（73.8% strict）、OpenCode（67.5% strict）**同量级，题级 McNemar 均不显著**（p ≥ 0.070）。单任务成本 1.43M tokens。建设可复现评测体系（三口径分母、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位修复 5 个产品缺陷与 8 个评测基建缺陷。」
 
-**不能写**：「优于 Codex / 优于 Claude Code / SOTA」。
+**不能写**：「优于 Codex / 优于 Claude Code / 优于 OpenCode / SOTA」。
 
 ## 七、产物
 
-- 汇总：`C:\sb\hard\v2-325\FINAL-SUMMARY-V4.json`、`STRICT-COMPARE.json`、`TRAJ-AUDIT-claude-code.json`
+- 汇总：`C:\sb\hard\v2-325\FINAL-SUMMARY-V4.json`、`STRICT-COMPARE.json`、`TRAJ-AUDIT-claude-code.json`、`TRAJ-AUDIT-opencode.json`
 - 工具：`scripts/strict_compare.py`、`scripts/audit_agent_traj.py`、`scripts/split_sample.py`
-- 文档：`docs/CODEX-BASELINE-INVALID.md`、`docs/CLAUDE-CODE-BASELINE.md`
-- 日志：`C:\sb\hard\v2-325\logs\{claude-light,claude-heavy,verify-final5}.log`
+- 文档：`docs/CODEX-BASELINE-INVALID.md`、`docs/CLAUDE-CODE-BASELINE.md`、`docs/OPENCODE-BASELINE.md`
+- 日志：`C:\sb\hard\v2-325\logs\{claude-light,claude-heavy,opencode-light,opencode-heavy,verify-final5}.log`
