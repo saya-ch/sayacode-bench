@@ -72,7 +72,7 @@
 | agent | planned | observed | **strict** | 缺失 | 题级 task-macro | bootstrap95 | snap pass |
 |---|---|---|---|---|---|---|---|
 | SAYACODE | 78.8% (63/80) | 79.7% | **78.8%** | 1 | 80.8% | [69.2, 91.0] | **0** |
-| mini-swe | 85.0% (68/80) | 87.2% | **80.0%** | 2 | 87.2% | [79.5, 94.9] | 4 |
+| mini-swe | 85.0% (68/80) | 86.1% | **80.0%** | 1 | 87.2% | [79.5, 94.9] | 4 |
 | Claude Code | 77.5% (62/80) | 78.5% | **73.8%** | 1 | 78.2% | [67.9, 88.5] | 3 |
 | OpenCode | 75.0% (60/80) | 75.0% | **67.5%** | 0 | 75.0% | [65.0, 83.8] | 6 |
 | ~~Codex~~ | 68.8% | 69.6% | 65.0% | 1 | — | — | 3 | **不可比** |
@@ -110,6 +110,7 @@
 | 40 题 gold 全绿 | 实为 36 good/1 bad/3 null | 同上 |
 | v2-tuned 调优收益 | 基于误读证据 | `192f106` |
 | OpenCode 有自家模型/模型错配 | 事实错误，它是 provider-agnostic | `0440422` |
+| 「`auto-hy3` = DeepSeek-V4.1-Flash」 | 网关实测是两个不同模型；评测窗口 42681 条 usage 里四组基线 served **全是 hy3/hy3-x**，零 deepseek | 本节 §5.5、v3 §五.6 |
 
 ## 3. 评测体系完备到哪一步
 
@@ -151,7 +152,7 @@
 | 补发 3.2.5/3.2.6 到 PyPI | 不可行（版本号已跳） | — |
 | 打一个 3.2.8 = HEAD，发布后重跑 | 需要发布流程 | 数字与 HEAD 一致 |
 
-## 5. 方法论未闭合的四个洞
+## 5. 方法论与口径未闭合的洞
 
 ### 5.1 拿开发迭代集当正式成绩（最严重）
 
@@ -176,18 +177,60 @@
 
 - 5 题一过一败里 3 题是系统性（patch 规模 3.3× / 7.3× / 59× 差异）。当前 2 重复的 pass@1 会把系统性方差当成能力差异。
 
+### 5.5 模型身份曾被误标，且 served 有未控制混杂（本轮新发现）
+
+1. **误标**：v3 报告初版、Codex/Claude Code 基线文档都把 `auto-hy3` 写成「DeepSeek-V4.1-Flash」。实测网关 `/v1/models`：
+   - `auto/hy3` → `owned_by=workbuddy`，192k / 64k
+   - `auto/deepseek-v4.1-flash` → `owned_by=opencode-zen`，1M / 200k
+   两者是**不同模型**。评测窗口内 42681 条 usage 里，四组基线的 `served` 全是 `hy3` / `hy3-x`，**没有一条 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。
+   → 已更正全部相关文档；记录级 `canonical_model` 字段（`auto-hy3`）本身是对的，未受污染。
+2. **served 混杂**：`hy3-x` 占比在组间差 6 倍（mini-swe 35.2% / SAYACODE 14.3% / Claude Code 9.6% / OpenCode 5.3%）。历史记录说 hy3 与 hy3-x 是同一模型的额度/地区变体（用户确认，**非网关元数据证明**）。如果二者能力不同，这个 6 倍差异会直接混进组间差。
+   → 当前既不能证明它无影响，也不能证明有影响；**必须在结论里披露，并在下一批把 served 固定为单一模型**（pin 到 `workbuddy-ai/hy3` 或按 served 分层重算）。
+3. **两套 `CANONICAL_MODEL` 常量**：`src/sayacode_bench/{connections,execution}.py` = `DeepSeek-V4.1-Flash`（v1 SiliconFlow 时代），`scripts/locked_agents.py` = `auto-hy3`（本批）。两条执行路径不通用，将来走 `study.py` 的 freeze 路径会因 model_id 校验直接失败。
+
+### 5.6 「mini-swe 从 70.0% 补到 85.0%」的真相：分类缺陷，不是 retry-until-pass（本轮新发现）
+
+**事实链**（全部可复核）：
+
+1. v2 终版里 mini-swe 是 **56/80 = 70.0%**，缺失 14 条：`empty_patch` 8 + `no_job` 6（`C:\sb\hard\v2-325\FINAL-SUMMARY.json`）。
+2. v4 里 mini-swe 是 **68/80 = 85.0%**，缺失 1 条。**+12 个 pass 正好对应那 14 条里的 12 条，且 12/12 全部转正**。
+3. 表面看这像 retry-until-pass，违反 `PROTOCOL-V2 §6`「`empty_patch` 不补」。
+4. **但原始失败证据指向别的结论**：`C:\sb\hard\v2-325\mini-swe\abandoned-retry-20261102-165011\` 里 28 个 job 的 `exception.txt`，失败类型只有两种——
+   - `NonZeroAgentExitCodeError: Command failed (exit 100): apt-get update && apt-get install -y curl`，输出里是 `Connection failed [IP: 198.18.0.17 80]`（Clash fake-ip 死地址）与 `Fetched 608 kB in 7min 38s (1326 B/s)`；
+   - `NetworkConnectError`。
+   即 **agent 的安装阶段就失败了，模型从未执行任务**。patch 为 0 是因为 agent 没跑起来，不是因为模型没改代码。
+5. 所以这 8 条按语义是 **`infra`（可补）**，却被归成了 `empty_patch`（不补）。补跑在**实质上合规**，矛盾出在**分类**。
+
+**根因（真实的代码缺陷）**：`formal.py:classify_missing` 只看 `patch_bytes`，不看异常类型；`MISSING_CLASSES` 里**根本没有 `infra` 和 `timeout`**——与 `PROTOCOL-V2 §3` 的 6 类不一致。v2 的 3 个旧汇总（`FINAL-SUMMARY.json` / `FINAL-REPORT.md` / 旧 `STRICT-COMPARE.json`）因此把环境失败计成能力缺失。
+
+**已修**（2026-11-05）：
+- `formal.py` 增加 `exception_type` 字段与 `_read_exception_type()`（读 job 级 `normalized.json` 的 `harbor_exception_type`）；
+- `classify_missing` 优先判 `INFRA_EXCEPTIONS`（`NetworkConnectError` / `NonZeroAgentExitCodeError` / `DockerError` / `ImageNotFoundError` / `EnvironmentSetupError`）→ 返回 `infra`；
+- `MISSING_CLASSES` 对齐协议 7 类（`no_job/infra/timeout/empty_patch/unverified/model_fault/unattributed`）。
+
+**对结论的影响**：**不影响**「mini-swe strict 80.0% 略高于 SAYACODE 78.8%」这个观测值（它本来就是补跑后的数字，且补的是环境），但**必须同时给出补跑前的 70.0%**，否则读者无法判断这个领先有多少来自环境修复。协议要求"补跑前后同表并报"，v2 报告做到了，v3 报告**没做到**——是本轮补正的报告缺陷。
+
+### 5.7 同一批数据两个汇总工具给出不同 missing（已修）
+
+`scripts/strict_compare.py` 的 `_collect` 只看 `reward.txt`，不读 `terminal.json`，于是把「显式终态（`skipped_empty_patch`）」算成 missing；而 `formal.py` 按协议把它算成 observed 0 分。后果：同一批数据，`STRICT-COMPARE.json` 说 mini-swe 缺失 2、Codex 缺失 1，`FINAL-SUMMARY-V4.json` 说各缺 1、Codex 缺 0。
+→ 已修（加 `_read_terminal`，对齐 `Trial.observed` 语义），并有回归测试 `tests/test_strict_compare.py`。修后两工具在 5 组上完全一致。
+
 ## 6. 文档债（按危害排序）
 
 > 这份清单是"现在会误导读者"的实况，逐项验收后才算还清。
 
-| # | 文档 | 问题 | 危害 |
-|---|---|---|---|
-| **1** | `docs/STATUS.md`（11-02） | 通篇停在 v2 三 agent；主表把 `Codex 68.8%` 当有效基线；无 strict 口径、无四组、无 Codex 作废 | **最高**：接手者第一份读的就是它 |
-| **2** | `docs/HANDOFF.md`（11-02） | 同上，且"当前进度"写"v2 已完成" | **最高** |
-| **3** | `README.md` | 首段"三 agent 78.8/70.0/68.8"；索引缺 8 份新文档（v3 结果、三个基线文档、v3 报告、硬件/预算/扩样）；"横向对比 vs Codex CLI"过时 | 高：对外第一印象 |
-| **4** | `AGENTS.md` | 坑 24 仍写"主表仍用 planned（78.8/70.0/68.8）"；缺 v3/v4 期间新增的 6 个坑（nginx `?args`、`+.fastlydns.net`、PEP668、uv CPython tarball、vuls OOM 分片、轨迹审计方法论） | 高：会重复踩 |
-| **5** | `docs/LESSONS-20261102-v2.md` | §6"仍未修复"6 条里至少 2 条已修（uv installer 预置 `0744741`、摘要失败降级 `c5d2973`），未标记 | 中 |
-| **6** | `docs/EVALUATION-METHOD-REVIEW.md` / `EVALUATION-PLAN` | 基准权威性讨论停在 10-29，未纳入 OpenAI 2026 审计（SWE-bench Pro 公开 split ~30% 坏题、Verified ~60% 缺陷测试）| 中 |
+| # | 文档 | 问题 | 危害 | 状态 |
+|---|---|---|---|---|
+| **1** | `docs/STATUS.md` | 曾通篇停在 v2 三 agent、主表把 Codex 68.8% 当有效基线 | **最高** | ✅ 本轮重写（四组三口径 + 制品身份 + 模型身份 + 9 条局限）|
+| **2** | `docs/HANDOFF.md` | 曾同 §1，且"当前进度"写"v2 已完成" | **最高** | ✅ 本轮重写（v4 现状 + 17 条坑）|
+| **3** | `README.md` | 首段三 agent、索引缺 8 份新文档、"横向对比 vs Codex CLI" | 高 | ✅ 本轮更新 |
+| **4** | `AGENTS.md` | 坑 24 写"主表仍用 planned"；缺 6 个新坑；并发 4–6 已过时 | 高 | ✅ 本轮改坑 24 + 新增 27–32 + 并发改 2–4/重题 1 |
+| **5** | `docs/LESSONS-20261102-v2.md` | §6"仍未修复"多条已修未标记；内部 4 处数字与主文冲突 | 中 | ✅ 已回填状态；内部数字冲突见下条 |
+| **6** | `docs/PROTOCOL-V2.md` | §3 有 `infra`/`timeout` 类，**代码里没有**；§87 说 planned 是主报、strict 只作敏感性，与 v3 用 strict 排名冲突；§66 的 α/3 与四组 6 对比较不符 | **高** | ⚠️ 分类已修代码；口径与 α 待改文档 |
+| **7** | `docs/EVALUATION-PLAN-20261030.md` / `EXPERIMENT-DESIGN` | 三 agent 含 Codex、78.8/70.0/68.8、`max_output` 16000 vs 32000 自相矛盾、题集写 `sample-40.json`（实际 `-final`，换过 4 题）| 中 | ⚠️ 未改 |
+| **8** | `docs/ROUTING-DRIFT` / `ITERATION-WORKFLOW` | 把 `auto-hy3` 描述为「腾讯 hy3」，与 v3 的 DeepSeek 标注冲突（真实身份见 §5.5）| 中 | ⚠️ 需统一表述 |
+| **9** | `docs/record-schema.md` / `protocol.md` | `canonical_model = DeepSeek-V4.1-Flash` 与 `locked_agents.py` 的 `auto-hy3` 冲突（§5.5.3）| 中 | ⚠️ 未改 |
+| **10** | `docs/HARDWARE-ASSESSMENT` vs `SCALE-WITHOUT-UPGRADE` | 磁盘数字互斥（40GB vs 119GB；100 题 ❌ vs ✅）| 低 | ⚠️ 未改 |
 
 ## 7. 下一步优先级
 

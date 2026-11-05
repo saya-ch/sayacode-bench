@@ -56,6 +56,23 @@ def _find_patch(job: Path) -> Path | None:
     return None
 
 
+def _read_terminal(job: Path) -> str | None:
+    """读显式终态（`verifier/terminal.json` 的 status），与 formal.py 同源。
+
+    空 patch 跳过（`skipped_empty_patch`）这类终态在协议里按「观测到 0 分」计入，
+    不算 missing；只看 reward.txt 会把它们误判成缺失（v2/v3 期间实际发生过）。
+    """
+    for terminal in job.rglob("terminal.json"):
+        try:
+            payload = json.loads(terminal.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        status = payload.get("status") if isinstance(payload, dict) else None
+        if status:
+            return str(status)
+    return None
+
+
 def _collect(agent_dir: Path) -> tuple[dict[str, dict], int]:
     """收集一个 agent 的 trial：native 优先，native 无 reward 时由 verify 接管。"""
     trials: dict[str, dict] = {}
@@ -73,17 +90,21 @@ def _collect(agent_dir: Path) -> tuple[dict[str, dict], int]:
                     reward = reward_files[0].read_text(encoding="utf-8").strip()
                 except OSError:
                     reward = None
+            terminal = _read_terminal(job)
             if kind == "native":
-                trials[key] = {"job": job, "reward": reward, "kind": kind}
+                trials[key] = {"job": job, "reward": reward, "terminal": terminal, "kind": kind}
                 continue
             existing = trials.get(key)
             if existing is None:
-                trials[key] = {"job": job, "reward": reward, "kind": kind}
+                trials[key] = {"job": job, "reward": reward, "terminal": terminal, "kind": kind}
             elif existing["reward"] is None and reward is not None:
                 # native 无 reward 时由 verify 接管（与 formal.py 的合并口径一致）；
                 # patch 仍取 native job（verify 的 replay.json 指向它）。
                 existing["reward"] = reward
+                existing["terminal"] = terminal
                 existing["kind"] = "verify"
+            elif existing["terminal"] is None and terminal is not None:
+                existing["terminal"] = terminal
     planned = len(trials)
     return trials, planned
 
@@ -95,11 +116,16 @@ def analyse(agent_dir: Path, planned_total: int) -> dict:
     strict = 0
     snap_passes: list[str] = []
     missing_passes = 0
+    terminal_only: list[str] = []
     for key, info in sorted(trials.items()):
         reward = info["reward"]
-        if reward is None:
+        # 与 formal.py 的 Trial.observed 对齐：有 reward，或有显式终态（按 0 分计入观测）。
+        if reward is None and info.get("terminal") is None:
             continue
         observed += 1
+        if reward is None:
+            terminal_only.append(key)
+            continue
         if reward not in ("1", "1.0"):
             continue
         passes += 1
@@ -120,6 +146,7 @@ def analyse(agent_dir: Path, planned_total: int) -> dict:
         "strict_passes": strict,
         "snap_passes": len(snap_passes),
         "missing": planned_total - observed,
+        "terminal_only_trials": terminal_only,
         "snap_trial_keys": snap_passes,
         "pass_rate_planned": passes / planned_total if planned_total else 0.0,
         "pass_rate_observed": passes / observed if observed else 0.0,

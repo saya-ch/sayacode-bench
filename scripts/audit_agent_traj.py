@@ -27,8 +27,10 @@ PATTERNS = {
     "api_error": re.compile(r"API Error: (\d+)"),
     "websocket_405": re.compile(r"405 Method Not Allowed"),
     "unrecognized_model": re.compile(r"unrecognized_model"),
-    "tool_use": re.compile(r'"type":"tool_use"'),
-    "tool_result": re.compile(r'"type":"tool_result"'),
+    # JSON 分隔符在紧凑（`"type":"x"`）与 pretty（`"type": "x"`）两种落盘格式下不同，
+    # 必须容忍空白，否则只在一种格式的 trial 上命中（实测会让覆盖率掉到 50%）。
+    "tool_use": re.compile(r'"type"\s*:\s*"tool_use"'),
+    "tool_result": re.compile(r'"type"\s*:\s*"tool_result"'),
 }
 
 

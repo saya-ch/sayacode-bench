@@ -11,7 +11,7 @@
 | agent | planned | observed | **strict** | 缺失 | 题级 task-macro | bootstrap95 | 题级全通过 | snap pass |
 |---|---|---|---|---|---|---|---|---|
 | **SAYACODE** | **78.8%** (63/80) | 79.7% | **78.8%** | 1 | **80.8%** | [69.2, 91.0] | 29/39 = 74.4% | **0** |
-| **mini-swe** | 85.0% (68/80) | 87.2% | **80.0%** | 2 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% | 4 |
+| **mini-swe** | 85.0% (68/80) | 86.1% | **80.0%** | 1 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% | 4 |
 | **Claude Code** | 77.5% (62/80) | 78.5% | **73.8%** | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% | 3 |
 | **OpenCode** | 75.0% (60/80) | 75.0% | **67.5%** | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% | **6** |
 | ~~Codex CLI~~ | 68.8% | 69.6% | 65.0% | 1 | — | — | — | 3 | **不可比** |
@@ -21,6 +21,16 @@
 - **observed**（只含有 reward/终态的子集，单独报会高估）；
 - **strict** = planned 再扣掉「改 `__snapshots__/*.snap` 换来的 pass」（`tests/test.sh` 只重置测试**代码**，`.snap` 不重置）。
 - 三种口径给出**三种排名**（planned 上 mini-swe 领先 6.2pp；strict 上缩到 1.2pp）→ **报告必须三口径并列，不给单一排名**。
+
+### 2.0 补跑前后必须同报（协议 §6）
+
+| agent | 补跑前 | 补跑后 | 增量 | 根因 |
+|---|---|---|---|---|
+| SAYACODE | 67.5% | **78.8%** | +11.3pp | TLS / apt / 网络 |
+| mini-swe | **70.0%**（56/80）| **85.0%**（68/80）| **+15.0pp** | **全部是安装期网络失败**（`apt-get exit 100` 撞 Clash fake-ip；`NetworkConnectError`），agent 从未执行 |
+| Claude Code / OpenCode | — | 77.5% / 75.0% | — | 首跑即含修好的网络配置，无补跑 |
+
+**mini-swe 的领先（85.0% planned / 80.0% strict）建立在补跑 12 条之后**；那 12 条按语义是 `infra`（可补），但旧分类把它们记成 `empty_patch`（不补），造成「违反协议」的假象。证据与修复见 [RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)。
 
 ### 2.1 两两配对（题级全通过，McNemar exact）
 
@@ -70,7 +80,15 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 ## 5. 基建与产品状态
 
 - **产品**：HEAD `41b1e38`（3.2.7 已发布到 PyPI；3.2.5/3.2.6 未发布）。评测制品固定 3.2.5。
-- **模型**：hy3（`auto-hy3`），context 192,000 / `max_output_tokens=32000`（模型上限 64k）。hy3 **不接受 temperature**，可复现性靠固定来源 + 固定 seed + 重复次数。
+- **模型**：**hy3**（`auto-hy3`，网关 `owned_by=workbuddy`），context 192,000 / `max_output_tokens=32000`（模型上限 64k）。hy3 **不接受 temperature**，可复现性靠固定来源 + 固定 seed + 重复次数。
+
+### 5.1 模型身份与 served 分布（2026-11-05 更正）
+
+- ⚠️ **`auto-hy3` ≠ `auto/deepseek-v4.1-flash`**。网关 `/v1/models` 是两条独立记录：`auto/hy3`（`workbuddy`，192k/64k）与 `auto/deepseek-v4.1-flash`（`opencode-zen`，1M/200k）。本仓库早期文档（v3 报告初版、Codex/Claude Code 基线文档）把两者混为一谈，**已更正**。
+- 评测窗口（10-31 ~ 11-05）内 42681 条 Magpie usage 记录，四组基线的 `served` **全是 `hy3` / `hy3-x`，零 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。
+- **但 `hy3-x` 占比在组间差 6 倍**：mini-swe 35.2% / SAYACODE 14.3% / Claude Code 9.6% / OpenCode 5.3%。历史记录称 hy3 与 hy3-x 是同一模型的不同额度来源（用户确认，非网关元数据证明）。**这是未控制的组间混杂因素，必须随结论披露**。
+- 逐 trial 记录里 `canonical_model` 字段值是 `auto-hy3`（正确，没有被 src 的旧常量污染）。
+- 遗留隐患：`src/sayacode_bench/{connections,execution}.py` 的 `CANONICAL_MODEL = "DeepSeek-V4.1-Flash"` 是 v1 SiliconFlow 时代遗留（`study.py` 的 freeze 路径会用它校验 profile）；本批跑批走 `scripts/locked_agents.py` 的 `auto-hy3`，**两条路径的常量不一致，未统一**。
 - **基线**：mini-swe / Claude Code / OpenCode（Codex 作废）。协议全部走本地网关三路（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`）。
 - **跑批**：stage1 与 verify **串行**；轻题并发 2–4，vuls 等重题并发 1（单题 3.3GB，WSL 7GB 上限）；验证器限流 1；跑前 `docker network prune -f`。
 - **行为测试**：`uv run --no-sync pytest -q` → **1430 passed / 9 skipped**（2026-11-05 实测，190s）。

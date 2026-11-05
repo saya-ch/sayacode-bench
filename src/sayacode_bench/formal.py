@@ -32,8 +32,22 @@ from typing import Any
 from .artifacts import file_sha256
 
 SCHEMA_VERSION = 2
-MISSING_CLASSES = ("no_job", "empty_patch", "unverified", "model_fault", "unattributed")
+MISSING_CLASSES = ("no_job", "infra", "timeout", "empty_patch", "unverified", "model_fault", "unattributed")
 TERMINAL_EMPTY_PATCH = "skipped_empty_patch"
+
+# 安装/网络/镜像类异常 → `infra`（协议 §3 允许补跑）。
+# 只看 patch 字节数会把「agent 根本没装起来」误判成 `empty_patch`（= 能力问题、不补），
+# v2 的 mini-swe 8 条就是这样被错分类的：exception 里是 apt-get exit 100 / NetworkConnectError，
+# agent 从未执行，patch 自然为 0。证据见 docs/RETROSPECTIVE-20261105.md §5.6。
+INFRA_EXCEPTIONS = frozenset(
+    {
+        "NetworkConnectError",
+        "NonZeroAgentExitCodeError",
+        "DockerError",
+        "ImageNotFoundError",
+        "EnvironmentSetupError",
+    }
+)
 _REQUIRED_RE = re.compile(r"Required tests:\s*(\d+)")
 _REQUIRED_PASSED_RE = re.compile(r"Required tests that passed:\s*(\d+)")
 
@@ -69,6 +83,7 @@ class Trial:
     restored_tests: bool
     stripped_tests: bool
     faults: tuple[str, ...] = ()
+    exception_type: str | None = None
 
     @property
     def effective_reward(self) -> float | None:
@@ -195,6 +210,21 @@ def _read_reward(inner: Path) -> float | None:
         return float(reward_file.read_text(encoding="utf-8").strip())
     except (OSError, ValueError):
         return None
+
+
+def _read_exception_type(job: Path) -> str | None:
+    """读 job 级 `normalized.json` 的 `harbor_exception_type`（用于区分 infra 与能力缺失）。"""
+    record = job / "normalized.json"
+    if not record.is_file():
+        return None
+    try:
+        payload = json.loads(record.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(payload, Mapping):
+        return None
+    value = payload.get("harbor_exception_type")
+    return str(value) if value else None
 
 
 def _read_terminal(inner: Path) -> str | None:
@@ -364,6 +394,7 @@ def _collect_phase(
             restored_tests=restored,
             stripped_tests=stripped,
             faults=faults.get(fault_key, ()),
+            exception_type=_read_exception_type(job),
         )
     return collected
 
@@ -424,6 +455,9 @@ def classify_missing(trial: Trial | None) -> str | None:
         return None
     if trial is None:
         return "no_job"
+    if trial.exception_type in INFRA_EXCEPTIONS:
+        # 环境/网络/安装失败：agent 没真正执行，patch 为 0 不代表能力（协议 §3 可补）。
+        return "infra"
     if trial.faults:
         return "model_fault"
     if trial.patch_bytes is None or trial.patch_bytes == 0:

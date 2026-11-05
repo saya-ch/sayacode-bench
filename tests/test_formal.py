@@ -179,6 +179,49 @@ def test_classify_missing_directly() -> None:
     assert classify_missing(Trial(**{**base, "terminal": "skipped_empty_patch"})) is None
 
 
+def test_install_failure_is_infra_not_empty_patch(tmp_path: Path) -> None:
+    """安装期失败（apt 撞 fake-ip / NetworkConnect）必须归 infra（可补），不是 empty_patch（不补）。
+
+    回归背景：v2 的 mini-swe 有 8 条 apt/网络失败被记成 empty_patch，导致补跑看起来违反协议。
+    """
+    root = tmp_path / "results"
+    sample = write_sample(tmp_path / "sample.json")
+    job = make_job(root, "mini-swe", TASKS[0][0], 1)
+    (job / "normalized.json").write_text(
+        json.dumps({"harbor_exception_type": "NonZeroAgentExitCodeError"}), encoding="utf-8"
+    )
+
+    summary = summarize(root, sample=sample, repeats=1, agents=["mini-swe"])
+    counts = summary["agents"]["mini-swe"]["missing_counts"]
+
+    assert counts.get("infra") == 1, f"安装失败应归 infra，实得 {counts}"
+    assert "empty_patch" not in counts
+
+
+def test_infra_branch_covers_network_and_docker() -> None:
+    from sayacode_bench.formal import INFRA_EXCEPTIONS, Trial
+
+    base = dict(
+        agent="a",
+        job="j",
+        kind="native",
+        task_id="instance_x",
+        repository="r",
+        repeat=1,
+        reward=None,
+        terminal=None,
+        patch_bytes=0,
+        partial=None,
+        restored_tests=False,
+        stripped_tests=False,
+    )
+    for exception in ("NetworkConnectError", "DockerError", "ImageNotFoundError"):
+        assert exception in INFRA_EXCEPTIONS
+        assert classify_missing(Trial(**{**base, "exception_type": exception})) == "infra"
+    # 非 infra 类异常仍然走原有判定
+    assert classify_missing(Trial(**{**base, "exception_type": "ValueError"})) == "empty_patch"
+
+
 def test_restored_and_stripped_are_separate_flags(tmp_path: Path) -> None:
     sample = write_sample(tmp_path / "sample.json")
     root = tmp_path / "results"

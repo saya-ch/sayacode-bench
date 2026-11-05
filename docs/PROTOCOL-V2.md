@@ -81,18 +81,22 @@
 | agent | 主表 planned | 改 `.snap` 通过的 pass | 严格 planned% |
 |---|---|---|---|
 | SAYACODE | 78.8% | 0 | **78.8%** |
-| mini-swe | 70.0% | 4 | **65.0%** |
-| Codex | 68.8% | 3 | **65.0%** |
+| mini-swe | 85.0% | 4 | **80.0%** |
+| Claude Code | 77.5% | 3 | **73.8%** |
+| OpenCode | 75.0% | 6 | **67.5%** |
+| ~~Codex~~ | 68.8% | 3 | 65.0% | **整组作废，不参与排名** |
 
-- **主表仍用 planned（78.8 / 70.0 / 68.8）**；快照项作为**敏感性分析**单列，不替换主表。
-- 差距方向不变（SAYACODE 仍最高），但对 mini-swe 从 8.8pp 扩到 13.8pp、对 Codex 从 10.0pp 扩到 13.8pp；修订幅度有限，**不能把对手说成「一半靠改测试」**。
-- 依据与逐题明细：[TEST-EDIT-ANALYSIS-20261102.md](TEST-EDIT-ANALYSIS-20261102.md)。
+- **主报口径始终是 planned**（缺失按失败）；**strict 必须同表给出**（不得只给 planned 而不给 strict，也不得只给 strict）。
+- 允许在两套口径下分别排名，但必须并列展示，因为**三种口径给出三种排名**（planned 与 strict 下 mini-swe 对 SAYACODE 的领先从 6.2pp 缩到 1.2pp）。
+- 依据与逐题明细：[TEST-EDIT-ANALYSIS-20261102.md](TEST-EDIT-ANALYSIS-20261102.md)、[FORMAL-RESULTS-20261105-v3.md](FORMAL-RESULTS-20261105-v3.md)。
 - **报告要求**：每张成绩表附「改 `.snap` 通过的条数」与严格口径；**不得**用「patch 含测试文件」当作弊指标——它混入了大量会被 verifier 重置的无效改动。
+- **多重比较**：四组共 6 对比较，Bonferroni 校正后 α/6 ≈ 0.0083（三组时为 α/3 ≈ 0.0167）。报告必须写清「几对比较 × 哪个 α」，不能混用。
 
 ## 6. 补跑规则（v2 最大教训）
 
 - **可补**：`infra` / `no_job` / `unverified`——这些与模型能力无关，是环境噪声。
 - **不补**：`timeout` / `empty_patch`——属能力或行为，补跑等于给某 agent 额外机会，破坏可比性。
+- **`empty_patch` 必须先排除 infra**（2026-11-05 修正）：agent 安装失败（apt 撞 fake-ip、`NetworkConnectError`）时 patch 同样是 0 字节，但根因是环境，**必须判 `infra` 而不是 `empty_patch`**。判定方式是 job 级 `normalized.json` 的 `harbor_exception_type`；`formal.py:classify_missing` 已按此优先判 `infra`。v2 的 mini-swe 8 条曾因此被错分类（证据：[RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)）。
 - **补跑纪律**（LESSONS §2.6、§四）：
   1. 归档清单与 retry sample 必须**由同一份数据生成**（先列 job → 生成 sample → 归档），并核对数量，否则会出现「归档 28 个但 sample 只覆盖 8 题」。
   2. 补跑前后数字**同表并报**。v2 初始缺失 24 条（16 条环境/TLS/apt + 8 条 timeout），补跑后剩 **15 条**（SAYACODE 1 + mini-swe 14 + Codex 0）。补跑前后以**终版** [FORMAL-RESULTS-20261102-v2](FORMAL-RESULTS-20261102-v2.md) 为准：SAYACODE 67.5%→78.8%，mini-swe 47.5%→70.0%。（LESSONS §四 的「+21.3pp / +6pp」是定稿前的中间值，与终版 70.0% 略有差异，引用时以终版为准。）

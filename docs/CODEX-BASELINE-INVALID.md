@@ -37,7 +37,7 @@
 }
 ```
 
-`auto-hy3` 是 Magpie 网关上的 **DeepSeek-V4.1-Flash** 别名（`locked_agents.py: CANONICAL_MODEL = "auto-hy3"`）。
+`auto-hy3` 是 Magpie 网关上的 **hy3**（`owned_by=workbuddy`，192k/64k），**不是 DeepSeek-V4.1-Flash**——后者是网关上的另一个模型（`owned_by=opencode-zen`，1M/200k），评测窗口 42681 条 usage 里四组基线一次都没命中它（见 `FORMAL-RESULTS-20261105-v3.md` §五.6）。常量见 `locked_agents.py: CANONICAL_MODEL = "auto-hy3"`。
 三个 agent 统一用它，是「控制变量」设计；但 Codex CLI 的 system prompt、工具契约与推理格式是围绕 OpenAI 模型写死的。
 
 ### 轨迹原文（`agent/codex.txt`）

@@ -10,7 +10,7 @@
 - `unsupported call: apply_patch` 影响 **78/80 trial**（373 次）——system prompt 要求用
   `apply_patch`，运行时却未下发该工具；
 - `/v1/responses` websocket **405** 影响 **80/80 trial**（960 次重连）；
-- 模型统一为 `auto-hy3`（DeepSeek-V4.1-Flash），不是 Codex 调优的 OpenAI 模型。
+- 模型统一为 `auto-hy3`（**hy3**，`owned_by=workbuddy`；本文初版误标为 DeepSeek-V4.1-Flash，已更正），不是 Codex 调优的 OpenAI 模型。
 
 因此 68.75%（严格 65.0%）只能作为「本次适配条件下的观测值」。
 

@@ -65,6 +65,9 @@
 30. **uv 下 CPython 走 GitHub 会超时**：预下载 tarball 上传到 `/opt/uv-python` 再让 uv 指向本地，不要依赖容器内 `uv python install`。
 31. **重题会静默打爆 WSL**：vuls 单题 3.3GB，并发 2 × WSL 7GB → 进程被宿主 OOM 杀死，日志只剩心跳行（看起来像"卡住"）。用 `scripts/split_sample.py` 按重仓库分片，重题并发 1。
 32. **只看 `exception.txt` 会系统性低估适配缺陷**：必须跑 `scripts/audit_agent_traj.py` 做全量轨迹审计（unsupported call / API error / websocket 405 / tool_use 配平）。Codex 组（78/80 trial 的 `apply_patch` 不可用）就是这样判出整组作废的；只看 reward 会误判成"能力差"。
+33. **缺失分类不能只看 `patch_bytes`**：agent 安装失败（`apt-get exit 100` 撞 fake-ip、`NetworkConnectError`）时 patch 也是 0，但它属于 `infra`（可补），不是 `empty_patch`（不补）。v2 的 mini-swe 有 8 条就是这样被错分类的，导致「补跑」看起来违反协议。现 `formal.py:classify_missing` 读 `normalized.json: harbor_exception_type` 优先判 `infra`；`MISSING_CLASSES` 已对齐协议 7 类。
+34. **同一批数据必须只有一个口径来源**：`final_summary.py`（`formal.py` 语义）与 `strict_compare.py` 曾对同一批 trial 给出不同 missing/observed——因为后者不读 `terminal.json`，把「显式终态（`skipped_empty_patch`）」当缺失。现已对齐并有 `tests/test_strict_compare.py` 回归；改任一方必须两边同时改。
+35. **审计正则要容忍两种 JSON 落盘格式**：`"type":"tool_use"` 与 `"type": "tool_use"` 在同一批 trial 里并存，正则不容空白会让覆盖率掉到 50%（Claude Code 曾只审计到 40/80 trial）。用 `"type"\s*:\s*"tool_use"`。
 
 ## 目录速览
 
