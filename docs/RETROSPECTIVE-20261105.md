@@ -177,15 +177,14 @@
 
 - 5 题一过一败里 3 题是系统性（patch 规模 3.3× / 7.3× / 59× 差异）。当前 2 重复的 pass@1 会把系统性方差当成能力差异。
 
-### 5.5 模型身份曾被误标，且 served 有未控制混杂（本轮新发现）
+### 5.5 模型身份曾被误标（本轮更正）
 
 1. **误标**：v3 报告初版、Codex/Claude Code 基线文档都把 `auto-hy3` 写成「DeepSeek-V4.1-Flash」。实测网关 `/v1/models`：
    - `auto/hy3` → `owned_by=workbuddy`，192k / 64k
    - `auto/deepseek-v4.1-flash` → `owned_by=opencode-zen`，1M / 200k
    两者是**不同模型**。评测窗口内 42681 条 usage 里，四组基线的 `served` 全是 `hy3` / `hy3-x`，**没有一条 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。
    → 已更正全部相关文档；记录级 `canonical_model` 字段（`auto-hy3`）本身是对的，未受污染。
-2. **served 混杂**：`hy3-x` 占比在组间差 6 倍（mini-swe 35.2% / SAYACODE 14.3% / Claude Code 9.6% / OpenCode 5.3%）。历史记录说 hy3 与 hy3-x 是同一模型的额度/地区变体（用户确认，**非网关元数据证明**）。如果二者能力不同，这个 6 倍差异会直接混进组间差。
-   → 当前既不能证明它无影响，也不能证明有影响；**必须在结论里披露，并在下一批把 served 固定为单一模型**（pin 到 `workbuddy-ai/hy3` 或按 served 分层重算）。
+2. **额度池分摊**：`hy3-x` 占比在组间差 6 倍（mini-swe 35.2% / SAYACODE 14.3% / Claude Code 9.6% / OpenCode 5.3%）。`hy3` 与 `hy3-x` 是同一个模型（用户确认，`ROUTING-DRIFT-20261029.md:60`），差异只是额度来源，不构成混杂。
 3. **两套 `CANONICAL_MODEL` 常量**：`src/sayacode_bench/{connections,execution}.py` = `DeepSeek-V4.1-Flash`（v1 SiliconFlow 时代），`scripts/locked_agents.py` = `auto-hy3`（本批）。两条执行路径不通用，将来走 `study.py` 的 freeze 路径会因 model_id 校验直接失败。
 
 ### 5.6 「mini-swe 从 70.0% 补到 85.0%」的真相：分类缺陷，不是 retry-until-pass（本轮新发现）

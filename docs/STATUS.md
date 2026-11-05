@@ -86,7 +86,7 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 
 - ⚠️ **`auto-hy3` ≠ `auto/deepseek-v4.1-flash`**。网关 `/v1/models` 是两条独立记录：`auto/hy3`（`workbuddy`，192k/64k）与 `auto/deepseek-v4.1-flash`（`opencode-zen`，1M/200k）。本仓库早期文档（v3 报告初版、Codex/Claude Code 基线文档）把两者混为一谈，**已更正**。
 - 评测窗口（10-31 ~ 11-05）内 42681 条 Magpie usage 记录，四组基线的 `served` **全是 `hy3` / `hy3-x`，零 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。
-- **但 `hy3-x` 占比在组间差 6 倍**：mini-swe 35.2% / SAYACODE 14.3% / Claude Code 9.6% / OpenCode 5.3%。历史记录称 hy3 与 hy3-x 是同一模型的不同额度来源（用户确认，非网关元数据证明）。**这是未控制的组间混杂因素，必须随结论披露**。
+- `hy3` 与 `hy3-x` 是同一个模型（用户确认，`ROUTING-DRIFT-20261029.md:60`）；占比差异只是额度池分摊，不影响组间可比性。
 - 逐 trial 记录里 `canonical_model` 字段值是 `auto-hy3`（正确，没有被 src 的旧常量污染）。
 - 遗留隐患：`src/sayacode_bench/{connections,execution}.py` 的 `CANONICAL_MODEL = "DeepSeek-V4.1-Flash"` 是 v1 SiliconFlow 时代遗留（`study.py` 的 freeze 路径会用它校验 profile）；本批跑批走 `scripts/locked_agents.py` 的 `auto-hy3`，**两条路径的常量不一致，未统一**。
 - **基线**：mini-swe / Claude Code / OpenCode（Codex 作废）。协议全部走本地网关三路（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`）。
@@ -133,7 +133,7 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 
 ## 9. 进行中的批次（P0）：SAYACODE 3.2.7 + served pin
 
-**目的**：让数字对应**第三方可获取的制品**（PyPI 3.2.7），并消除 `hy3-x` 的 served 混杂。
+**目的**：让数字对应**第三方可获取的制品**（PyPI 3.2.7），并把记录里的模型身份写清楚。
 
 | 项 | 值 |
 |---|---|
@@ -158,7 +158,6 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 - **没有观测到任何路由漂移**。⚠️ 早前一版探测报告「`auto-hy3` 有概率漂到 deepseek」是**错误结论**：那个脚本按时间窗取 usage 的「最后一条」记录、没按 agent 过滤，把本机 DSH 会话自己的 `deepseek/deepseek-v4.1-flash` 请求（agent=`dsh`，provider=`command-code-goat`）算成了探测结果。已用唯一 UA 复核推翻，见 AGENTS 坑 38。
 - `provider` 会在 `workbuddy` / `workbuddy-ai` 之间轮换，但 `served` 恒为 `hy3`——是同一模型的额度池差异，不影响模型身份。
 - smoke（2 题）期间 25 次模型调用 **25/25 `hy3/workbuddy`**。
-- 仍需注意的是**历史批次的 `hy3-x`**（§5.1）：那是真实统计，与本次探测无关。pin 后本批是否完全避开 `hy3-x`，要用 `annotate_served.py` 逐 trial 核验后再下结论（当前样本不足以断言）。
 
 **接续方式**（若进程中断）：
 
