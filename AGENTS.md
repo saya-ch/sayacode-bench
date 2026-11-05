@@ -68,6 +68,8 @@
 33. **缺失分类不能只看 `patch_bytes`**：agent 安装失败（`apt-get exit 100` 撞 fake-ip、`NetworkConnectError`）时 patch 也是 0，但它属于 `infra`（可补），不是 `empty_patch`（不补）。v2 的 mini-swe 有 8 条就是这样被错分类的，导致「补跑」看起来违反协议。现 `formal.py:classify_missing` 读 `normalized.json: harbor_exception_type` 优先判 `infra`；`MISSING_CLASSES` 已对齐协议 7 类。
 34. **同一批数据必须只有一个口径来源**：`final_summary.py`（`formal.py` 语义）与 `strict_compare.py` 曾对同一批 trial 给出不同 missing/observed——因为后者不读 `terminal.json`，把「显式终态（`skipped_empty_patch`）」当缺失。现已对齐并有 `tests/test_strict_compare.py` 回归；改任一方必须两边同时改。
 35. **审计正则要容忍两种 JSON 落盘格式**：`"type":"tool_use"` 与 `"type": "tool_use"` 在同一批 trial 里并存，正则不容空白会让覆盖率掉到 50%（Claude Code 曾只审计到 40/80 trial）。用 `"type"\s*:\s*"tool_use"`。
+36. **长跑批不能用 agent 会话的后台 job**：会话重启/重连会把 job object 里的子进程一起杀掉——表现为日志在某时刻停写、进程全无、**没有 traceback**、容器也被清（实测跑了 5 个 trial 就没了）。长跑批必须用**脱离进程树**的方式启动：`Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c <launcher.cmd>'}`（父进程变成 WmiPrvSE），launcher 里还要**显式设 PATH**（WMI 进程不继承交互会话的 PATH，`uv`/`docker` 会找不到）。范例：`C:\sb\tmp\launch-v4-327.cmd`。
+37. **日志只剩心跳 + 进度不动 = 进程已死，不是卡住**：先比 `log.LastWriteTime` 与当前时间，再看 `Win32_Process` 里还有没有 `run_formal_240`；有残留 job 目录不代表进程活着。恢复用 `--skip-existing`（认「有 reward 或 有 patch」都跳过，见坑 3），已完成的 trial 不必重跑。
 
 ## 目录速览
 
