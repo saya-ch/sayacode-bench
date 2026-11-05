@@ -31,7 +31,11 @@ from harbor.environments.base import BaseEnvironment  # noqa: E402
 from harbor.models.agent.context import AgentContext  # noqa: E402
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
 
-CANONICAL_MODEL = "auto-hy3"
+# 规范模型身份：默认与历史批次一致的 `auto-hy3`；pin 到固定来源时用
+# `SAYACODE_BENCH_CANONICAL_MODEL=workbuddy/hy3` 覆盖，使记录与实际 served 对齐。
+# 背景：`auto-hy3` 是组路由，实测有概率漂到 `deepseek/deepseek-v4.1-flash`
+# （见 docs/RETROSPECTIVE-20261105.md §5.5）。
+CANONICAL_MODEL = os.environ.get("SAYACODE_BENCH_CANONICAL_MODEL", "auto-hy3")
 # v3 基线：Codex 因 apply_patch 工具契约与 /v1/responses websocket 405 全组失效
 # （见 docs/CODEX-BASELINE-INVALID.md），第三个基线换为 Claude Code（/v1/messages 原生协议）。
 # "codex" 分支仍保留在 build_agent 中，供 v2 历史结果复现。
