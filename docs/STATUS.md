@@ -145,11 +145,20 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 | 启动器 | `C:\sb\tmp\launch-v4-327.cmd`（WMI 创建，脱离会话进程树，见 AGENTS 坑 36）|
 | 日志 | `C:\sb\hard\v4-327-run2.log` |
 
-**served pin 的实测依据**（8 次 `/v1/messages` 探测 + smoke 25 次调用）：
+**served pin 的实测依据**（严格可归因探测：每次请求带唯一 `User-Agent: sayaprobe`，只统计自己的 usage 记录）：
 
-- `auto-hy3` 有概率漂到 `deepseek/deepseek-v4.1-flash`（实测 1/6 与 1/8 两次都出现）；
-- `workbuddy/hy3` 在 `/v1/messages` 上 8/8 稳定，smoke 的 25 次调用 **25/25 `hy3/workbuddy`**；
-- 但**没有**任何 model_id 能 100% 保证（`workbuddy-ai/hy3` 也有 1/8 漂移）→ 跑完必须用 `annotate_served.py` 逐 trial 核验，漂移的 trial 单独标注。
+| model_id | 协议 | served 结果 |
+|---|---|---|
+| `auto-hy3` | `/v1/messages` | **8/8 = hy3** |
+| `workbuddy/hy3` | `/v1/messages` | **8/8 = hy3** |
+| `workbuddy-ai/hy3` | `/v1/messages` | **8/8 = hy3** |
+| `auto-hy3` | `/v1/chat/completions` | **8/8 = hy3**（provider workbuddy / workbuddy-ai 各半）|
+| `workbuddy/hy3` | `/v1/chat/completions` | **8/8 = hy3** |
+
+- **没有观测到任何路由漂移**。⚠️ 早前一版探测报告「`auto-hy3` 有概率漂到 deepseek」是**错误结论**：那个脚本按时间窗取 usage 的「最后一条」记录、没按 agent 过滤，把本机 DSH 会话自己的 `deepseek/deepseek-v4.1-flash` 请求（agent=`dsh`，provider=`command-code-goat`）算成了探测结果。已用唯一 UA 复核推翻，见 AGENTS 坑 38。
+- `provider` 会在 `workbuddy` / `workbuddy-ai` 之间轮换，但 `served` 恒为 `hy3`——是同一模型的额度池差异，不影响模型身份。
+- smoke（2 题）期间 25 次模型调用 **25/25 `hy3/workbuddy`**。
+- 仍需注意的是**历史批次的 `hy3-x`**（§5.1）：那是真实统计，与本次探测无关。pin 后本批是否完全避开 `hy3-x`，要用 `annotate_served.py` 逐 trial 核验后再下结论（当前样本不足以断言）。
 
 **接续方式**（若进程中断）：
 
