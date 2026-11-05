@@ -1,0 +1,85 @@
+{
+  "pro-v2": {
+    "pool": 642,
+    "quota": 160,
+    "picked": 160,
+    "strata": {
+      "ansible": 20,
+      "openlibrary": 20,
+      "flipt": 19,
+      "qutebrowser": 18,
+      "teleport": 17,
+      "webclients": 14,
+      "vuls": 15,
+      "navidrome": 13,
+      "NodeBB": 10,
+      "element": 13,
+      "tutanota": 1
+    }
+  },
+  "promax": {
+    "pool": 170,
+    "quota": 100,
+    "picked": 100,
+    "strata": {
+      "java:files>15": 4,
+      "c:files<=5": 4,
+      "c:files6-15": 5,
+      "python:files>15": 2,
+      "c++:files<=5": 5,
+      "python:files<=5": 6,
+      "java:files6-15": 5,
+      "go:files>15": 3,
+      "typescript:files>15": 3,
+      "typescript:files<=5": 7,
+      "go:files6-15": 5,
+      "typescript:files6-15": 6,
+      "java:files<=5": 6,
+      "go:files<=5": 5,
+      "rust:files6-15": 3,
+      "c++:files>15": 3,
+      "rust:files>15": 3,
+      "python:files6-15": 9,
+      "c++:files6-15": 6,
+      "rust:files<=5": 7,
+      "c:files>15": 3
+    }
+  },
+  "swe-evo": {
+    "pool": 48,
+    "quota": 40,
+    "picked": 32,
+    "strata": {
+      "iterative/dvc": 10,
+      "dask/dask": 8,
+      "modin-project/modin": 3,
+      "psf/requests": 4,
+      "pydantic/pydantic": 3,
+      "conan-io/conan": 2,
+      "scikit-learn/scikit-learn": 2
+    }
+  },
+  "tb21": {
+    "pool": 81,
+    "quota": 20,
+    "picked": 20,
+    "strata": {
+      "system-administration": 2,
+      "software-engineering": 4,
+      "data-science": 1,
+      "file-operations": 1,
+      "machine-learning": 1,
+      "mathematics": 1,
+      "model-training": 1,
+      "games": 1,
+      "scientific-computing": 1,
+      "security": 1,
+      "video-processing": 1,
+      "data-processing": 1,
+      "debugging": 1,
+      "optimization": 1,
+      "personal-assistant": 1,
+      "data-querying": 1
+    }
+  }
+}
