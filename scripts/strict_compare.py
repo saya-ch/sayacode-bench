@@ -18,7 +18,6 @@ import argparse
 import json
 import os
 import re
-from collections import Counter
 from pathlib import Path
 
 SNAP_RE = re.compile(r"(__snapshots__/.*\.snap$|\.snap$)", re.IGNORECASE)

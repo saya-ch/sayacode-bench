@@ -4,14 +4,17 @@
 
 Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续运行生产应用里的 LangChain / LangGraph 图、工具、检查点与异步子任务。两者用独立 Python 环境，避免评测依赖覆盖产品依赖。
 
-**当前状态：v2 已完成，开发期诊断。** 三 agent planned **78.8% / 70.0% / 68.8%**（80 分母，缺失按失败），task_macro **80.8% / 84.8% / 68.8%**，缺失 15 条已分类；题级 McNemar 校正后均不显著，**不能声称谁更强**；`task_count` 全 0，本批不能评价多 agent。v1 结论仍作废（见 [archive](docs/archive/README.md)）。详见 [STATUS](docs/STATUS.md)、[v2 结果](docs/FORMAL-RESULTS-20261102-v2.md)。
+**当前状态：v4 已完成，四组基线定稿。** 40 题 × 2 重复，planned **78.8% / 85.0% / 77.5% / 75.0%**、strict **78.8% / 80.0% / 73.8% / 67.5%**（SAYACODE / mini-swe / Claude Code / OpenCode，80 分母、缺失按失败）；两两 McNemar **全部不显著（p ≥ 0.070）**，**不能声称谁更强**。Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评价多 agent；v1 结论仍作废（见 [archive](docs/archive/README.md)）。
+
+**两个必须随结论声明的事实**：① SAYACODE 数字跑的是**本地构建的 3.2.5 wheel**，PyPI 上从未发布 3.2.5/3.2.6（最新 3.2.7）；② 40 题是**开发迭代集**（题面中位 2 文件 / 64 行），SAYACODE 的提示词规则正是从这套题调出来的，**独立 holdout 从未执行**。详见 [STATUS](docs/STATUS.md) §3/§6、[RETROSPECTIVE](docs/RETROSPECTIVE-20261105.md)、[四组结果](docs/FORMAL-RESULTS-20261105-v3.md)。
 
 ## 文档索引（只列现行文档）
 
 | 文档 | 内容 |
 |---|---|
-| **[HANDOFF](docs/HANDOFF.md)** | **接手必读**：v2 进度、关键事实、环境、坑、下一步 |
-| **[STATUS](docs/STATUS.md)** | **当前真实状态**：已核实数字、作废结论、已知局限、下一步 |
+| **[RETROSPECTIVE](docs/RETROSPECTIVE-20261105.md)** | **历史全景**：v1→v4 六阶段演进、结论账本（能说/不能说/已作废）、文档债、方法论四个洞 |
+| **[STATUS](docs/STATUS.md)** | **当前真实状态**：四组终版数字、制品身份、作废结论、已知局限、下一步 |
+| **[HANDOFF](docs/HANDOFF.md)** | **接手必读**：进度、关键事实、环境、坑、下一步 |
 | **[评测方案](docs/EVALUATION-PLAN-20261030.md)** | 总纲：目标 / 基准 / 题集 / 模型 / 指标 / 方法 / 三 agent |
 | [实验设计](docs/EXPERIMENT-DESIGN-20261030.md) | 从研究问题到执行协议的完整设计 |
 | [调优迭代工作流](docs/ITERATION-WORKFLOW.md) | 三层金字塔、指标体系、Go/No-Go、跑前汇报配置 |
@@ -30,6 +33,14 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [协作场景验证](docs/COLLABORATION-CHECK-20261102.md) | team/single 小样本；autonomous 题 task_count=0 的原因 |
 | [task_count 归因](docs/TASKCOUNT-ATTRIBUTION.md) | 团队工具链完好；显式分工题下 task_count=2，及提示/开关一致性 bug |
 | [v2 深挖分析](docs/DEEP-DIVE-20261102.md) | 方差轨迹、element-hq 归因、语义 diff、成本-部分相关、磁盘盘点 |
+| **[v4 四组结果](docs/FORMAL-RESULTS-20261105-v3.md)** | **当前正式结果**：四组三口径、六组 McNemar、适配健康度、必须标注的限制 |
+| [Codex 组作废](docs/CODEX-BASELINE-INVALID.md) | 整组不可比的证据：apply_patch 不可用 373 次、websocket 405 960 次 |
+| [Claude Code 基线](docs/CLAUDE-CODE-BASELINE.md) | 第三基线接入：`/v1/messages` 原生协议、nginx `?beta=true` 拦截修复、结果 |
+| [OpenCode 基线](docs/OPENCODE-BASELINE.md) | 第四基线接入：provider-agnostic 说明（无自家模型）、预置二进制、结果 |
+| [预算方案](docs/BUDGET-50-PLAN.md) | ¥50 上限下能做什么：本地免费跑 + 云小样本验证 |
+| [云成本估算](docs/CLOUD-COST-ESTIMATE.md) | 机器 vs 模型 token 的成本拆解（结论：付费 API 方案超预算）|
+| [硬件评估](docs/HARDWARE-ASSESSMENT-20261103.md) | CPU 过剩、内存/磁盘限制扩样与并发 |
+| [不升级硬件的扩样](docs/SCALE-WITHOUT-UPGRADE.md) | 保留 40 题镜像 + 每片 20 题滚动的可行路径 |
 
 ## 固定基准
 
@@ -89,7 +100,10 @@ uv run --no-sync mypy
 |---|---|
 | 题集清单 | `studies/sample-40-final.json`（40 题开发迭代集）|
 | 阶段1 解题 | `python scripts/run_formal_240.py --out <dir> --repeats 2 --skip-verifier --concurrency 4` |
-| 阶段2 验证 | `python scripts/verify_patches.py --out <dir> --agents sayacode mini-swe codex --concurrency 4` |
+| 阶段2 验证 | `python scripts/verify_patches.py --out <dir> --agents sayacode mini-swe claude-code opencode --concurrency 4` |
+| 严格口径对比 | `python scripts/strict_compare.py`（planned/observed/strict 三口径 + 题级配对）|
+| 轨迹适配审计 | `python scripts/audit_agent_traj.py`（全量轨迹，抓 unsupported call / API error / 协议缺陷）|
+| 重题分片 | `python scripts/split_sample.py --heavy-repo future-architect`（vuls 单题 3.3GB，必须分片 + 并发 1）|
 | 汇总 | `python scripts/final_summary.py` |
 | 指标记分卡 | `python scripts/analyze_trials.py <jobs目录>` |
 | 配对统计 | `python scripts/compare_trials.py <A_jobs> <B_jobs>` |
@@ -101,7 +115,7 @@ uv run --no-sync mypy
 
 历史一次性工具与「被测试/代码身份绑定、不可移动」的脚本见 [scripts/README.md](scripts/README.md)。
 
-横向对比：SAYACODE vs mini-swe-agent vs Codex CLI（同 hy3）。对比时**分母必须统一为 planned 80**（缺失按失败，主报 planned），不换分母。
+横向对比：SAYACODE vs mini-swe-agent vs **Claude Code** vs **OpenCode**（同 hy3）。对比时**分母必须统一为 planned 80**（缺失按失败，主报 planned），**并同时给 strict 口径**（扣除改 `.snap` 快照换来的 pass）；不给单一排名。Codex 组已作废，不参与对比。
 
 ## 证据与结果原则
 
