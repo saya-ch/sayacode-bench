@@ -4,7 +4,7 @@
   "source": "tb21",
   "seed": "20261105-large-eval",
   "repeats": 1,
-  "size": 20,
+  "size": 10,
   "tasks": [
     {
       "task_id": "tb21/qemu-alpine-ssh",
@@ -37,16 +37,6 @@
       "memory_mb": 4096
     },
     {
-      "task_id": "tb21/extract-moves-from-video",
-      "native_id": "extract-moves-from-video",
-      "source": "tb21",
-      "repo": "extract-moves-from-video",
-      "stratum": "file-operations",
-      "category": "file-operations",
-      "difficulty": "hard",
-      "memory_mb": 2048
-    },
-    {
       "task_id": "tb21/llm-inference-batching-scheduler",
       "native_id": "llm-inference-batching-scheduler",
       "source": "tb21",
@@ -57,62 +47,12 @@
       "memory_mb": 2048
     },
     {
-      "task_id": "tb21/model-extraction-relu-logits",
-      "native_id": "model-extraction-relu-logits",
-      "source": "tb21",
-      "repo": "model-extraction-relu-logits",
-      "stratum": "mathematics",
-      "category": "mathematics",
-      "difficulty": "hard",
-      "memory_mb": 2048
-    },
-    {
-      "task_id": "tb21/prove-plus-comm",
-      "native_id": "prove-plus-comm",
-      "source": "tb21",
-      "repo": "prove-plus-comm",
-      "stratum": "software-engineering",
-      "category": "software-engineering",
-      "difficulty": "easy",
-      "memory_mb": 2048
-    },
-    {
       "task_id": "tb21/pytorch-model-cli",
       "native_id": "pytorch-model-cli",
       "source": "tb21",
       "repo": "pytorch-model-cli",
       "stratum": "model-training",
       "category": "model-training",
-      "difficulty": "medium",
-      "memory_mb": 2048
-    },
-    {
-      "task_id": "tb21/winning-avg-corewars",
-      "native_id": "winning-avg-corewars",
-      "source": "tb21",
-      "repo": "winning-avg-corewars",
-      "stratum": "software-engineering",
-      "category": "software-engineering",
-      "difficulty": "medium",
-      "memory_mb": 2048
-    },
-    {
-      "task_id": "tb21/chess-best-move",
-      "native_id": "chess-best-move",
-      "source": "tb21",
-      "repo": "chess-best-move",
-      "stratum": "games",
-      "category": "games",
-      "difficulty": "medium",
-      "memory_mb": 2048
-    },
-    {
-      "task_id": "tb21/build-pov-ray",
-      "native_id": "build-pov-ray",
-      "source": "tb21",
-      "repo": "build-pov-ray",
-      "stratum": "software-engineering",
-      "category": "software-engineering",
       "difficulty": "medium",
       "memory_mb": 2048
     },
@@ -127,16 +67,6 @@
       "memory_mb": 4096
     },
     {
-      "task_id": "tb21/vulnerable-secret",
-      "native_id": "vulnerable-secret",
-      "source": "tb21",
-      "repo": "vulnerable-secret",
-      "stratum": "security",
-      "category": "security",
-      "difficulty": "medium",
-      "memory_mb": 2048
-    },
-    {
       "task_id": "tb21/video-processing",
       "native_id": "video-processing",
       "source": "tb21",
@@ -144,16 +74,6 @@
       "stratum": "video-processing",
       "category": "video-processing",
       "difficulty": "hard",
-      "memory_mb": 2048
-    },
-    {
-      "task_id": "tb21/sqlite-with-gcov",
-      "native_id": "sqlite-with-gcov",
-      "source": "tb21",
-      "repo": "sqlite-with-gcov",
-      "stratum": "system-administration",
-      "category": "system-administration",
-      "difficulty": "medium",
       "memory_mb": 2048
     },
     {
@@ -167,16 +87,6 @@
       "memory_mb": 2048
     },
     {
-      "task_id": "tb21/merge-diff-arc-agi-task",
-      "native_id": "merge-diff-arc-agi-task",
-      "source": "tb21",
-      "repo": "merge-diff-arc-agi-task",
-      "stratum": "debugging",
-      "category": "debugging",
-      "difficulty": "medium",
-      "memory_mb": 4096
-    },
-    {
       "task_id": "tb21/portfolio-optimization",
       "native_id": "portfolio-optimization",
       "source": "tb21",
@@ -185,16 +95,6 @@
       "category": "optimization",
       "difficulty": "medium",
       "memory_mb": 4096
-    },
-    {
-      "task_id": "tb21/constraints-scheduling",
-      "native_id": "constraints-scheduling",
-      "source": "tb21",
-      "repo": "constraints-scheduling",
-      "stratum": "personal-assistant",
-      "category": "personal-assistant",
-      "difficulty": "medium",
-      "memory_mb": 2048
     },
     {
       "task_id": "tb21/sparql-university",

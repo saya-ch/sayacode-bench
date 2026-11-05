@@ -4,7 +4,7 @@
   "source": "swe-evo",
   "seed": "20261105-large-eval",
   "repeats": 1,
-  "size": 32,
+  "size": 15,
   "tasks": [
     {
       "task_id": "swe-evo/iterative__dvc_3.12.0_3.13.0",
@@ -117,42 +117,12 @@
       "memory_mb": 0
     },
     {
-      "task_id": "swe-evo/iterative__dvc_0.35.3_0.35.4",
-      "native_id": "iterative__dvc_0.35.3_0.35.4",
-      "source": "swe-evo",
-      "repo": "iterative/dvc",
-      "stratum": "iterative/dvc",
-      "file_count": 6,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
       "task_id": "swe-evo/psf__requests_v2.27.0_v2.27.1",
       "native_id": "psf__requests_v2.27.0_v2.27.1",
       "source": "swe-evo",
       "repo": "psf/requests",
       "stratum": "psf/requests",
       "file_count": 3,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/psf__requests_v2.4.0_v2.4.1",
-      "native_id": "psf__requests_v2.4.0_v2.4.1",
-      "source": "swe-evo",
-      "repo": "psf/requests",
-      "stratum": "psf/requests",
-      "file_count": 12,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/iterative__dvc_0.33.1_0.34.0",
-      "native_id": "iterative__dvc_0.33.1_0.34.0",
-      "source": "swe-evo",
-      "repo": "iterative/dvc",
-      "stratum": "iterative/dvc",
-      "file_count": 29,
       "difficulty": "long-horizon",
       "memory_mb": 0
     },
@@ -167,16 +137,6 @@
       "memory_mb": 0
     },
     {
-      "task_id": "swe-evo/dask__dask_2023.6.0_2023.6.1",
-      "native_id": "dask__dask_2023.6.0_2023.6.1",
-      "source": "swe-evo",
-      "repo": "dask/dask",
-      "stratum": "dask/dask",
-      "file_count": 33,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
       "task_id": "swe-evo/conan-io__conan_2.0.14_2.0.15",
       "native_id": "conan-io__conan_2.0.14_2.0.15",
       "source": "swe-evo",
@@ -187,142 +147,12 @@
       "memory_mb": 0
     },
     {
-      "task_id": "swe-evo/dask__dask_2023.9.2_2023.9.3",
-      "native_id": "dask__dask_2023.9.2_2023.9.3",
-      "source": "swe-evo",
-      "repo": "dask/dask",
-      "stratum": "dask/dask",
-      "file_count": 11,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/dask__dask_2024.1.0_2024.1.1",
-      "native_id": "dask__dask_2024.1.0_2024.1.1",
-      "source": "swe-evo",
-      "repo": "dask/dask",
-      "stratum": "dask/dask",
-      "file_count": 32,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/pydantic__pydantic_v2.7.0_v2.7.1",
-      "native_id": "pydantic__pydantic_v2.7.0_v2.7.1",
-      "source": "swe-evo",
-      "repo": "pydantic/pydantic",
-      "stratum": "pydantic/pydantic",
-      "file_count": 19,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/modin-project__modin_0.25.0_0.25.1",
-      "native_id": "modin-project__modin_0.25.0_0.25.1",
-      "source": "swe-evo",
-      "repo": "modin-project/modin",
-      "stratum": "modin-project/modin",
-      "file_count": 6,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/conan-io__conan_2.0.2_2.0.3",
-      "native_id": "conan-io__conan_2.0.2_2.0.3",
-      "source": "swe-evo",
-      "repo": "conan-io/conan",
-      "stratum": "conan-io/conan",
-      "file_count": 48,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/modin-project__modin_0.27.0_0.27.1",
-      "native_id": "modin-project__modin_0.27.0_0.27.1",
-      "source": "swe-evo",
-      "repo": "modin-project/modin",
-      "stratum": "modin-project/modin",
-      "file_count": 11,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/dask__dask_2024.3.1_2024.4.0",
-      "native_id": "dask__dask_2024.3.1_2024.4.0",
-      "source": "swe-evo",
-      "repo": "dask/dask",
-      "stratum": "dask/dask",
-      "file_count": 12,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/psf__requests_v2.9.0_v2.9.1",
-      "native_id": "psf__requests_v2.9.0_v2.9.1",
-      "source": "swe-evo",
-      "repo": "psf/requests",
-      "stratum": "psf/requests",
-      "file_count": 7,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/dask__dask_2023.6.1_2023.7.0",
-      "native_id": "dask__dask_2023.6.1_2023.7.0",
-      "source": "swe-evo",
-      "repo": "dask/dask",
-      "stratum": "dask/dask",
-      "file_count": 9,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
       "task_id": "swe-evo/scikit-learn__scikit-learn_0.20.1_0.20.2",
       "native_id": "scikit-learn__scikit-learn_0.20.1_0.20.2",
       "source": "swe-evo",
       "repo": "scikit-learn/scikit-learn",
       "stratum": "scikit-learn/scikit-learn",
       "file_count": 31,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/dask__dask_2023.3.2_2023.4.0",
-      "native_id": "dask__dask_2023.3.2_2023.4.0",
-      "source": "swe-evo",
-      "repo": "dask/dask",
-      "stratum": "dask/dask",
-      "file_count": 66,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/psf__requests_v2.12.2_v2.12.3",
-      "native_id": "psf__requests_v2.12.2_v2.12.3",
-      "source": "swe-evo",
-      "repo": "psf/requests",
-      "stratum": "psf/requests",
-      "file_count": 3,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/scikit-learn__scikit-learn_0.21.1_0.21.2",
-      "native_id": "scikit-learn__scikit-learn_0.21.1_0.21.2",
-      "source": "swe-evo",
-      "repo": "scikit-learn/scikit-learn",
-      "stratum": "scikit-learn/scikit-learn",
-      "file_count": 14,
-      "difficulty": "long-horizon",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "swe-evo/pydantic__pydantic_v2.7.1_v2.7.2",
-      "native_id": "pydantic__pydantic_v2.7.1_v2.7.2",
-      "source": "swe-evo",
-      "repo": "pydantic/pydantic",
-      "stratum": "pydantic/pydantic",
-      "file_count": 7,
       "difficulty": "long-horizon",
       "memory_mb": 0
     }

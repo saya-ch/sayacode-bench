@@ -4,7 +4,7 @@
   "source": "promax",
   "seed": "20261105-large-eval",
   "repeats": 1,
-  "size": 100,
+  "size": 35,
   "tasks": [
     {
       "task_id": "promax/plantuml__plantuml-c_c910f8b",
@@ -117,17 +117,6 @@
       "memory_mb": 0
     },
     {
-      "task_id": "promax/betaflight__betaflight-14229",
-      "native_id": "betaflight__betaflight-14229",
-      "source": "promax",
-      "repo": "betaflight/betaflight",
-      "stratum": "c:files6-15",
-      "language": "c",
-      "file_count": 8,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
       "task_id": "promax/angular__angular-c_b8f2a50",
       "native_id": "angular__angular-c_b8f2a50",
       "source": "promax",
@@ -194,28 +183,6 @@
       "memory_mb": 0
     },
     {
-      "task_id": "promax/plantuml__plantuml-c_15fa06c",
-      "native_id": "plantuml__plantuml-c_15fa06c",
-      "source": "promax",
-      "repo": "plantuml/plantuml",
-      "stratum": "java:files>15",
-      "language": "java",
-      "file_count": 40,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/confident-ai__deepeval-c_08844c8",
-      "native_id": "confident-ai__deepeval-c_08844c8",
-      "source": "promax",
-      "repo": "confident-ai/deepeval",
-      "stratum": "python:files>15",
-      "language": "python",
-      "file_count": 16,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
       "task_id": "promax/bazelbuild__bazel-c_db9c87f",
       "native_id": "bazelbuild__bazel-c_db9c87f",
       "source": "promax",
@@ -223,17 +190,6 @@
       "stratum": "java:files<=5",
       "language": "java",
       "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/ant-design__ant-design-53739",
-      "native_id": "ant-design__ant-design-53739",
-      "source": "promax",
-      "repo": "ant-design/ant-design",
-      "stratum": "typescript:files>15",
-      "language": "typescript",
-      "file_count": 39,
       "difficulty": "refactor",
       "memory_mb": 0
     },
@@ -315,39 +271,6 @@
       "memory_mb": 0
     },
     {
-      "task_id": "promax/angular__angular-c_768a09d",
-      "native_id": "angular__angular-c_768a09d",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files>15",
-      "language": "typescript",
-      "file_count": 21,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/plantuml__plantuml-c_1c912de",
-      "native_id": "plantuml__plantuml-c_1c912de",
-      "source": "promax",
-      "repo": "plantuml/plantuml",
-      "stratum": "java:files>15",
-      "language": "java",
-      "file_count": 47,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/astral-sh__ruff-21445",
-      "native_id": "astral-sh__ruff-21445",
-      "source": "promax",
-      "repo": "astral-sh/ruff",
-      "stratum": "rust:files6-15",
-      "language": "rust",
-      "file_count": 13,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
       "task_id": "promax/albumentations-team__albumentations-2495",
       "native_id": "albumentations-team__albumentations-2495",
       "source": "promax",
@@ -355,50 +278,6 @@
       "stratum": "python:files6-15",
       "language": "python",
       "file_count": 11,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/cli__cli-11668",
-      "native_id": "cli__cli-11668",
-      "source": "promax",
-      "repo": "cli/cli",
-      "stratum": "go:files6-15",
-      "language": "go",
-      "file_count": 7,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/bazelbuild__bazel-c_2be8c98",
-      "native_id": "bazelbuild__bazel-c_2be8c98",
-      "source": "promax",
-      "repo": "bazelbuild/bazel",
-      "stratum": "java:files6-15",
-      "language": "java",
-      "file_count": 8,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-64903",
-      "native_id": "angular__angular-64903",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files<=5",
-      "language": "typescript",
-      "file_count": 3,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/hummingbot__hummingbot-c_1ce05af",
-      "native_id": "hummingbot__hummingbot-c_1ce05af",
-      "source": "promax",
-      "repo": "hummingbot/hummingbot",
-      "stratum": "python:files<=5",
-      "language": "python",
-      "file_count": 4,
       "difficulty": "refactor",
       "memory_mb": 0
     },
@@ -414,17 +293,6 @@
       "memory_mb": 0
     },
     {
-      "task_id": "promax/angular__angular-c_b973c5b",
-      "native_id": "angular__angular-c_b973c5b",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files<=5",
-      "language": "typescript",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
       "task_id": "promax/optuna__optuna-6197",
       "native_id": "optuna__optuna-6197",
       "source": "promax",
@@ -432,28 +300,6 @@
       "stratum": "python:files6-15",
       "language": "python",
       "file_count": 6,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_5e0dcf1",
-      "native_id": "angular__angular-c_5e0dcf1",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files<=5",
-      "language": "typescript",
-      "file_count": 4,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/apache__pinot-16709",
-      "native_id": "apache__pinot-16709",
-      "source": "promax",
-      "repo": "apache/pinot",
-      "stratum": "java:files6-15",
-      "language": "java",
-      "file_count": 8,
       "difficulty": "refactor",
       "memory_mb": 0
     },
@@ -476,17 +322,6 @@
       "stratum": "rust:files<=5",
       "language": "rust",
       "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/apache__iceberg-12167",
-      "native_id": "apache__iceberg-12167",
-      "source": "promax",
-      "repo": "apache/iceberg",
-      "stratum": "java:files6-15",
-      "language": "java",
-      "file_count": 13,
       "difficulty": "refactor",
       "memory_mb": 0
     },
@@ -524,28 +359,6 @@
       "memory_mb": 0
     },
     {
-      "task_id": "promax/swagger-api__swagger-core-5042",
-      "native_id": "swagger-api__swagger-core-5042",
-      "source": "promax",
-      "repo": "swagger-api/swagger-core",
-      "stratum": "java:files<=5",
-      "language": "java",
-      "file_count": 1,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/nacos__alibaba-13207",
-      "native_id": "nacos__alibaba-13207",
-      "source": "promax",
-      "repo": "alibaba/nacos",
-      "stratum": "java:files>15",
-      "language": "java",
-      "file_count": 18,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
       "task_id": "promax/aviggiano__redis-roaring-126",
       "native_id": "aviggiano__redis-roaring-126",
       "source": "promax",
@@ -553,105 +366,6 @@
       "stratum": "c:files>15",
       "language": "c",
       "file_count": 20,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/stanfordnlp__dspy-9047",
-      "native_id": "stanfordnlp__dspy-9047",
-      "source": "promax",
-      "repo": "stanfordnlp/dspy",
-      "stratum": "python:files<=5",
-      "language": "python",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/huggingface__transformers-38332",
-      "native_id": "huggingface__transformers-38332",
-      "source": "promax",
-      "repo": "huggingface/transformers",
-      "stratum": "python:files6-15",
-      "language": "python",
-      "file_count": 10,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/astral-sh__ruff-20926",
-      "native_id": "astral-sh__ruff-20926",
-      "source": "promax",
-      "repo": "astral-sh/ruff",
-      "stratum": "rust:files<=5",
-      "language": "rust",
-      "file_count": 1,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/TecharoHQ__anubis-1308",
-      "native_id": "TecharoHQ__anubis-1308",
-      "source": "promax",
-      "repo": "TecharoHQ/anubis",
-      "stratum": "go:files>15",
-      "language": "go",
-      "file_count": 16,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/verl-project__verl-3915",
-      "native_id": "verl-project__verl-3915",
-      "source": "promax",
-      "repo": "verl-project/verl",
-      "stratum": "python:files6-15",
-      "language": "python",
-      "file_count": 12,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/nasa__fprime-3422",
-      "native_id": "nasa__fprime-3422",
-      "source": "promax",
-      "repo": "nasa/fprime",
-      "stratum": "c++:files>15",
-      "language": "c++",
-      "file_count": 184,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_55ac384",
-      "native_id": "angular__angular-c_55ac384",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files<=5",
-      "language": "typescript",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/openssl__openssl-c_3638ffc",
-      "native_id": "openssl__openssl-c_3638ffc",
-      "source": "promax",
-      "repo": "openssl/openssl",
-      "stratum": "c:files<=5",
-      "language": "c",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/davidesantangelo__krep-18",
-      "native_id": "davidesantangelo__krep-18",
-      "source": "promax",
-      "repo": "davidesantangelo/krep",
-      "stratum": "c:files<=5",
-      "language": "c",
-      "file_count": 1,
       "difficulty": "refactor",
       "memory_mb": 0
     },
@@ -674,435 +388,6 @@
       "stratum": "typescript:files6-15",
       "language": "typescript",
       "file_count": 6,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/ETLCPP__etl-c_5c5e5df",
-      "native_id": "ETLCPP__etl-c_5c5e5df",
-      "source": "promax",
-      "repo": "ETLCPP/etl",
-      "stratum": "c++:files<=5",
-      "language": "c++",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_8562667",
-      "native_id": "angular__angular-c_8562667",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files6-15",
-      "language": "typescript",
-      "file_count": 6,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/go-gitea__gitea-34154",
-      "native_id": "go-gitea__gitea-34154",
-      "source": "promax",
-      "repo": "go-gitea/gitea",
-      "stratum": "go:files>15",
-      "language": "go",
-      "file_count": 17,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/nasa__fprime-4041",
-      "native_id": "nasa__fprime-4041",
-      "source": "promax",
-      "repo": "nasa/fprime",
-      "stratum": "c++:files6-15",
-      "language": "c++",
-      "file_count": 10,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/optuna__optuna-c_058e8bc",
-      "native_id": "optuna__optuna-c_058e8bc",
-      "source": "promax",
-      "repo": "optuna/optuna",
-      "stratum": "python:files6-15",
-      "language": "python",
-      "file_count": 15,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/aws__s2n-tls-5464",
-      "native_id": "aws__s2n-tls-5464",
-      "source": "promax",
-      "repo": "aws/s2n-tls",
-      "stratum": "c:files6-15",
-      "language": "c",
-      "file_count": 7,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/stanfordnlp__dspy-1801",
-      "native_id": "stanfordnlp__dspy-1801",
-      "source": "promax",
-      "repo": "stanfordnlp/dspy",
-      "stratum": "python:files6-15",
-      "language": "python",
-      "file_count": 7,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/albumentations-team__albumentations-2337",
-      "native_id": "albumentations-team__albumentations-2337",
-      "source": "promax",
-      "repo": "albumentations-team/albumentations",
-      "stratum": "python:files<=5",
-      "language": "python",
-      "file_count": 4,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_d47cf58",
-      "native_id": "angular__angular-c_d47cf58",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files6-15",
-      "language": "typescript",
-      "file_count": 8,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/betaflight__betaflight-c_d3c113b",
-      "native_id": "betaflight__betaflight-c_d3c113b",
-      "source": "promax",
-      "repo": "betaflight/betaflight",
-      "stratum": "c:files>15",
-      "language": "c",
-      "file_count": 55,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/roboflow__supervision-1943",
-      "native_id": "roboflow__supervision-1943",
-      "source": "promax",
-      "repo": "roboflow/supervision",
-      "stratum": "python:files6-15",
-      "language": "python",
-      "file_count": 13,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_6960ec0",
-      "native_id": "angular__angular-c_6960ec0",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files<=5",
-      "language": "typescript",
-      "file_count": 5,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/deskflow__deskflow-c_5fa70d0",
-      "native_id": "deskflow__deskflow-c_5fa70d0",
-      "source": "promax",
-      "repo": "deskflow/deskflow",
-      "stratum": "c++:files6-15",
-      "language": "c++",
-      "file_count": 7,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/astral-sh__ruff-19884",
-      "native_id": "astral-sh__ruff-19884",
-      "source": "promax",
-      "repo": "astral-sh/ruff",
-      "stratum": "rust:files6-15",
-      "language": "rust",
-      "file_count": 7,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/betaflight__betaflight-c_9230c5f",
-      "native_id": "betaflight__betaflight-c_9230c5f",
-      "source": "promax",
-      "repo": "betaflight/betaflight",
-      "stratum": "c:files>15",
-      "language": "c",
-      "file_count": 61,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/rqlite__rqlite-2057",
-      "native_id": "rqlite__rqlite-2057",
-      "source": "promax",
-      "repo": "rqlite/rqlite",
-      "stratum": "go:files<=5",
-      "language": "go",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/icloud-photos-downloader__icloud_photos_downloader-c_f52826c",
-      "native_id": "icloud-photos-downloader__icloud_photos_downloader-c_f52826c",
-      "source": "promax",
-      "repo": "icloud-photos-downloader/icloud_photos_downloader",
-      "stratum": "python:files<=5",
-      "language": "python",
-      "file_count": 5,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/confident-ai__deepeval-c_ce72651",
-      "native_id": "confident-ai__deepeval-c_ce72651",
-      "source": "promax",
-      "repo": "confident-ai/deepeval",
-      "stratum": "python:files6-15",
-      "language": "python",
-      "file_count": 12,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_815f1b1",
-      "native_id": "angular__angular-c_815f1b1",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files6-15",
-      "language": "typescript",
-      "file_count": 8,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/qdrant__qdrant-c_3942071",
-      "native_id": "qdrant__qdrant-c_3942071",
-      "source": "promax",
-      "repo": "qdrant/qdrant",
-      "stratum": "rust:files>15",
-      "language": "rust",
-      "file_count": 19,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/samber__lo-739",
-      "native_id": "samber__lo-739",
-      "source": "promax",
-      "repo": "samber/lo",
-      "stratum": "go:files6-15",
-      "language": "go",
-      "file_count": 9,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/WasmEdge__WasmEdge-4340",
-      "native_id": "WasmEdge__WasmEdge-4340",
-      "source": "promax",
-      "repo": "WasmEdge/WasmEdge",
-      "stratum": "c++:files6-15",
-      "language": "c++",
-      "file_count": 11,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/rust-lang__cargo-16423",
-      "native_id": "rust-lang__cargo-16423",
-      "source": "promax",
-      "repo": "rust-lang/cargo",
-      "stratum": "rust:files<=5",
-      "language": "rust",
-      "file_count": 3,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/cli__cli-c_6d14840",
-      "native_id": "cli__cli-c_6d14840",
-      "source": "promax",
-      "repo": "cli/cli",
-      "stratum": "go:files<=5",
-      "language": "go",
-      "file_count": 5,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/biojppm__rapidyaml-c_a02ebda",
-      "native_id": "biojppm__rapidyaml-c_a02ebda",
-      "source": "promax",
-      "repo": "biojppm/rapidyaml",
-      "stratum": "c++:files<=5",
-      "language": "c++",
-      "file_count": 5,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/deskflow__deskflow-c_c2ee366",
-      "native_id": "deskflow__deskflow-c_c2ee366",
-      "source": "promax",
-      "repo": "deskflow/deskflow",
-      "stratum": "c++:files6-15",
-      "language": "c++",
-      "file_count": 10,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/nasa__fprime-3642",
-      "native_id": "nasa__fprime-3642",
-      "source": "promax",
-      "repo": "nasa/fprime",
-      "stratum": "c++:files>15",
-      "language": "c++",
-      "file_count": 32,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/jesseduffield__lazygit-4318",
-      "native_id": "jesseduffield__lazygit-4318",
-      "source": "promax",
-      "repo": "jesseduffield/lazygit",
-      "stratum": "go:files<=5",
-      "language": "go",
-      "file_count": 2,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/astral-sh__ruff-19755",
-      "native_id": "astral-sh__ruff-19755",
-      "source": "promax",
-      "repo": "astral-sh/ruff",
-      "stratum": "rust:files<=5",
-      "language": "rust",
-      "file_count": 1,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/grpc__grpc-go-8779",
-      "native_id": "grpc__grpc-go-8779",
-      "source": "promax",
-      "repo": "grpc/grpc-go",
-      "stratum": "go:files6-15",
-      "language": "go",
-      "file_count": 6,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/bazelbuild__bazel-c_c24f247",
-      "native_id": "bazelbuild__bazel-c_c24f247",
-      "source": "promax",
-      "repo": "bazelbuild/bazel",
-      "stratum": "java:files<=5",
-      "language": "java",
-      "file_count": 1,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/aviggiano__redis-roaring-117",
-      "native_id": "aviggiano__redis-roaring-117",
-      "source": "promax",
-      "repo": "aviggiano/redis-roaring",
-      "stratum": "c:files6-15",
-      "language": "c",
-      "file_count": 6,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/codex__openai-4471",
-      "native_id": "codex__openai-4471",
-      "source": "promax",
-      "repo": "openai/codex",
-      "stratum": "rust:files>15",
-      "language": "rust",
-      "file_count": 26,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/angular__angular-c_9f44b41",
-      "native_id": "angular__angular-c_9f44b41",
-      "source": "promax",
-      "repo": "angular/angular",
-      "stratum": "typescript:files6-15",
-      "language": "typescript",
-      "file_count": 7,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/astral-sh__ruff-20052",
-      "native_id": "astral-sh__ruff-20052",
-      "source": "promax",
-      "repo": "astral-sh/ruff",
-      "stratum": "rust:files<=5",
-      "language": "rust",
-      "file_count": 4,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/apache__fesod-413",
-      "native_id": "apache__fesod-413",
-      "source": "promax",
-      "repo": "apache/fesod",
-      "stratum": "java:files<=5",
-      "language": "java",
-      "file_count": 4,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/nasa__fprime-4340",
-      "native_id": "nasa__fprime-4340",
-      "source": "promax",
-      "repo": "nasa/fprime",
-      "stratum": "c++:files<=5",
-      "language": "c++",
-      "file_count": 3,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/astral-sh__ruff-20646",
-      "native_id": "astral-sh__ruff-20646",
-      "source": "promax",
-      "repo": "astral-sh/ruff",
-      "stratum": "rust:files<=5",
-      "language": "rust",
-      "file_count": 3,
-      "difficulty": "refactor",
-      "memory_mb": 0
-    },
-    {
-      "task_id": "promax/bazelbuild__bazel-c_63f32ce",
-      "native_id": "bazelbuild__bazel-c_63f32ce",
-      "source": "promax",
-      "repo": "bazelbuild/bazel",
-      "stratum": "java:files<=5",
-      "language": "java",
-      "file_count": 4,
       "difficulty": "refactor",
       "memory_mb": 0
     }

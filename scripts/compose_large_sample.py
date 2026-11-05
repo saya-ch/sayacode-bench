@@ -32,8 +32,9 @@ PRO_TASKS = HOME / r"tmp\hard\cache\swe-bench-pro-v2-66f92766bba642462d4bbe5479e
 TB_TASKS = HOME / r"s\terminal-bench-2.1-7131e4375048a0e408a8fb404b5f499d726b695b\tasks"
 BENCH = HOME / r"tmp\benchmarks"
 
-# 配额：本地成本最低的 Pro V2 占一半，判别力最强的 ProMax 次之，EVO 做难度上限，TB 只留少量形态补充。
-QUOTAS = {"pro-v2": 160, "promax": 100, "swe-evo": 40, "tb21": 20}
+# 配额：本地成本最低的 Pro V2 与判别力最强的 ProMax 为主，EVO 做难度上限，TB 只留形态补充。
+# 用户定稿 100 题（单次重复）：单组约 4–5 小时，四组约 18 小时，可过夜/分批完成。
+QUOTAS = {"pro-v2": 40, "promax": 35, "swe-evo": 15, "tb21": 10}
 
 
 def _rank(seed: str, key: str) -> str:
@@ -149,6 +150,12 @@ def stratified_sample(items: list[dict], quota: int, seed: str, *, cap: int | No
         by[item["stratum"]].append(item)
     for key in by:
         by[key].sort(key=lambda x: _rank(seed, x["task_id"]))
+
+    # 层数 >= 配额时（如 tb21 有 16 类但只抽 10 题），按比例分配会每层至少 1 个而超配额，
+    # 回退逻辑又找不到可减的层而卡死。改为按 seed 选出 quota 个层、每层 1 题。
+    if len(by) >= quota:
+        chosen = sorted(by, key=lambda k: _rank(seed, f"stratum:{k}"))[:quota]
+        return sorted((by[k][0] for k in chosen), key=lambda x: _rank(seed, x["task_id"]))
 
     # 初始按容量比例分配
     total = len(items)

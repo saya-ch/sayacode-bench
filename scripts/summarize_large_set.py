@@ -120,7 +120,7 @@ def main() -> int:
 
     # 题级配对 McNemar（跨全部 source，四组同题）
     if len(args.agents) >= 2:
-        print("\n=== 题级配对 McNemar（全部 312 题）===")
+        print(f"\n=== 题级配对 McNemar（全部 {sample['size']} 题）===")
         all_outcomes: dict[str, dict[str, bool | None]] = defaultdict(dict)
         for row in rows:
             all_outcomes[row["agent"]].update(row["_outcomes"])
