@@ -26,7 +26,7 @@ def make_paths(tmp_path: Path) -> "locked_agents.FormalPaths":
 
 def test_canonical_model_is_hy3() -> None:
     assert locked_agents.CANONICAL_MODEL == "auto-hy3"
-    assert locked_agents.AGENTS == ("sayacode", "mini-swe", "claude-code")
+    assert locked_agents.AGENTS == ("sayacode", "mini-swe", "claude-code", "opencode")
 
 
 def test_build_agents_use_in_repo_import_paths(tmp_path: Path) -> None:
@@ -41,6 +41,10 @@ def test_build_agents_use_in_repo_import_paths(tmp_path: Path) -> None:
     claude = locked_agents.build_agent("claude-code", paths, profile_dir=tmp_path)
     assert claude.import_path == "locked_agents:LockedClaudeCode"
     assert claude.env["ANTHROPIC_BASE_URL"] == locked_agents.IN_SANDBOX_GATEWAY
+    opencode = locked_agents.build_agent("opencode", paths, profile_dir=tmp_path)
+    assert opencode.import_path == "locked_agents:LockedOpenCode"
+    assert opencode.model_name == "openai/auto-hy3"
+    assert opencode.env["OPENAI_BASE_URL"] == locked_agents.IN_SANDBOX_GATEWAY + "/v1"
 
 
 def test_sayacode_profile_is_rewritten_to_in_sandbox_gateway(tmp_path: Path) -> None:

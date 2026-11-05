@@ -26,6 +26,7 @@ from harbor.agents.base import BaseAgent  # noqa: E402
 from harbor.agents.installed.claude_code import ClaudeCode  # noqa: E402
 from harbor.agents.installed.codex import Codex  # noqa: E402
 from harbor.agents.installed.mini_swe_agent import MiniSweAgent  # noqa: E402
+from harbor.agents.installed.opencode import OpenCode  # noqa: E402
 from harbor.environments.base import BaseEnvironment  # noqa: E402
 from harbor.models.agent.context import AgentContext  # noqa: E402
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
@@ -34,7 +35,7 @@ CANONICAL_MODEL = "auto-hy3"
 # v3 基线：Codex 因 apply_patch 工具契约与 /v1/responses websocket 405 全组失效
 # （见 docs/CODEX-BASELINE-INVALID.md），第三个基线换为 Claude Code（/v1/messages 原生协议）。
 # "codex" 分支仍保留在 build_agent 中，供 v2 历史结果复现。
-AGENTS = ("sayacode", "mini-swe", "claude-code")
+AGENTS = ("sayacode", "mini-swe", "claude-code", "opencode")
 IN_SANDBOX_GATEWAY = "http://saya-model-gateway:8080"
 DEFAULT_GATEWAY = "http://host.docker.internal:3425/v1"
 DEFAULT_TASKS_ROOT = (
@@ -140,8 +141,15 @@ _CAPTURE_CODEX = _CAPTURE.replace(
     "pkill -f '[m]ini-swe-agent --yolo' >/dev/null 2>&1; sleep 3; ", ""
 )
 _CAPTURE_CLAUDE = _CAPTURE_CODEX
+_CAPTURE_OPENCODE = _CAPTURE_CODEX
 # Claude Code 2.1.311 起按平台分发原生二进制；宿主预下载 linux-x64 tarball，
 # 每 trial 上传解压即可，容器内不需要 node/npm，也不访问 GitHub / npm registry。
+_OPENCODE_TARBALL = Path(
+    os.environ.get(
+        "SAYACODE_OPENCODE_TARBALL",
+        r"C:\sb\tmp\hard\opencode-linux-x64-1.19.5.tgz",
+    )
+)
 _CLAUDE_TARBALL = Path(
     os.environ.get("SAYACODE_CLAUDE_TARBALL", r"C:\sb\tmp\hard\claude-linux.tgz")
 )
@@ -400,6 +408,58 @@ class LockedClaudeCode(ClaudeCode):
                 self.logger.warning(f"patch capture failed: {exc}")
 
 
+class LockedOpenCode(OpenCode):
+    """Harbor OpenCode + 固定版本原生二进制 + 收尾时抓取 model.patch。
+
+    OpenCode 1.19.5 的 linux 包是原生二进制，容器内直接安装即可；Agent 通过
+    Magpie 的 OpenAI 兼容端点使用同款 ``auto-hy3``，provider 固定为 ``openai``。
+    """
+
+    @staticmethod
+    def name() -> str:
+        return "opencode-locked"
+
+    async def install(self, environment: BaseEnvironment) -> None:
+        if not _OPENCODE_TARBALL.is_file():
+            raise RuntimeError(f"OpenCode linux tarball 不存在：{_OPENCODE_TARBALL}")
+        await environment.upload_file(_OPENCODE_TARBALL, "/tmp/opencode-linux.tgz")
+        result = await environment.exec(
+            command=(
+                "set -e; rm -rf /opt/opencode; mkdir -p /opt/opencode; "
+                "tar -xzf /tmp/opencode-linux.tgz -C /opt/opencode; "
+                "install -m 755 /opt/opencode/package/bin/opencode /usr/local/bin/opencode; "
+                "rm -f /tmp/opencode-linux.tgz; opencode --version"
+            ),
+            user="root",
+            timeout_sec=300,
+        )
+        self.logger.info(
+            f"opencode install: rc={result.return_code} {(result.stdout or '').strip()}"
+        )
+        if result.return_code != 0:
+            raise RuntimeError(f"opencode install failed: {result.stderr}")
+
+    async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
+        if "opencode " in command or command.lstrip().startswith("opencode"):
+            budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
+            command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
+        return await super().exec_as_agent(environment, command, **kwargs)
+
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
+        try:
+            await super().run(instruction, environment, context)
+        finally:
+            try:
+                result = await environment.exec(
+                    command=_CAPTURE_OPENCODE, user="root", timeout_sec=300
+                )
+                self.logger.info(f"model.patch bytes: {(result.stdout or '').strip()}")
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning(f"patch capture failed: {exc}")
+
+
 class PatchReplayAgent(BaseAgent):
     """把上一阶段 job 的 ``agent/model.patch`` 在干净沙箱重放，消除验证器被篡改的可能。"""
 
@@ -551,6 +611,18 @@ def build_agent(name: str, paths: FormalPaths, *, profile_dir: Path | None = Non
                 },
             },
         )
+    if name == "opencode":
+        return AgentConfig(
+            import_path="locked_agents:LockedOpenCode",
+            model_name="openai/auto-hy3",
+            extra_allowed_hosts=["saya-model-gateway"],
+            override_setup_timeout_sec=1800,
+            env={
+                "OPENAI_API_KEY": "magpie",
+                "OPENAI_BASE_URL": IN_SANDBOX_GATEWAY + "/v1",
+                "OPENAI_API_BASE": IN_SANDBOX_GATEWAY + "/v1",
+            },
+        )
     if name == "claude-code":
         return AgentConfig(
             import_path="locked_agents:LockedClaudeCode",
@@ -592,6 +664,7 @@ __all__ = [
     "LockedClaudeCode",
     "LockedCodex",
     "LockedMiniSwe",
+    "LockedOpenCode",
     "NoOpAgent",
     "PatchReplayAgent",
     "ROOT",
