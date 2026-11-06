@@ -128,7 +128,7 @@
 - 环境已排除：5 个失败中 4 个 `record_complete=True` 且无异常；仅 navidrome r1 有 `NonZeroAgentExitCodeError`（判 infra，但仍按失败计入 planned）。`best` 界 8/12 = 66.7%，Δ = 33.3pp。
 
 **红线**：
-1. **只有 SAYACODE 一组，无基线对照** → **不能**说"抗干扰能力比基线差"。原因不是设计选择，而是**基线通道受 Windows 命令行长度限制**（`WinError 206`，32KB 上限 vs 350KB instruction），mini-swe 与 Claude Code 均 100% 失败——诊断见报告 §7。要走通须改用「容器内文件 + `--task="$(cat file)"`」的注入方式。
+1. **只有 SAYACODE 一组，无基线对照** → **不能**说"抗干扰能力比基线差"。原因不是设计选择，而是**三条传参通道各有各的长度限制**：mini-swe 走 argv 撞 Linux `E2BIG`（128KB）、Claude Code 走环境变量撞 Windows 命令行（32KB）、只有 SAYACODE 走 variant 文件不受限。诊断见报告 §7。要跑通基线须两组都改成「容器内文件 + 提示读取」并重跑 SAYACODE。
 2. n=6，p=0.062 未过 0.05（功效不足，非效应不存在）。
 3. 噪声是"其他项目的 instruction 原文"，形态仍是编程任务描述 → **无法区分**「被无关内容干扰」与「被同类任务描述混淆」（见报告 §4.3）。
 

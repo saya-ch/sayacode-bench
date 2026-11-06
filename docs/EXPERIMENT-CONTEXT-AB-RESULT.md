@@ -142,61 +142,66 @@
 
 ---
 
-## 7. 基线组受阻：Windows 命令行长度限制（技术障碍，未解决）
+## 7. 基线组受阻：三条进程通道各有各的长度限制（未解决）
 
-**基线三组（mini-swe / Claude Code / OpenCode）无法用同样的方式注入噪声**，这是本实验当前最大的缺口。
+**基线三组无法用同样的方式注入噪声。** 这不是一个 bug，而是**三条不同的传参通道各有各的平台限制**，而 350KB 的 instruction 在三条通道上全部超限。
 
-### 7.1 现象
+### 7.1 三条通道的实测结果
 
-`C:\sb\hard\ab-ctx\ABANDONED-baselines-WinError206`（保留证据，221 个文件）：
+| agent | 传参方式 | 实测失败 | 限制在哪 |
+|---|---|---|---|
+| **SAYACODE** | `variant.json` 文件 → 容器内读取 | ✅ **12/12 成功** | 不经过任何命令行，**不受限** |
+| **mini-swe** | `--task={shlex.quote(instruction)}`（argv） | ❌ 12/12 失败 | Linux `execve` 单参数上限（`E2BIG`，通常 128KB） |
+| **Claude Code** | 环境变量 `HARBOR_CLAUDE_CODE_INSTRUCTION_<hash>` | ❌ 全失败 | Windows 命令行 32KB（env 被拼进 `docker exec -e`）|
+| **OpenCode** | 未实测（预计同类） | — | — |
 
-| agent | 结果 | 每 trial 耗时 |
-|---|---|---|
-| mini-swe | `有效 0/12`，12/12 `FileNotFoundError` | ~1 分钟即失败 |
-| claude-code | 全部 `infrastructure_error` | 32–49 秒即失败 |
+### 7.2 两次尝试与各自的失败
 
-### 7.2 根因
+**第一次**（`ABANDONED-baselines-WinError206`，221 文件）——原样注入，全部崩在 Windows：
 
 ```
 FileNotFoundError: [WinError 206] 文件名或扩展名太长。
-  ...
   hp, ht, pid, tid = _winapi.CreateProcess(executable, args, ...)
 ```
 
-Harbor 把 instruction 直接拼进命令行参数：
+**第二次**（`ABANDONED-baselines2-multi-channel`，244 文件）——实现了「超长命令落盘为容器内脚本」的修复（提交 `75dbb36`，含 6 个测试 + 变异检验），成功绕过 Windows 32KB：
 
-```python
-# harbor/agents/installed/mini_swe_agent.py:746,847
-escaped_instruction = shlex.quote(augmented_instruction)
-command = f"mini-swe-agent --yolo --model={...} --task={escaped_instruction} ..."
+- ✅ 修复本身**有效**：mini-swe 不再在 Windows 层崩溃，`exception.txt` 归零。
+- ❌ 但撞上**第二堵墙**——Linux `execve` 的单参数上限：
+
+```
+/tmp/bench-cmd-<uuid>.sh: line 2: /root/.local/bin/mini-swe-agent: Argument list too long
 ```
 
-**Windows `CreateProcess` 的命令行上限约 32KB**，而我们的 noise instruction 是 **350,946 字符**（≈343KB）——超限 10 倍。
+- ❌ Claude Code 连 spill 都不触发：它的命令只有 **511 字符**（instruction 走环境变量 `"$HARBOR_CLAUDE_CODE_INSTRUCTION_..."`），是 `docker exec -e` 那一层超限。
 
-### 7.3 为什么 SAYACODE 不受影响
+### 7.3 为什么不能简单"再修一下"
 
-SAYACODE 走 `variant["instruction_append"]`：噪声被写进 `variant.json` 文件，由产品侧在**容器内部**读取，全程不经过 Windows 命令行。所以它 12/12 正常完成。
-
-**这解释了为什么本实验只有 SAYACODE 的数据** —— 不是设计选择，是被环境限制逼出来的。
-
-### 7.4 可行方案与代价
-
-| 方案 | 做法 | 代价 |
+| 通道 | 要让 350KB 通过，必须 | 代价 |
 |---|---|---|
-| **A. 改注入通道为「容器内文件 + 提示读取」** | `upload_file()` 把噪声传进容器，instruction 只加一句「背景材料见 /tmp/BACKGROUND.md」 | ① 语义变了：测的是「会不会去读无关文件」而非「prompt 里有无关内容」；② **SAYACODE 也必须改成同样方式并重跑**，否则两组不可比；③ 耗时 +1 小时 |
-| **B. 改写 harbor 调用，用 `--task="$(cat file)"` 绕过长度限制** | 在 `LockedMiniSwe.exec_as_agent()` 里拦截超长 `--task=`，改成读容器内文件 | 语义保留（模型收到的仍是完整 instruction）；但要对 3 个 agent 各写一份适配，且依赖 harbor 内部实现细节，升级易碎 |
-| **C. 在 WSL/Linux 侧跑** | 命令行上限 2MB，350KB 可直传 | 需要把整套跑批搬到 WSL，工作量大 |
-| **D. 缩小噪声到 32KB（≈9k tokens）** | 不超限即可 | **测不到长上下文效应**——9k 与 clean 的 30–35k 同量级，等于没做 |
+| mini-swe | 不能用 argv 传（`--task="$(cat file)"` 展开后**仍是**一个 350KB 的 argv，仍然 E2BIG）→ 必须让它**从 stdin 或文件**读 | 需改 harbor 的命令构造；且 agent 是否"真读了"不可控 |
+| Claude Code | 环境变量也不能传 350KB → 同样必须改成"文件 + 提示" | 同上 |
+| **代价的核心** | **一旦基线改成"从文件读"，SAYACODE 的 variant 通道就不可比了** | 要可比就必须**两组都改成文件方式，并重跑 SAYACODE 的 12 trial** |
 
-### 7.5 对当前结论的影响
+### 7.4 三条可选路线
 
-- ✅ **SAYACODE 单组的 Δ=41.7pp 仍然成立**（12/12 正常完成，机制与环境均已核验）。
-- ❌ **但归因不完整**：无法回答「这个退化是 SAYACODE 特有的，还是所有 agent 都会退化」。按 `EXPERIMENT-CONTEXT-AB.md` 的预注册判定，缺基线就**不能**判「假设成立」。
-- **建议走方案 B**（语义保留、不动 SAYACODE 已有结果、不重跑），如果时间允许再补方案 A 作交叉验证。
+| 路线 | 做法 | 优点 | 缺点 |
+|---|---|---|---|
+| **A. 两组都改"容器内文件 + 提示读取"** | instruction 变成「任务与背景材料在 `/tmp/BACKGROUND.md`，请先完整阅读」 | 唯一能做到**四组可比**的路线 | ① 语义变了：测的是「会不会去读、读完能不能保持目标」；② SAYACODE 需重跑 12 trial（约 1 小时）；③ 噪声在上下文中的位置与原设计不同 |
+| **B. 只跑 SAYACODE，放弃基线对照** | 保持现状 | 已有结果（Δ=41.7pp）成立 | **无法归因**——不知道是 SAYACODE 特有的还是共性退化 |
+| **C. 缩小噪声到 128KB（≈36k tokens）以下** | 不超任何限制 | 三通道都能跑 | 36k 与 clean 的 30–35k 同量级，**等于没做实验** |
+
+### 7.5 当前结论的边界（重要）
+
+- ✅ **SAYACODE 单组 Δ=41.7pp 成立**：12/12 正常完成，机制（input 峰值 95,645、未越摘要线）与环境（5 个失败中 4 个 `record_complete=True` 无异常）均已核验。
+- ❌ **归因不完整**：按 `EXPERIMENT-CONTEXT-AB.md` §2.6 的预注册判定，缺基线**不能**判「假设成立」，只能说「SAYACODE 单组在 100k 无关上下文下退化 41.7pp」。
+- **建议走路线 A**（唯一能给出完整结论的路线），预计成本：改 3 个 agent 的注入方式 + 重跑 48 trial ≈ 3–4 小时。
 
 ### 7.6 教训（值得记进坑库）
 
-**「设计定稿」不等于「可执行」。** 这份实验设计 2026-11-05 就写完了、工具也写好了，但注入钩子直到今天才实现——而实现后才发现**基线通道有平台级限制**。教训是：**任何跨平台的长参数传递，必须在设计阶段就用最长的输入做一次端到端 smoke**，而不是假设"instruction 就是个字符串"。
+1. **「设计定稿」不等于「可执行」。** 这份设计 2026-11-05 就写完了、工具也写好了，但注入钩子直到今天才实现——实现后才发现三条通道各有各的限制。
+2. **平台限制是分层的，修好一层不等于通。** Windows 的 32KB 修好后，Linux 的 128KB 才浮现；而 Claude Code 根本不走 argv。
+3. **凡是「把长文本塞进进程参数」的设计，必须先量清楚目标通道的上限**，并优先选择**文件通道**（SAYACODE 的 variant 之所以 12/12 成功，正是因为它一开始就走文件）。
 
 ---
 
