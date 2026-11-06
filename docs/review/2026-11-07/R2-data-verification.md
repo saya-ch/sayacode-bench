@@ -21,7 +21,7 @@
 | v2 Codex | 同上:13 | 80/80/55，planned 68.8% | 同上 agents.codex | n=80，observed=80，pass=55，68.75% | 一致 | — |
 | v2 缺失 15 | 同上:25-31 | SAYACODE 1、mini 14、Codex 0 | 同上 trials 的 `reward is None` + `terminal` | 1/14/0（`terminal=skipped_empty_patch` 的 trial 记 observed 0 分） | 一致 | 若只按 `reward is None` 计：1/15/1，会多算；口径已在 totals 中隐式存在 |
 | V3 SAYACODE | `FORMAL-RESULTS-20261105-v3.md:14` | 63/80、78.8% | `FINAL-SUMMARY-V3.json` agents.sayacode | 63/80、78.75% | 一致 | — |
-| V3 mini-swe | 同上:15 | **68/80、85.0%** | **`FINAL-SUMMARY-V3.json` agents.mini-swe** | **67/80、83.75%，observed 77、missing 3** | **不一致** | 文档的 68/80 与 `FINAL-SUMMARY-V4.json`（68/80、79、1）一致；v3 文档实为 V4 数据 |
+| V3 mini-swe | 同上:15 | **68/80、85.0%** | **`FINAL-SUMMARY-V3.json` agents.mini-swe** | **67/80、83.75%，observed 77、missing 3** | **口径不同（非错误）** | 🛑 **第二轮更正**：原判「不一致」过重。`FINAL-SUMMARY-V3.json`（11-04 19:25）**只有 sayacode/mini-swe/codex 三个 agent，根本没有 claude-code 和 opencode**；v3 报告是四组报告（11-05 22:39），**只能用 11-05 17:32 的 V4 数据**。所以文档取 V4 是**正确选择**，V3.json 只是中途快照。 |
 | V3 Claude Code | 同上:16 | 62/80、77.5% | `FINAL-SUMMARY-V4.json` agents.claude-code | 62/80、77.5%，observed 79 | 一致 | — |
 | V3 OpenCode | 同上:17 | 60/80、75.0% | 同上 agents.opencode | 60/80、75.0%，observed 80 | 一致 | — |
 | V3 Codex | 同上:18 | 68.8%、strict 65.0% | `STRICT-COMPARE.json` codex | 55/80=68.75%，strict 52/80=65.0% | 一致 | 明确标注不可比 |
@@ -41,7 +41,7 @@
 | v2 mini macro/CI | 同上:12 | 84.8%、[75.8,92.4] | 同上 | 0.8485、[0.7576,0.9242] | 一致 | complete=33 |
 | v2 Codex macro/CI | 同上:13 | 68.8%、[57.5,80.0] | 同上 | 0.6875、[0.575,0.8] | 一致 | complete=40 |
 | v2 pass@2 | 同上:11-13 | 87.2% / 97.0% / 85.0% | 同上 pass_at_k.pass_at_2 | 0.8718 / 0.9697 / 0.85 | 一致 | — |
-| V3 mini macro/CI | `v3.md:15` | 87.2%、[79.5,94.9] | `FINAL-SUMMARY-V3.json` | 0.8684、[0.7895,0.9342] | **不一致** | 与 V4（0.8718、[0.7949,0.9487]）一致；再次证明 v3 文档用的是 V4 数据 |
+| V3 mini macro/CI | `v3.md:15` | 87.2%、[79.5,94.9] | `FINAL-SUMMARY-V3.json` | 0.8684、[0.7895,0.9342] | **口径不同（非错误）** | 🛑 同上一行：V3.json 不含 claude-code/opencode，四组报告取 V4 是唯一正确选择。 |
 | V3 Claude macro/CI | 同上:16 | 78.2%、[67.9,88.5] | V4 | 0.7821、[0.6795,0.8846] | 一致 | 67.95 被截断为 67.9 |
 | V3 OpenCode macro/CI | 同上:17 | 75.0%、[65.0,83.8] | V4 | 0.75、[0.65,0.8375] | 一致 | — |
 | STATUS 表 2 macro/CI | `STATUS.md:13-16` | 76.9%[66.7,85.9]、87.2%[79.5,94.9]、78.2%[67.9,88.5]、75.0%[65.0,83.8] | 327/V4 | 0.7692[0.6667,0.8590]、0.8718[0.7949,0.9487]、0.7821[0.6795,0.8846]、0.75[0.65,0.8375] | 一致 | — |
@@ -147,7 +147,8 @@
 5. `PILOT.md:80-81` 的 48 题基线统计（假题、dask p2p 57%、6 个镜像不匹配）——`swe-evo-baseline.json` 只有 4 条 usable。
 6. `v2.md:15` 的 v2 strict（mini 65.0、Codex 65.0）——v2 时期的 STRICT 快照未保留；当前 STRICT 文件是补跑后的 V4 数据（mini 80.0）。
 7. `FORMAL-RESULTS-20261106-327.md:14,89` 的 served 分布 `hy3/workbuddy 6206 + workbuddy-ai 3572`——`served-distribution.json` 存在（79 个 trial），但结构未能聚合（本次读取结果为空，未进一步解析）。
-8. `docs/archive/FORMAL-RESULTS-20261031.md` 为 **0 字节空文件**；`STATUS.md:84` 与 `RETROSPECTIVE:107` 将其作为 v1 作废证据引用，**引用目标无内容**（不构成数字错误，但使「可复核」落空）。
+8. ~~`docs/archive/FORMAL-RESULTS-20261031.md` 为 **0 字节空文件**；`STATUS.md:84` 与 `RETROSPECTIVE:107` 将其作为 v1 作废证据引用，**引用目标无内容**（不构成数字错误，但使「可复核」落空）。~~
+   **🛑 2026-11-07 第二轮复盘更正：本条错误。** 该文件磁盘与 git 中均为 **4333 字节**（git 历史仅一个版本 `d689f80`，一直是 4333B），内容完整、可核对。R2 的「0 字节」判断有误，因此「引用目标无内容」这一批评不成立。
 
 ## 七、可复现脚本
 
@@ -214,4 +215,4 @@ python verify2.py
 - **`PILOT-SWE-EVO-20261106.md`**：5/10、逐题、预测矩阵、版本假设全部可复现；48 题基线统计无法核验。
 - **`DEEP-ANALYSIS-20261106.md`**：partial 均值/组 n/饱和 26/翻转/工具均值/Claude 成本全部可复现；**输入 token 均值与 behavior.json 不符**（3.2.5 差 16%）；饱和数与 health.md 矛盾；2 题 vs 3 题 broken 矛盾；峰值 token 无法核验。
 - **`RETROSPECTIVE-20261105.md`**：四组表与 v3 文档一致；§5.6 的「补跑 12 条是 infra」有 exception.txt 支持（但类名是 `NetworkConnectionError`）；**§5.7「STRICT 已修到一致」与当前文件不符**；**§6 称「v3 报告没给补跑前后表」事实错误**。
-- **`docs/archive/FORMAL-RESULTS-20261031.md`**：0 字节空文件，无法核对；v1 的 68.8/86.2/86.2、49/73/42、3 条故障、gold 36/1/3 等只能从 `formal-240` 历史数据复核（不在本轮数据根）。
+- **`docs/archive/FORMAL-RESULTS-20261031.md`**：**🛑 更正——不是空文件**。实测磁盘与 git 均为 **4333 字节**，内容完整可核对（v1 的 68.8/86.2/86.2、49/73/42、3 条故障、gold 36/1/3 均在文内）。R2 原判「0 字节」有误。

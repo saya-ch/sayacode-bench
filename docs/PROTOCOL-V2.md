@@ -81,7 +81,7 @@
 **实测 verifier 行为**（642/642 个任务镜像的 `tests/test.sh`）：
 
 ```bash
-# tests/test.sh:97-105（635/642 个模板；另有 7 个 flipt/openlibrary 模板整体偏移 5 行，位于 102-110）
+# tests/test.sh:97-105（636/642 个模板；另有 6 个 flipt/openlibrary 模板整体偏移 5 行，位于 102-110）
 git diff --name-only HEAD -- > /tmp/v6_modified.txt
 while read -r p; do
   case "$p" in
@@ -92,12 +92,15 @@ while read -r p; do
 done < /tmp/v6_modified.txt
 ```
 
-统计（本次实测：逐个读取 642 个 `tests/test.sh`）：
+统计（2026-11-07 第二轮复盘逐个读取 642 个 `tests/test.sh` 复算，脚本 `C:\sb\tmp\count_sentinels.py`）：
 
-- **642/642** 个 `test.sh` 在 `:97-105` 区段（7 个模板偏移至 102-110）包含 `*__snapshots__/*` 分支；
-- **640/642** 在同一区段含 `git checkout HEAD --`（另 2 个仅行偏移，实际执行同一命令）；
-- **635/642** 的豁免行使用 `__NONE__` 哨兵：`grep -qE '(__NONE__)'` 要求路径含该字符串，**任何真实路径都不含，`continue` 永不触发**；其余 7 份的豁免是具体 testdata 路径（如 `internal/config/testdata/advanced.yml`），**不豁免任何 `__snapshots__` 路径**；
+- **642/642** 个 `test.sh` 含 `*__snapshots__/*` 分支（其中 6 个 flipt/openlibrary 模板整体偏移 5 行至 `:102-110`）；
+- **642/642** 含 `git checkout HEAD -- "$p"`；
+- **636/642** 的豁免行使用 `__NONE__` 哨兵：`grep -qE '(__NONE__)'` 要求路径含该字符串，**任何真实路径都不含，`continue` 永不触发**；
+- 其余 **6/642** 的豁免是**具体单文件路径**（flipt 5：`internal/config/testdata/advanced.yml`、`tracing/otlp.yml`、`tracing/zipkin.yml`、`internal/cue/fixtures/invalid.yaml`；openlibrary 1：`openlibrary/mocks/mock_infobase.py`）。这 6 处的 `continue` **确实可达**，但豁免目标**没有一个是 `.snap`**（实测豁免 `.snap` 的文件数 = 0）；
 - 因此：**agent 对 `.snap` 的修改在判分前一律被 `git checkout HEAD` 还原**。「改快照换来的 pass」不存在——旧 `strict` 列把「mini-swe 4 / Claude Code 3 / OpenCode 6 / SAYACODE 0」当作有效扣除，是错误归因。
+
+> 数字更正记录：本节初版写「635/642 用哨兵、其余 7 份偏移」，第二轮复盘复算为 **636/642 用哨兵、6 份偏移**（差 1 是初版统计口径误判）。结论方向不变，证据强度不变。
 
 **结论**：
 
