@@ -317,12 +317,17 @@ def _planned_job_name(agent: str, task_id: str, repeat: int) -> str:
 
 
 def _match_task_by_job_name(stem: str, tasks: Sequence[TaskSpec]) -> str | None:
-    candidates = [
-        task.task_id
-        for task in tasks
-        if task.task_id.startswith("instance_")
-        and task.task_id[len("instance_") :].startswith(stem)
-    ]
+    """按 job 名 stem 反查 task_id。
+
+    ``instance_`` 只是 SWE-bench 的命名习惯，不能作为匹配前提：
+    SWE-EVO 的 task_id 形如 ``sweevo-dask-...``，按原来的「必须 instance_ 开头」
+    会让所有 trial 归不到计划项，汇总时表现为 ``no_job: 全部``。
+    """
+
+    def short_of(task_id: str) -> str:
+        return task_id[len("instance_") :] if task_id.startswith("instance_") else task_id
+
+    candidates = [task.task_id for task in tasks if short_of(task.task_id).startswith(stem)]
     return candidates[0] if len(candidates) == 1 else None
 
 
@@ -343,14 +348,20 @@ def _iter_jobs(base: Path) -> Iterable[Path]:
 
 
 def _inner_dir(job: Path) -> Path | None:
-    return next(
-        (
-            child
-            for child in sorted(job.iterdir())
-            if child.is_dir() and child.name.startswith("instance_")
-        ),
-        None,
-    )
+    """定位 Harbor 的 trial 目录（``<task>__<random>``）。
+
+    按内容识别而非 ``instance_`` 前缀：SWE-EVO 的 trial 目录形如
+    ``sweevo-dask-...__R2jYLdj``，前缀判定会让每个 job 都被当成「无 trial」，
+    汇总时全部落到 ``empty_patch``。
+    """
+    children = [c for c in sorted(job.iterdir()) if c.is_dir()]
+    with_result = [c for c in children if (c / "result.json").is_file()]
+    if with_result:
+        return with_result[0]
+    prefixed = [c for c in children if c.name.startswith("instance_")]
+    if prefixed:
+        return prefixed[0]
+    return children[0] if children else None
 
 
 def _collect_phase(

@@ -485,7 +485,10 @@ class PatchReplayAgent(BaseAgent):
         return None
 
     def _find_patch(self, task_name: str) -> Path | None:
-        for result_json in self._source_job.glob("instance_*/result.json"):
+        # 不能只 glob("instance_*/result.json")：那只是 SWE-bench 的命名习惯。
+        # SWE-EVO 等题库的 trial 目录是 sweevo-...__<random>，按前缀会一个都找不到，
+        # 表现为「no source patch ... applying nothing」且所有 reward=0。
+        for result_json in sorted(self._source_job.glob("*/result.json")):
             try:
                 payload = json.loads(result_json.read_text(encoding="utf-8"))
             except (OSError, ValueError):

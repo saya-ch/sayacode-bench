@@ -32,14 +32,21 @@ TERMINAL_EMPTY_PATCH = "skipped_empty_patch"
 
 
 def _inner_dir(job: Path) -> Path | None:
-    return next(
-        (
-            child
-            for child in sorted(job.iterdir())
-            if child.is_dir() and child.name.startswith("instance_")
-        ),
-        None,
-    )
+    """定位 Harbor 的 trial 目录（形如 ``<task>__<random>``）。
+
+    不能只认 ``instance_`` 前缀：那只是 SWE-bench 的 task 命名习惯。
+    接入 SWE-EVO 时 trial 目录是 ``sweevo-dask-...__R2jYLdj``，按前缀判定会
+    一个都匹配不上，于是 ``collect_pending`` 返回空、验证器跑 0 个 trial。
+    改为按内容识别：含 ``result.json`` 的子目录即 trial 目录。
+    """
+    children = [c for c in sorted(job.iterdir()) if c.is_dir()]
+    with_result = [c for c in children if (c / "result.json").is_file()]
+    if with_result:
+        return with_result[0]
+    prefixed = [c for c in children if c.name.startswith("instance_")]
+    if prefixed:
+        return prefixed[0]
+    return children[0] if children else None
 
 
 def _task_of(inner: Path) -> str | None:
