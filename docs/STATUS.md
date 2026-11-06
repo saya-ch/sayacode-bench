@@ -4,13 +4,13 @@
 
 ## 1. 一句话状态
 
-40 题 × 2 重复 × **4 个可用基线**的正式对照已完成（运行根 `C:\sb\hard\v2-325`）：planned **78.8% / 85.0% / 77.5% / 75.0%**，strict **78.8% / 80.0% / 73.8% / 67.5%**（SAYACODE / mini-swe / Claude Code / OpenCode）。**两两 McNemar 全部不显著（p ≥ 0.070）**，不能说谁更强。Codex 组整组作废。v1 结论继续作废。
+40 题 × 2 重复的四组对照，**SAYACODE 已换成 PyPI 可获取的 3.2.7**（运行根 `C:\sb\hard\v4-327`，2026-11-06），三个基线仍是 v2-325 批次（跨批次，见 §2 脚注）。strict **80.0% / 76.2% / 73.8% / 67.5%**（mini-swe / SAYACODE 3.2.7 / Claude Code / OpenCode）；planned **85.0% / 77.5% / 76.2% / 75.0%** —— **两种口径名次不同**：strict 下 SAYACODE 第 2，planned 下被 Claude Code 反超到第 3（因为 SAYACODE `snap=0`、Claude Code 有 3 个快照 pass 被 strict 扣掉）。**所有配对 McNemar 均不显著（p ≥ 0.2266）**，不能说谁更强。Codex 组整组作废。v1 结论继续作废。
 
 ## 2. 终版数字（以 `FINAL-SUMMARY-V4.json` + `STRICT-COMPARE.json` 为准）
 
 | agent | planned | observed | **strict** | 缺失 | 题级 task-macro | bootstrap95 | 题级全通过 | snap pass |
 |---|---|---|---|---|---|---|---|---|
-| **SAYACODE** | **78.8%** (63/80) | 79.7% | **78.8%** | 1 | **80.8%** | [69.2, 91.0] | 29/39 = 74.4% | **0** |
+| **SAYACODE 3.2.7** | **76.2%** (61/80) | 77.2% | **76.2%** | 1 | **76.9%** | [66.7, 85.9] | 24/39 = 61.5% | **0** |
 | **mini-swe** | 85.0% (68/80) | 86.1% | **80.0%** | 1 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% | 4 |
 | **Claude Code** | 77.5% (62/80) | 78.5% | **73.8%** | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% | 3 |
 | **OpenCode** | 75.0% (60/80) | 75.0% | **67.5%** | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% | **6** |
@@ -20,7 +20,8 @@
 - **planned = 80 分母**（缺失按失败，主报）；
 - **observed**（只含有 reward/终态的子集，单独报会高估）；
 - **strict** = planned 再扣掉「改 `__snapshots__/*.snap` 换来的 pass」（`tests/test.sh` 只重置测试**代码**，`.snap` 不重置）。
-- 三种口径给出**三种排名**（planned 上 mini-swe 领先 6.2pp；strict 上缩到 1.2pp）→ **报告必须三口径并列，不给单一排名**。
+- 三种口径给出**三种排名**（planned：mini-swe 85.0 > Claude Code 77.5 > SAYACODE 76.2 > OpenCode 75.0；strict：mini-swe 80.0 > SAYACODE 76.2 > Claude Code 73.8 > OpenCode 67.5）→ **报告必须三口径并列，不给单一排名**。
+- **跨批次警告**：SAYACODE 行来自 2026-11-06 的 `v4-327`（PyPI 3.2.7、served 全 hy3）；三个基线来自 2026-11-02 的 `v2-325`（served 约 14.3% hy3-x）。题集、模型族、evaluator 相同，但**不是同批次同跑**，因此这几行只可做描述性对照，不能当作严格的同条件实验。
 
 ### 2.0 补跑前后必须同报（协议 §6）
 
@@ -42,6 +43,11 @@
 | mini-swe vs SAYACODE | 38 | +7.9% | 6 / 5 | 1.000 |
 | mini-swe vs OpenCode | 39 | +11.5% | 11 / 4 | 0.118 |
 | **OpenCode vs SAYACODE** | 39 | −3.8% | 1 / 7 | **0.070** |
+| SAYACODE 3.2.7 vs mini-swe | 40 | −12.5% | 3 / 8 | 0.227 |
+| SAYACODE 3.2.7 vs Claude Code | 40 | −2.5% | 5 / 6 | 1.000 |
+| SAYACODE 3.2.7 vs OpenCode | 40 | +5.0% | 8 / 6 | 0.791 |
+
+后三行是 11-06 新批次对 11-02 旧批次的跨批次配对（40 题全交集）；口径与上表一致（题级全通过）。**一个显著都没有。**
 
 Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。**
 
