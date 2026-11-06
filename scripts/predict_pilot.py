@@ -61,6 +61,23 @@ def audit_stats(path: Path) -> tuple[int, int, int, int]:
     return n_model, n_tool, n_edit, n_explore
 
 
+CODE_SUFFIXES = (
+    ".py", ".pyx", ".pxd", ".go", ".rs", ".ts", ".tsx", ".js", ".jsx", ".java", ".kt",
+    ".c", ".cc", ".cpp", ".h", ".hpp", ".rb", ".php", ".scala",
+)
+
+
+def code_files(files: set[str]) -> set[str]:
+    """只保留源码文件。
+
+    SWE-EVO 的「版本演进」题把整个发布改动都算进 gold patch：dask 那题
+    102KB / 50 个文件里绝大多数是 .github/workflows/*.yml、dependabot.yml、
+    .pre-commit-config.yaml 这类 CI 配置。用「对全部 gold 文件的覆盖率」
+    会严重低估 agent，所以覆盖率只按源码文件算。
+    """
+    return {f for f in files if f.endswith(CODE_SUFFIXES)}
+
+
 def main() -> None:
     rows = []
     for job in sorted(RUN.iterdir()):
@@ -74,14 +91,17 @@ def main() -> None:
         mine = files_of(text)
         td = task_dir_for(job.name)
         gold_files = gold_added = gold_removed = 0
+        gold_code_count = 0
         coverage = None
         if td:
             g = td / "solution" / "gold_patch.diff"
             if g.is_file():
                 gt = g.read_text(encoding="utf-8", errors="replace")
                 gold_files, gold_added, gold_removed = stat(gt)
-                gset = files_of(gt)
-                coverage = len(mine & gset) / len(gset) if gset else None
+                gset = code_files(files_of(gt))
+                gold_code_count = len(gset)
+                mine_code = code_files(mine)
+                coverage = len(mine_code & gset) / len(gset) if gset else None
         audit = next(job.rglob("audit.jsonl"), None)
         nm = nt = ne = nx = 0
         if audit:
@@ -102,7 +122,7 @@ def main() -> None:
                 "task": td.name if td else "?",
                 "files": files,
                 "delta": f"+{added}/-{removed}",
-                "gold": f"{gold_files}f +{gold_added}/-{gold_removed}",
+                "gold": f"{gold_files}f({gold_code_count}code) +{gold_added}/-{gold_removed}",
                 "coverage": coverage,
                 "explore_edit": f"{nx}/{ne}" if ne else f"{nx}/0",
                 "model_calls": nm,
