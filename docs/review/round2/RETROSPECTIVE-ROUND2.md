@@ -255,18 +255,30 @@
 
 原则与第一轮一致：**先让证据可信，再谈生产新数字**。但这一轮多了一个约束——**M6 证明瓶颈是返工率与并发利用率，不是题量**。
 
-### P0（半天到 1 天，纯文档与脚本）
+### P0（半天到 1 天，纯文档与脚本）—— ✅ 2026-11-07 已完成
 
-1. **消除"两份权威"**：产品仓 `docs/evaluation/README.md` 的"当前权威基线"改为「历史归档，当前成绩见 bench RESULTS-LEDGER」，或直接退役该 README 的基线段。
-2. **修 `final_summary.py` 默认参数**（root 与 agents 列表），让「重建 ledger」变成一条命令。
-3. **把 pairing 脚本从 `C:\sb\tmp` 迁入 `scripts/`** 并修 `sys.path`。
-4. **统一 F3/F4 口径**：用同一定义重算饱和题数与难度画像，写入 `DATASET-CARD`。
+1. ✅ **消除"两份权威"**：产品仓 `docs/evaluation/README.md` 已加归档横幅 + 六维不可比对照表 + 术语表（holdout 三义）；`evals/README.md` 加退役标注与「两个不可删资产」。产品仓 `9858741`。
+2. ✅ **修 `final_summary.py` 默认参数**：`DEFAULT_ROOT` 从已不存在的 `formal-240` 改为 `v2-325`；`--agents` 从 `[sayacode, mini-swe, codex]` 改为四组；新增 `partial` 段。
+3. ✅ **配对脚本入仓**：`scripts/paired_compare.py`，参数化、复用既有统计。
+4. ✅ **统一 F3/F4 口径**：新建 `docs/DATASET-CARD.md`（口径定义表 + 两套题集卡片）+ `scripts/dataset_stats.py`；四处冲突的根因已查明并全部参数化报告。
 
-### P1（2–3 天，补测试）
+**额外完成**（原不在 P0 清单）：
+- ✅ **「重建 ledger」端到端打通**：`docs/REBUILD-LEDGER.md` 三条命令，实跑结果与 ledger §2.1/§2.2/§3.2 **逐项一致，无一处不符**。
+- ✅ **`docs/evaluation/` 纳入版本控制**（原被 `.gitignore` 整目录忽略，18 份证据文档从未进 git）。
+- ✅ **修复 25 处死链**（产品仓 `](src/...)` 少一级 `../`）。
 
-5. 给 `run_formal_240` 主流程、`convert_swe_evo`、`verify_task_baseline`、`unattributed` 分支补测试。**必须用非 `instance_` fixture**（M4 的变异测试已给出范式）。
-6. 把 B 类 5% 的源码文本断言换成行为断言（正确范式见 `test_run_formal_240_archive.py`）。
-7. **F7/F8**：写独立脚本用 `User-Agent` 精确过滤 served 分布并存档；同模型下的显式分工场景补一次。
+### Lead 独立裁决的两个跨通道矛盾
+
+| 矛盾 | 裁决 | 依据 |
+|---|---|---|
+| gold 中位 70 还是 72 | **70.5**（含测试/CI）；仅源码 69.5。72 是**全部 agent** 的 model.patch | `C:\sb\tmp\adjudicate_gold_median2.py`（冻结 40 题实测）。M2 对、M1 错 |
+| SWE-EVO gold 中位 172 还是 189 | **189**（(170+208)/2，均值 610.31）。旧表 172 属统计错误 | `C:\sb\tmp\adjudicate_sweevo.py`。M2 对 |
+
+### P1（2–3 天，补测试）—— 进行中
+
+5. 🔄 给 `run_formal_240` 主流程、`convert_swe_evo`、`verify_task_baseline`、`unattributed` 分支补测试（进行中）
+6. ⏳ 把 B 类 5% 的源码文本断言换成行为断言
+7. 🔄 **F7/F8**：served 分布独立脚本 + 实验条件登记表（进行中）
 
 ### P2（需要跑模型，按 M6 实测重新估算）
 
