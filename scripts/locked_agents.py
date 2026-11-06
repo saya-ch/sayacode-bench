@@ -69,6 +69,48 @@ def inject_noise(instruction: str) -> str:
     if not text.strip():
         return instruction
     return instruction + NOISE_SEPARATOR + text
+
+
+#: Windows ``CreateProcess`` 的命令行上限约 32KB；这里留出余量。
+#: 长上下文实验的 instruction 约 343KB，直接拼进命令会以
+#: ``FileNotFoundError: [WinError 206]`` 失败（2026-11-07 实测：
+#: mini-swe 与 Claude Code 全组 100% 失败）。
+CMD_LEN_LIMIT = 24_000
+
+
+async def spill_long_command(environment: BaseEnvironment, command: str) -> str | None:
+    """命令超长时写入容器内脚本文件并返回其路径；否则返回 ``None``。
+
+    为什么这么做：harbor 把 instruction 直接拼进命令行
+    （``mini_swe_agent.py:847`` 的 ``--task={escaped_instruction}``），
+    平台命令行上限不够用。整体写成脚本再 ``bash`` 执行，**命令内容一字不改**，
+    语义完全保留，且对四个 agent 通用——不需要解析各自的参数格式。
+    """
+    if len(command) <= CMD_LEN_LIMIT:
+        return None
+    import tempfile
+    import uuid
+
+    target = f"/tmp/bench-cmd-{uuid.uuid4().hex}.sh"
+    handle = tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", suffix=".sh", delete=False, newline="\n"
+    )
+    local = Path(handle.name)
+    try:
+        handle.write("#!/bin/bash\n")
+        handle.write(command)
+        handle.write("\n")
+        handle.close()
+        await environment.upload_file(local, target)
+    finally:
+        local.unlink(missing_ok=True)
+    return target
+
+
+async def rewrite_if_too_long(environment: BaseEnvironment, command: str) -> str:
+    """把超长命令改写成「执行脚本」的形式；不长则原样返回。"""
+    script = await spill_long_command(environment, command)
+    return f"bash {script}" if script else command
 DEFAULT_TASKS_ROOT = (
     r"C:\sb\tmp\hard\cache\swe-bench-pro-v2-66f92766bba642462d4bbe5479e83f91f9211862\v2\tasks"
 )
@@ -290,8 +332,15 @@ class LockedMiniSwe(MiniSweAgent):
         )
 
     async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
-        """把 agent 调用包进沙箱内 timeout（预算 - 60 秒），避免客户端取消不了卡死的流。"""
-        if "mini-swe-agent --yolo" in command:
+        """把 agent 调用包进沙箱内 timeout（预算 - 60 秒），避免客户端取消不了卡死的流。
+
+        超长命令（长上下文实验）先落盘成容器内脚本再执行，绕开 Windows 命令行上限；
+        **timeout 判定必须在改写之前做**——改写后命令变成 ``bash /tmp/xxx.sh``，
+        不再含 ``mini-swe-agent --yolo``，会漏掉 timeout。
+        """
+        needs_timeout = "mini-swe-agent --yolo" in command
+        command = await rewrite_if_too_long(environment, command)
+        if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
         return await super().exec_as_agent(environment, command, **kwargs)
@@ -366,7 +415,9 @@ class LockedCodex(Codex):
             raise RuntimeError(f"codex install failed: {result.stderr}")
 
     async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
-        if "codex exec" in command:
+        needs_timeout = "codex exec" in command
+        command = await rewrite_if_too_long(environment, command)
+        if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
         return await super().exec_as_agent(environment, command, **kwargs)
@@ -419,7 +470,9 @@ class LockedClaudeCode(ClaudeCode):
             raise RuntimeError(f"claude-code install failed: {result.stderr}")
 
     async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
-        if "claude " in command or command.lstrip().startswith("claude"):
+        needs_timeout = "claude " in command or command.lstrip().startswith("claude")
+        command = await rewrite_if_too_long(environment, command)
+        if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
         return await super().exec_as_agent(environment, command, **kwargs)
@@ -471,7 +524,9 @@ class LockedOpenCode(OpenCode):
             raise RuntimeError(f"opencode install failed: {result.stderr}")
 
     async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
-        if "opencode " in command or command.lstrip().startswith("opencode"):
+        needs_timeout = "opencode " in command or command.lstrip().startswith("opencode")
+        command = await rewrite_if_too_long(environment, command)
+        if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
         return await super().exec_as_agent(environment, command, **kwargs)
