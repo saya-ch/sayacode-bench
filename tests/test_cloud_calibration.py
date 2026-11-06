@@ -19,6 +19,7 @@ import pytest
 import yaml
 
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.sources import SOURCES, SourceSnapshot, tree_digest
 from scripts import calibrate_cloud as cloud
 
@@ -107,7 +108,11 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
     prices = studies / "prices"
     prices.mkdir()
     price_name = "siliconflow-deepseek-v4.1-flash-20261022.json"
-    (prices / price_name).write_bytes((ROOT / "studies/prices" / price_name).read_bytes())
+    # 历史价格快照的 model_id 属 v1 SiliconFlow 时代；冻结校验现在绑定
+    # CANONICAL_MODEL（2026-11-07 统一为 auto-hy3，见复盘 R3 S7），夹具同步改写。
+    price_payload = read_json(ROOT / "studies/prices" / price_name)
+    price_payload["model_id"] = CANONICAL_MODEL
+    write_json(prices / price_name, price_payload)
     monkeypatch.setattr(cloud, "fetch_source", lambda *args: SourceSnapshot(spec, source, "a", 0))
     monkeypatch.setattr(
         cloud.shutil, "disk_usage", lambda *args: SimpleNamespace(free=100 * 1024**3)

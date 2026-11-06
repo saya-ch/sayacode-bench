@@ -20,6 +20,7 @@ import yaml
 
 from sayacode_bench import shards
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 from scripts import generate_sharded_workflow as module
 
 COHORT = {"ImageOS": "ubuntu24-offline", "ImageVersion": "synthetic-20261022", "RUNNER_ARCH": "X64"}
@@ -84,7 +85,7 @@ def frozen(tmp_path: Path) -> SimpleNamespace:
     master = {
         "phase": "dev",
         "frozen": True,
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "configurations": list(variants),
         "baseline": "baseline",
         "repeats": 2,

@@ -4,6 +4,11 @@
 > 产品 SAYACODE 3.2.5（`13df615` / `v3.2.5`）；评测实现 `dfe2fd8`。
 > 口径：planned = 80 分母（缺失按失败）；observed = 有 reward/终态；task_macro = 题级宏平均。
 
+> ⚠️ **本文数字是 v2 批次的终版快照（2026-11-02），不是当前状态。**
+> - mini-swe 的 **70.0%（56/80，缺 14 条）在 v3 补跑 12 条后变为 85.0%（68/80，缺 1 条）**，以 [FORMAL-RESULTS-20261105-v3](FORMAL-RESULTS-20261105-v3.md) 与 [RESULTS-LEDGER](RESULTS-LEDGER.md) 为准。
+> - 该结果根（`C:\sb\hard\v2-325`）随后被 v3/v4 批次继续写入。因此 `scripts/reconcile_results.py --root C:\sb\hard\v2-325` 会报 **6 个 `missing_job_inconsistent`**（mini-swe 的 6 个 `qutebrowser` trial 在本汇总里记为 `no_job`，但磁盘已有补跑产物）。**这是「汇总快照早于磁盘」的时序现象，不是汇总错误**——用当前磁盘重算会得到与 `FINAL-SUMMARY-V4.json` 一致的 68/80（已用 `final_summary.py` 复算确认）。
+> - Codex 组整组作废（`docs/CODEX-BASELINE-INVALID.md`），其 68.8% 不参与任何排名。
+
 ## 一、终版五指标
 
 | agent | planned | observed | pass | planned% | observed% | task_macro | CI95 | complete | task_level | pass@2 |

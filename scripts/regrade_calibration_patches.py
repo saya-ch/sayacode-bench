@@ -17,6 +17,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from sayacode_bench import trialdir
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
 from sayacode_bench.execution import run_official_trial
 from sayacode_bench.sources import SOURCES, SourceSnapshot, fetch_source
@@ -234,7 +235,7 @@ def replay_observations(raw: dict[str, Any], raw_root: Path, task_id: str) -> di
     job = Path(raw.get("job_dir", "")).resolve()
     if not job.is_relative_to(raw_root.resolve()):
         raise ValueError("原生 replay 路径越过本次输出目录")
-    artifacts = list(job.glob("instance_*/agent/replay.json"))
+    artifacts = trialdir.find_trial_files(job, "agent", "replay.json")
     if len(artifacts) != 1:
         return {"available": False, "reason": "not_unique_or_missing"}
     path = artifacts[0]
@@ -256,7 +257,7 @@ def native_result_observations(raw: dict[str, Any], raw_root: Path, task_id: str
     job = Path(raw.get("job_dir", "")).resolve()
     if not job.is_relative_to(raw_root.resolve()):
         raise ValueError("原生结果路径越过本次输出目录")
-    results = list(job.glob("instance_*/result.json"))
+    results = trialdir.find_trial_files(job, *trialdir.RESULT_PARTS)
     if len(results) != 1:
         return {"available": False, "reason": "not_unique_or_missing"}
     path = results[0]

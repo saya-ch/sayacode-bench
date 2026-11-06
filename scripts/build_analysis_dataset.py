@@ -1,9 +1,11 @@
 """把四组 trial 的 verifier 明细、用量、patch、时长汇成一个分析用数据集。
 
 数据源：
-  v2-325/{agent}/jobs/*/instance_*/verifier/{output.json,reward.txt}
-  v2-325/{agent}/verify/jobs/*/instance_*/verifier/{output.json,reward.txt}
+  v2-325/{agent}/jobs/*/<trial>/verifier/{output.json,reward.txt}
+  v2-325/{agent}/verify/jobs/*/<trial>/verifier/{output.json,reward.txt}
   v4-327/sayacode/{jobs,verify/jobs}/...
+
+trial 目录按内容识别（含 result.json / agent / verifier），不依赖 ``instance_`` 前缀。
 
 输出：C:\\sb\\analysis\\dataset.json
 """
@@ -13,6 +15,8 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+
+from sayacode_bench import trialdir
 
 V2 = Path(r"C:\sb\hard\v2-325")
 V4 = Path(r"C:\sb\hard\v4-327")
@@ -128,7 +132,11 @@ def patch_info(inner: Path) -> dict:
         return {"patch_bytes": None, "patch_files": None, "touches_snap": None}
     text = p.read_text(encoding="utf-8", errors="replace")
     size = len(text)
-    files = [ln[4:].strip()[2:] for ln in text.splitlines() if ln.startswith("+++ ") and "/dev/null" not in ln]
+    files = [
+        ln[4:].strip()[2:]
+        for ln in text.splitlines()
+        if ln.startswith("+++ ") and "/dev/null" not in ln
+    ]
     return {
         "patch_bytes": size,
         "patch_files": len(files),
@@ -152,10 +160,7 @@ def collect(root: Path, agent: str, tag: str) -> list[dict]:
             key = (task, repeat)
             if key in seen:
                 continue
-            inner = next(
-                (p for p in job.iterdir() if p.is_dir() and p.name.startswith("instance_")),
-                None,
-            )
+            inner = trialdir.find_trial_dir(job)
             if inner is None:
                 continue
             verd = read_verifier(inner)

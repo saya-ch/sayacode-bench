@@ -20,9 +20,10 @@ from harbor.models.job.config import JobConfig, RetryConfig
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
 from harbor.models.trial.result import TrialResult
 
+from . import trialdir
+from .connections import CANONICAL_MODEL
 from .resources import compare_runtimes
 
-CANONICAL_MODEL = "DeepSeek-V4.1-Flash"
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}\Z")
 
 
@@ -325,10 +326,19 @@ def _request_identity(task_path: Path, config: JobConfig, metadata: Mapping[str,
                     inputs[key] = _sha256(path)
             elif key == "source_job" and isinstance(value, str):
                 source = Path(value)
+                # 复盘 R3 S2：原先按 ``instance_*`` 前缀 glob，非 SWE-bench 题库
+                # （如 SWE-EVO 的 ``sweevo-*`` trial 目录）会得到空表，补丁内容因此
+                # 不参与 request 身份 —— 同目录换补丁后仍会复用旧记录。
+                # 改为按内容定位 trial 目录；相对路径的字符串形式保持不变，
+                # 以免既有 normalized.json 的 request_sha256 全部失效。
                 inputs[key] = {
                     str(path.relative_to(source)): _sha256(path)
-                    for pattern in ("instance_*/result.json", "instance_*/agent/model.patch")
-                    for path in sorted(source.glob(pattern))
+                    for path in sorted(
+                        [
+                            *trialdir.find_trial_files(source, *trialdir.RESULT_PARTS),
+                            *trialdir.find_trial_files(source, *trialdir.PATCH_PARTS),
+                        ]
+                    )
                     if path.is_file()
                 }
     uses_replay = any(
@@ -484,7 +494,9 @@ async def replay_official_trial(
     source = _read_object(source_job / "normalized.json")
     if source.get("record_complete") is not True:
         raise ValueError("源试验未收尾，不能对仍在变化的工件重判")
-    raw_trials = list(source_job.glob("instance_*/result.json"))
+    # 复盘 R3 S3（P0）：原先 ``glob("instance_*/result.json")``，非 SWE-bench 题库
+    # 恒为空 -> 恒返回 ``missing_source_trial``，即独立重判链路对 SWE-EVO 永远失败。
+    raw_trials = trialdir.find_trial_files(source_job, *trialdir.RESULT_PARTS)
     source_failed = source.get("status") in {
         "failed",
         "infrastructure_error",
@@ -504,7 +516,7 @@ async def replay_official_trial(
             "replay_job_dir": None,
         }
     if len(raw_trials) > 1:
-        raise ValueError("补丁重判要求源 job 恰好一个 instance trial，避免首补丁串用")
+        raise ValueError("补丁重判要求源 job 恰好一个 trial，避免首补丁串用")
     raw_trial = _read_object(raw_trials[0])
     if raw_trial.get("task_name", "").split("/")[-1] != task_path.name:
         raise ValueError("源 job 与待重判任务不一致")

@@ -8,6 +8,7 @@ from resource_samples import runtime_evidence
 from sayacode_bench import publish, study
 from sayacode_bench.analysis import analyze_experiment
 from sayacode_bench.artifacts import implementation_identity
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.publish import export_results, public_record, validate_public
 
 
@@ -16,7 +17,7 @@ def record():
         "task_id": "task-a",
         "configuration": "baseline",
         "repeat": 1,
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "endpoint": "local",
         "status": "completed",
         "success": True,
@@ -58,7 +59,7 @@ def test_export_keeps_abort_and_is_not_overwritable(tmp_path):
             {
                 "phase": "validation",
                 "frozen": True,
-                "canonical_model": "DeepSeek-V4.1-Flash",
+                "canonical_model": CANONICAL_MODEL,
                 "configurations": ["baseline"],
                 "baseline": "baseline",
                 "candidate": None,
@@ -212,7 +213,7 @@ def source_files(tmp_path, *, extra_manifest=None):
                 "phase": "validation",
                 "frozen": True,
                 "implementation": implementation_identity(),
-                "canonical_model": "DeepSeek-V4.1-Flash",
+                "canonical_model": CANONICAL_MODEL,
                 "configurations": ["baseline"],
                 "baseline": "baseline",
                 "candidate": None,

@@ -47,10 +47,11 @@ def make_job(
     reward: float | None = None,
     patch: int | None = None,
     terminal: str | None = None,
+    trial_name: str | None = None,
 ) -> Path:
     short = task_id.replace("instance_", "")[:34]
     job = root / agent / "jobs" / f"{agent}-{short}-r{repeat}"
-    inner = job / f"instance_{task_id.replace('instance_', '')[:18]}__x1"
+    inner = job / (trial_name or f"instance_{task_id.replace('instance_', '')[:18]}__x1")
     inner.mkdir(parents=True)
     (inner / "result.json").write_text(
         json.dumps({"task_name": f"swebench-pro/{task_id}"}), encoding="utf-8"
@@ -220,6 +221,93 @@ def test_infra_branch_covers_network_and_docker() -> None:
         assert classify_missing(Trial(**{**base, "exception_type": exception})) == "infra"
     # 非 infra 类异常仍然走原有判定
     assert classify_missing(Trial(**{**base, "exception_type": "ValueError"})) == "empty_patch"
+
+
+def test_timeout_is_classified_before_empty_patch_and_unverified() -> None:
+    """超时必须归 ``timeout``（协议 §6：不补），不能落成 empty_patch/unverified。
+
+    回归背景：R3 S8 —— ``MISSING_CLASSES`` 声明了 ``timeout``，但 ``classify_missing``
+    没有任何分支返回它。方向性后果：**超时且有部分 patch** 曾被记成 ``unverified``
+    （协议规定可补），等于给该 trial 额外重跑机会，违反「timeout 不补」。
+    """
+    from sayacode_bench.formal import TIMEOUT_EXCEPTIONS, Trial
+
+    base = dict(
+        agent="a",
+        job="j",
+        kind="native",
+        task_id="sweevo-dask-2022-10-0",  # 非 instance_ 命名，与真实新题库一致
+        repository="dask",
+        repeat=1,
+        reward=None,
+        terminal=None,
+        patch_bytes=None,
+        partial=None,
+        restored_tests=False,
+        stripped_tests=False,
+    )
+    # 常量必须覆盖 harbor 0.24.0 实际会落盘的超时异常名
+    assert {"AgentTimeoutError", "VerifierTimeoutError"} <= TIMEOUT_EXCEPTIONS
+    for exception in ("AgentTimeoutError", "VerifierTimeoutError", "TimeoutError"):
+        assert classify_missing(Trial(**{**base, "exception_type": exception})) == "timeout"
+        # 关键：有部分 patch 时仍必须是 timeout，而不是 unverified（可补）
+        assert (
+            classify_missing(Trial(**{**base, "patch_bytes": 120, "exception_type": exception}))
+            == "timeout"
+        )
+        assert (
+            classify_missing(Trial(**{**base, "patch_bytes": 0, "exception_type": exception}))
+            == "timeout"
+        )
+    # 已观测成功的 trial 不受超时分类影响
+    assert classify_missing(Trial(**{**base, "reward": 1.0, "patch_bytes": 120})) is None
+    # infra 优先于 timeout：安装/网络失败与超时的处置不同（前者可补）
+    assert (
+        classify_missing(Trial(**{**base, "exception_type": "NonZeroAgentExitCodeError"}))
+        == "infra"
+    )
+
+
+def test_sweevo_named_trial_dir_is_summarized_not_missing(tmp_path: Path) -> None:
+    """非 ``instance_`` 命名的 trial 目录也必须被汇总识别（R3 S1/S5 回归）。
+
+    回归背景：SWE-EVO 的 trial 目录是 ``sweevo-<slug>__<random>``；旧实现按前缀
+    判定，会把每个 job 都当成「无 trial」，汇总全部落到 ``empty_patch`` / ``no_job``。
+    """
+    sample = write_sample(tmp_path / "sample.json")
+    root = tmp_path / "results"
+    make_job(
+        root,
+        "sayacode",
+        TASKS[0][0],
+        1,
+        reward=1.0,
+        patch=90,
+        trial_name="sweevo-dask-2022-9-2-2022-10-0__R2jYLdj",
+    )
+
+    summary = summarize(root, sample=sample, repeats=1, agents=["sayacode"])
+    data = summary["agents"]["sayacode"]
+
+    assert data["passes"] == 1
+    assert data["observed"] == 1
+    assert "empty_patch" not in data["missing_counts"]
+    # 其余 3 题确实没有 job；关键是本题（非 instance_ 目录）没有被误判为缺失
+    assert data["missing_counts"].get("no_job") == 3
+    assert data["missing_counts"].get("unverified") != 1
+
+
+def test_task_matching_does_not_require_instance_prefix() -> None:
+    """job 名 → 计划项 的匹配不能要求 task_id 以 ``instance_`` 开头（R3 S1）。"""
+    from sayacode_bench.formal import TaskSpec, _match_task_by_job_name
+
+    tasks = [
+        TaskSpec(task_id="sweevo-dask-2022-10-0", repository="dask"),
+        TaskSpec(task_id="sweevo-dvc-1-11-13", repository="dvc"),
+    ]
+    assert _match_task_by_job_name("sweevo-dask-2022-10-0", tasks) == "sweevo-dask-2022-10-0"
+    # 不做子串猜测：无法唯一对应时必须返回 None（由调用方记 unattributed）
+    assert _match_task_by_job_name("sweevo", tasks) is None
 
 
 def test_restored_and_stripped_are_separate_flags(tmp_path: Path) -> None:

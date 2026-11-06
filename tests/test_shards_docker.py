@@ -20,6 +20,7 @@ from test_network import _host_mock_selection
 from sayacode_bench import shards, study
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
 from sayacode_bench.budget import estimate_paid_usage
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.execution import run_official_trial
 from sayacode_bench.network import docker
 from sayacode_bench.sources import SOURCES, SourceSnapshot, SourceSpec, fetch_source, tree_digest
@@ -376,7 +377,7 @@ async def test_real_production_graph_shards_with_local_anthropic_stub(monkeypatc
             master = {
                 "phase": "calibration",
                 "frozen": True,
-                "canonical_model": "DeepSeek-V4.1-Flash",
+                "canonical_model": CANONICAL_MODEL,
                 "benchmark": "swe-bench-pro-v2",
                 "revision": SYNTHETIC_REVISION,
                 "scope": "synthetic harness smoke; benchmark key selects pristine adapter only; not a SWE score",

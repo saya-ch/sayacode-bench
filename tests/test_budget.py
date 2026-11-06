@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from sayacode_bench.budget import budget_reason, estimate_paid_usage
+from sayacode_bench.connections import CANONICAL_MODEL
 
 
 def record(index: int = 1, **updates: Any) -> dict[str, Any]:
@@ -19,7 +20,7 @@ def record(index: int = 1, **updates: Any) -> dict[str, Any]:
         "task_id": f"task-{index}",
         "configuration": "baseline",
         "repeat": 1,
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "input_tokens": 1_000_000,
         "output_tokens": 250_000,
         "usage_complete": True,

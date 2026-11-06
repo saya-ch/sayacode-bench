@@ -11,7 +11,7 @@ from sayacode_bench.artifacts import (
     record_stop,
     write_json,
 )
-from sayacode_bench.connections import messages_endpoint, read_connection
+from sayacode_bench.connections import CANONICAL_MODEL, messages_endpoint, read_connection
 
 
 def test_frozen_manifest_refuses_overwrite(tmp_path: Path) -> None:
@@ -87,7 +87,7 @@ def test_connection_export_excludes_secret(tmp_path: Path) -> None:
         },
     )
     value = read_connection("local", path).public_dict()
-    assert value["canonical_model"] == "DeepSeek-V4.1-Flash"
+    assert value["canonical_model"] == CANONICAL_MODEL
     assert "api_key" not in value and "not-a-real-key" not in str(value)
 
 

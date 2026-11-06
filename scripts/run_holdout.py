@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
 
+from sayacode_bench import trialdir  # noqa: E402
 from sayacode_bench.connections import messages_endpoint  # noqa: E402
 from sayacode_bench.execution import CANONICAL_MODEL, run_official_trial  # noqa: E402
 
@@ -100,11 +101,11 @@ async def main_async(args: argparse.Namespace) -> int:
         async with sem:
             job = f"ho-{tid.replace('instance_', '')[:36]}-r{repeat}"
             job_dir = out / "jobs" / job
-            if args.skip_existing and list(job_dir.glob("instance_*/verifier/reward.txt")):
+            if args.skip_existing and trialdir.has_trial_file(job_dir, *trialdir.REWARD_PARTS):
                 print(f"SKIP {tid[:48]} r{repeat}（已有结果）", flush=True)
                 return
             # 旧 job 未收尾会让 Harbor 以身份不符拒绝；归档后重跑
-            if job_dir.exists() and not list(job_dir.glob("instance_*/verifier/reward.txt")):
+            if job_dir.exists() and not trialdir.has_trial_file(job_dir, *trialdir.REWARD_PARTS):
                 target = out / "abandoned" / f"{job}-{int(__import__('time').time())}"
                 target.parent.mkdir(parents=True, exist_ok=True)
                 job_dir.rename(target)

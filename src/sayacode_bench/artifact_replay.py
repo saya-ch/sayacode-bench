@@ -7,6 +7,7 @@ from pathlib import Path
 
 from patch_replay import PatchReplayAgent
 
+from . import trialdir
 from .artifacts import file_sha256, read_json
 from .sources import SOURCES
 
@@ -16,7 +17,10 @@ class ArtifactReplayAgent(PatchReplayAgent):  # type: ignore[misc]
 
     def _find_patch(self, task_name: str) -> Path:
         root = Path(self._source_job).resolve(strict=True)
-        sources = list(root.glob("instance_*/source.json"))
+        # 复盘 R3 S4：原先 ``glob("instance_*/source.json")`` 把 SWE-bench 的命名当前提；
+        # 便携工件的 trial 目录也可能是 ``sweevo-*`` 或任意 slug。按内容定位，
+        # 同时兼容「source.json 直接放在根目录」的退化布局（find_trial_files 会回退）。
+        sources = trialdir.find_trial_files(root, "source.json")
         if len(sources) != 1:
             raise ValueError("便携工件必须且只能包含一份真实来源说明")
         source = sources[0]

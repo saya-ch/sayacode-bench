@@ -7,6 +7,7 @@ import pytest
 from resource_samples import complete_resource_fixture
 
 from sayacode_bench.artifacts import file_sha256, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.locking import lock_candidate, validate_candidate_receipt
 
 
@@ -20,7 +21,7 @@ def experiment(tmp_path):
     plan = {
         "phase": "dev",
         "frozen": True,
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "configurations": ["reference", "revised"],
         "baseline": "reference",
         "candidate": None,

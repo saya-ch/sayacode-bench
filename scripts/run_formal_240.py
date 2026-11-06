@@ -23,6 +23,7 @@ sys.path.insert(0, str(BENCH / "scripts"))
 from harbor.models.trial.config import AgentConfig  # noqa: E402,F401  (re-export 给旧调用方)
 from locked_agents import AGENTS, CANONICAL_MODEL, FormalPaths, build_agent, env_cfg  # noqa: E402
 
+from sayacode_bench import trialdir  # noqa: E402
 from sayacode_bench.execution import run_official_trial  # noqa: E402
 
 VERIFIER_CFG = None
@@ -32,6 +33,42 @@ def prune_networks() -> None:
     subprocess.run(
         ["docker", "network", "prune", "-f"], capture_output=True, timeout=120, check=False
     )
+
+
+def archive_incomplete_jobs(out: Path, name: str) -> int:
+    """归档「无 reward、无终态标记、也无 patch」的残留 job（Docker 崩溃导致）。
+
+    否则 Harbor 会以身份冲突拒绝重跑。
+
+    **判据必须按内容识别，不能按 ``instance_`` 前缀**（历史 bug）：
+    旧实现用 ``job_dir.glob("instance_*/verifier/reward.txt")``，接入 SWE-EVO
+    （trial 目录形如 ``sweevo-...__random``）后一个都匹配不上，于是**已完成的
+    job 被当成「无结果」移进 abandoned/，等于丢数据**。实测 pilot1 的 10/10 个
+    已完成 job 都会被误归档。见 ``docs/review/2026-11-07/R3-infrastructure.md`` S1。
+    """
+    import shutil
+    import time as _time
+
+    jobs_dir = out / "jobs"
+    if not jobs_dir.is_dir():
+        return 0
+    abandoned = out / f"abandoned-{int(_time.time())}"
+    moved = 0
+    for job_dir in jobs_dir.iterdir():
+        if not job_dir.is_dir():
+            continue
+        done = (
+            trialdir.has_trial_file(job_dir, *trialdir.REWARD_PARTS)
+            or trialdir.has_trial_file(job_dir, *trialdir.TERMINAL_PARTS)
+            or trialdir.has_trial_file(job_dir, *trialdir.PATCH_PARTS)
+        )
+        if not done:
+            abandoned.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(job_dir), str(abandoned / job_dir.name))
+            moved += 1
+    if moved:
+        print(f"[{name}] 归档 {moved} 个无结果 job", flush=True)
+    return moved
 
 
 def container_mem_mb() -> float:
@@ -182,26 +219,7 @@ async def run_agent(
     monitor = asyncio.create_task(mem_supervisor(sem, name))
     rows: list[dict] = []
 
-    # 归档无 reward、无终态标记、也无 patch 的残留 job（Docker 崩溃导致），否则 Harbor 以身份冲突拒绝重跑。
-    import shutil
-    import time as _time
-
-    jobs_dir = out / "jobs"
-    if jobs_dir.is_dir():
-        abandoned = out / f"abandoned-{int(_time.time())}"
-        moved = 0
-        for job_dir in jobs_dir.iterdir():
-            if not job_dir.is_dir():
-                continue
-            has_reward = list(job_dir.glob("instance_*/verifier/reward.txt"))
-            has_terminal = list(job_dir.glob("instance_*/verifier/terminal.json"))
-            has_patch = list(job_dir.glob("instance_*/agent/model.patch"))
-            if not has_reward and not has_terminal and not has_patch:
-                abandoned.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(job_dir), str(abandoned / job_dir.name))
-                moved += 1
-        if moved:
-            print(f"[{name}] 归档 {moved} 个无结果 job", flush=True)
+    archive_incomplete_jobs(out, name)
 
     async def one(tid: str, repeat: int) -> None:
         async with sem:
@@ -221,8 +239,8 @@ async def run_agent(
                 except (OSError, ValueError):
                     record_complete = False
             if skip_existing and (
-                list(job_dir.glob("instance_*/verifier/reward.txt"))
-                or list(job_dir.glob("instance_*/verifier/terminal.json"))
+                trialdir.has_trial_file(job_dir, *trialdir.REWARD_PARTS)
+                or trialdir.has_trial_file(job_dir, *trialdir.TERMINAL_PARTS)
                 or record_complete
             ):
                 rows.append(

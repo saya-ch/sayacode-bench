@@ -14,6 +14,7 @@ from sayacode_bench.analysis import (
     select_development_candidate,
 )
 from sayacode_bench.artifacts import implementation_identity
+from sayacode_bench.connections import CANONICAL_MODEL
 
 
 def manifest(*, phase="holdout", repeats=2):
@@ -21,7 +22,7 @@ def manifest(*, phase="holdout", repeats=2):
         "phase": phase,
         "frozen": True,
         "implementation": implementation_identity(),
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "configurations": ["reference", "revised"],
         "baseline": "reference",
         "candidate": "revised",
@@ -53,7 +54,7 @@ def records():
             "status": "completed",
             "success": label == "revised" or task == "alpha",
             "verified": True,
-            "canonical_model": "DeepSeek-V4.1-Flash",
+            "canonical_model": CANONICAL_MODEL,
             "endpoint": "local_proxy",
             "duration_seconds": 10,
             "input_tokens": 100,

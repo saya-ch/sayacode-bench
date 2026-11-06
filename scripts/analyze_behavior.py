@@ -15,6 +15,8 @@ import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from sayacode_bench import trialdir
+
 V2 = Path(r"C:\sb\hard\v2-325")
 V4 = Path(r"C:\sb\hard\v4-327")
 OUT = Path(r"C:\sb\analysis\behavior.json")
@@ -27,10 +29,31 @@ GROUPS = [
     ("opencode", V2, "baseline"),
 ]
 
-EDIT = {"write_file", "search_replace", "Edit", "Write", "MultiEdit", "str_replace_editor", "apply_patch", "edit"}
+EDIT = {
+    "write_file",
+    "search_replace",
+    "Edit",
+    "Write",
+    "MultiEdit",
+    "str_replace_editor",
+    "apply_patch",
+    "edit",
+}
 EXPLORE = {
-    "read_file", "grep_search", "list_directory", "Read", "Grep", "Glob", "LS", "NotebookRead",
-    "read", "grep", "list", "search", "find", "view",
+    "read_file",
+    "grep_search",
+    "list_directory",
+    "Read",
+    "Grep",
+    "Glob",
+    "LS",
+    "NotebookRead",
+    "read",
+    "grep",
+    "list",
+    "search",
+    "find",
+    "view",
 }
 EXEC = {"execute_command_tool", "Bash", "bash", "shell", "terminal", "run_command"}
 
@@ -151,10 +174,7 @@ def main() -> None:
             if meta is None:
                 continue
             task, rep = meta
-            inner = next(
-                (p for p in job.iterdir() if p.is_dir() and p.name.startswith("instance_")),
-                None,
-            )
+            inner = trialdir.find_trial_dir(job)
             if inner is None:
                 continue
             beh = from_sayacode_audit(inner) if agent == "sayacode" else from_atif(inner)
@@ -185,7 +205,9 @@ def main() -> None:
         err = statistics.mean([r.get("tool_errors") or 0 for r in rs])
         mc = statistics.mean([r.get("model_calls") or r.get("steps") or 0 for r in rs])
         it = statistics.mean([r.get("input_tokens") or r.get("prompt_tokens") or 0 for r in rs])
-        print(f"{key:16}{len(rs):>4}{tc:>10.1f}{ex:>8.1f}{ed:>8.1f}{ec:>8.1f}{err:>10.1f}{mc:>10.1f}{it:>14,.0f}")
+        print(
+            f"{key:16}{len(rs):>4}{tc:>10.1f}{ex:>8.1f}{ed:>8.1f}{ec:>8.1f}{err:>10.1f}{mc:>10.1f}{it:>14,.0f}"
+        )
 
     print("\n" + "=" * 104)
     print("2. 工具类型分布（占该组全部调用）")

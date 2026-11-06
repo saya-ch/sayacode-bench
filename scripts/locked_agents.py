@@ -31,11 +31,12 @@ from harbor.environments.base import BaseEnvironment  # noqa: E402
 from harbor.models.agent.context import AgentContext  # noqa: E402
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
 
-# 规范模型身份：默认与历史批次一致的 `auto-hy3`；pin 到固定来源时用
-# `SAYACODE_BENCH_CANONICAL_MODEL=workbuddy/hy3` 覆盖，使记录与实际 served 对齐。
-# 背景：`auto-hy3` 是组路由，实测有概率漂到 `deepseek/deepseek-v4.1-flash`
-# （见 docs/RETROSPECTIVE-20261105.md §5.5）。
-CANONICAL_MODEL = os.environ.get("SAYACODE_BENCH_CANONICAL_MODEL", "auto-hy3")
+from sayacode_bench import trialdir  # noqa: E402
+from sayacode_bench.connections import CANONICAL_MODEL as _SRC_CANONICAL_MODEL  # noqa: E402
+
+# 规范模型身份的唯一来源是 ``src/sayacode_bench/connections.py``；本文件只保留环境变量
+# 覆盖入口（pin 到固定 served 来源时用），**不再写第二份字面量**。
+CANONICAL_MODEL = os.environ.get("SAYACODE_BENCH_CANONICAL_MODEL", _SRC_CANONICAL_MODEL)
 # v3 基线：Codex 因 apply_patch 工具契约与 /v1/responses websocket 405 全组失效
 # （见 docs/CODEX-BASELINE-INVALID.md），第三个基线换为 Claude Code（/v1/messages 原生协议）。
 # "codex" 分支仍保留在 build_agent 中，供 v2 历史结果复现。
@@ -486,9 +487,9 @@ class PatchReplayAgent(BaseAgent):
 
     def _find_patch(self, task_name: str) -> Path | None:
         # 不能只 glob("instance_*/result.json")：那只是 SWE-bench 的命名习惯。
-        # SWE-EVO 等题库的 trial 目录是 sweevo-...__<random>，按前缀会一个都找不到，
-        # 表现为「no source patch ... applying nothing」且所有 reward=0。
-        for result_json in sorted(self._source_job.glob("*/result.json")):
+        # SWE-EVO 等题库的 trial 目录是 sweevo-...__<random>；这里统一走 trialdir 的
+        # 按内容识别，前缀变化不影响补丁定位。
+        for result_json in trialdir.find_trial_files(self._source_job, *trialdir.RESULT_PARTS):
             try:
                 payload = json.loads(result_json.read_text(encoding="utf-8"))
             except (OSError, ValueError):

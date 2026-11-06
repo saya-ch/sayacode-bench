@@ -1,11 +1,17 @@
-"""严格口径三/四组对比：planned / observed / strict（扣改 .snap 的通过）。
+"""历史 strict 口径核对：planned / observed / strict（扣掉 patch 改 ``*.snap`` 的通过）。
 
-用途：v2 主表只报 planned；但 known-passing 里存在「靠改 `__snapshots__/*.snap`
-通过」的 trial，而 verifier 不重置快照目录（`tests/test.sh` 的 DATA_DIRS 包含它），
-这类 pass 属于评测器漏洞而非能力，必须单独扣掉后再比较。
+> ⚠️ **strict 口径已于 2026-11-07 废除**，见 ``docs/RESULTS-LEDGER.md`` §1。
+> 废除理由：``strict`` 的前提「verifier 不重置 ``__snapshots__``」被证伪 —— 642/642 个
+> ``tests/test.sh`` 在判分前对快照执行 ``git checkout HEAD``，agent 对快照的修改已被还原。
+> **任何 strict 数字都不得引用**；本脚本仅保留为历史批次的核对工具（输出也不得进报告）。
+>
+> 方向性修复（2026-11-07）：旧实现在「pass 但找不到 patch」时把 trial 计入 strict，
+> 与「扣掉不可判定项」的严格方向相反，会**高估** strict。现在找不到 patch 一律不计入
+> strict，只记入 ``missing_patches``。reward 解析也从只认 ``"1"/"1.0"`` 改为 ``float()``
+> 容错（``"1\n"``、``"1.00"`` 都能识别）。
 
-strict 口径与 planned 的差异只有一项判定：某个 pass trial 的 patch 是否修改了
-`*.snap` 文件；其余（缺失、超时、真实失败）一律沿用 planned 计数。
+strict 与 planned 的差异只有一项判定：某个 pass trial 的 patch 是否修改了 ``*.snap``
+文件；其余（缺失、超时、真实失败）一律沿用 planned 计数。
 
 用法::
 
@@ -19,6 +25,8 @@ import json
 import os
 import re
 from pathlib import Path
+
+from sayacode_bench import trialdir
 
 SNAP_RE = re.compile(r"(__snapshots__/.*\.snap$|\.snap$)", re.IGNORECASE)
 
@@ -41,11 +49,11 @@ def _patch_files(path: Path) -> list[str] | None:
 
 
 def _find_patch(job: Path) -> Path | None:
-    direct = list(job.rglob("model.patch"))
-    if direct:
-        return direct[0]
+    patches = trialdir.find_trial_files(job, *trialdir.PATCH_PARTS)
+    if patches:
+        return patches[0]
     # verify 阶段把 patch 放在 replay.json 里指向 native 的 model.patch
-    for replay in job.rglob("replay.json"):
+    for replay in trialdir.find_trial_files(job, "replay.json"):
         try:
             payload = json.loads(replay.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -62,7 +70,7 @@ def _read_terminal(job: Path) -> str | None:
     空 patch 跳过（`skipped_empty_patch`）这类终态在协议里按「观测到 0 分」计入，
     不算 missing；只看 reward.txt 会把它们误判成缺失（v2/v3 期间实际发生过）。
     """
-    for terminal in job.rglob("terminal.json"):
+    for terminal in trialdir.find_trial_files(job, *trialdir.TERMINAL_PARTS):
         try:
             payload = json.loads(terminal.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -83,11 +91,11 @@ def _collect(agent_dir: Path) -> tuple[dict[str, dict], int]:
             if not job.is_dir():
                 continue
             key = job.name[7:] if kind == "verify" and job.name.startswith("verify-") else job.name
-            reward_files = list(job.rglob("reward.txt"))
+            reward_file = trialdir.find_trial_file(job, *trialdir.REWARD_PARTS)
             reward = None
-            if reward_files:
+            if reward_file is not None:
                 try:
-                    reward = reward_files[0].read_text(encoding="utf-8").strip()
+                    reward = reward_file.read_text(encoding="utf-8").strip()
                 except OSError:
                     reward = None
             terminal = _read_terminal(job)
@@ -115,7 +123,7 @@ def analyse(agent_dir: Path, planned_total: int) -> dict:
     passes = 0
     strict = 0
     snap_passes: list[str] = []
-    missing_passes = 0
+    missing_patches = 0
     terminal_only: list[str] = []
     for key, info in sorted(trials.items()):
         reward = info["reward"]
@@ -126,13 +134,19 @@ def analyse(agent_dir: Path, planned_total: int) -> dict:
         if reward is None:
             terminal_only.append(key)
             continue
-        if reward not in ("1", "1.0"):
+        # reward.txt 可能是 "1\n" / "1.0\n" / "1.00"：用 float 容错，不再只认字符串。
+        try:
+            value = float(str(reward).strip())
+        except (TypeError, ValueError):
+            continue
+        if value != 1.0:
             continue
         passes += 1
         patch = _find_patch(info["job"])
         if patch is None:
-            missing_passes += 1
-            strict += 1  # 找不到 patch 时保守计入通过（无可判定证据）
+            # 方向性修复：找不到 patch 时**不得**计入 strict（旧实现 strict += 1 会高估）。
+            # 只记录为不可判定，供历史核对时人工查看。
+            missing_patches += 1
             continue
         files = _patch_files(patch) or []
         if any(SNAP_RE.search(name) for name in files):
@@ -145,6 +159,7 @@ def analyse(agent_dir: Path, planned_total: int) -> dict:
         "passes": passes,
         "strict_passes": strict,
         "snap_passes": len(snap_passes),
+        "missing_patches": missing_patches,
         "missing": planned_total - observed,
         "terminal_only_trials": terminal_only,
         "snap_trial_keys": snap_passes,
@@ -154,13 +169,18 @@ def analyse(agent_dir: Path, planned_total: int) -> dict:
     }
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "历史 strict 口径核对。strict 已于 2026-11-07 废除（见 docs/RESULTS-LEDGER.md §1）："
+            "输出仅供历史核对，不得引用。planned/observed 仍按协议口径计算。"
+        )
+    )
     parser.add_argument("--root", required=True, help="结果根目录（含各 agent 子目录）")
     parser.add_argument("--agents", nargs="*", default=None)
     parser.add_argument("--planned", type=int, default=80, help="冻结题集 × 重复数的计划分母")
     parser.add_argument("--json-out", default=None)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     root = Path(args.root)
     agents = args.agents or sorted(p.name for p in root.iterdir() if p.is_dir())
@@ -171,14 +191,17 @@ def main() -> int:
             continue
         report[name] = analyse(agent_dir, args.planned)
 
-    print(f"{'agent':14}{'planned':>9}{'observed':>10}{'pass':>7}{'snap':>6}{'strict':>8}"
-          f"{'planned%':>11}{'observed%':>11}{'strict%':>10}{'missing':>9}")
+    print("⚠️ strict 口径已废除（2026-11-07）：下列 strict 列仅供历史核对，不得引用。")
+    print(
+        f"{'agent':14}{'planned':>9}{'observed':>10}{'pass':>7}{'snap':>6}{'strict':>8}"
+        f"{'planned%':>11}{'observed%':>11}{'strict%':>10}{'missing':>9}"
+    )
     for name, row in report.items():
         print(
             f"{name:14}{row['planned']:>9}{row['observed']:>10}{row['passes']:>7}"
             f"{row['snap_passes']:>6}{row['strict_passes']:>8}"
-            f"{row['pass_rate_planned']*100:>10.1f}%{row['pass_rate_observed']*100:>10.1f}%"
-            f"{row['strict_rate_planned']*100:>9.1f}%{row['missing']:>9}"
+            f"{row['pass_rate_planned'] * 100:>10.1f}%{row['pass_rate_observed'] * 100:>10.1f}%"
+            f"{row['strict_rate_planned'] * 100:>9.1f}%{row['missing']:>9}"
         )
     if args.json_out:
         Path(args.json_out).write_text(

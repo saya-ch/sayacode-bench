@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from auto_resume import DockerStatus, probe_docker  # noqa: E402
 from locked_agents import CANONICAL_MODEL, FormalPaths, build_agent, env_cfg  # noqa: E402
 
+from sayacode_bench import trialdir  # noqa: E402
 from sayacode_bench.execution import run_official_trial  # noqa: E402
 
 DEFAULT_SAMPLE = ROOT / "studies" / "sample-40-final.json"
@@ -172,8 +173,8 @@ def validate_trial(record: dict[str, Any], job_dir: Path) -> list[Check]:
     )
     reward = record.get("original_reward")
     checks.append(Check("reward_present", PASS if reward is not None else FAIL, f"reward={reward}"))
-    patches = list(job_dir.glob("instance_*/agent/model.patch"))
-    size = patches[0].stat().st_size if patches else 0
+    patch = trialdir.find_trial_file(job_dir, *trialdir.PATCH_PARTS)
+    size = patch.stat().st_size if patch is not None else 0
     checks.append(Check("patch_nonempty", PASS if size > 0 else FAIL, f"model.patch {size} 字节"))
     return checks
 

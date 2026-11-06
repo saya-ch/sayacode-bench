@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from sayacode_bench import trialdir
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
 from sayacode_bench.execution import replay_official_trial, run_official_trial
 from sayacode_bench.sources import SOURCES, fetch_source
@@ -24,7 +25,7 @@ async def verify(cache: Path, source_job: Path, output: Path) -> dict[str, Any]:
     task_id = source["task_id"]
     if task_id not in {task["task_id"] for task in manifest["tasks"]}:
         raise ValueError("源任务不属于校准清单")
-    patches = list(source_job.glob("instance_*/agent/model.patch"))
+    patches = trialdir.find_trial_files(source_job, *trialdir.PATCH_PARTS)
     if len(patches) != 1 or not patches[0].is_file():
         raise ValueError("需要唯一已捕获校准补丁")
     patch = patches[0]

@@ -20,6 +20,7 @@ from resource_samples import runtime_evidence
 
 from sayacode_bench import shards, study
 from sayacode_bench.artifacts import file_sha256, implementation_identity, read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.execution import normalize_trial_result, paired_order
 from sayacode_bench.locking import lock_candidate
 
@@ -68,7 +69,7 @@ def make_experiment(bundle: Path, private: Path, monkeypatch: Any) -> Any:
     public_profile = {
         "protocol": "anthropic_messages",
         "base_url": "https://model.invalid",
-        "model_id": "DeepSeek-V4.1-Flash",
+        "model_id": CANONICAL_MODEL,
         "context_length": 65536,
         "max_output_tokens": 8192,
     }
@@ -90,13 +91,20 @@ def make_experiment(bundle: Path, private: Path, monkeypatch: Any) -> Any:
             }
         )
     price = inputs / "prices.json"
-    price.write_bytes(
-        (ROOT / "studies/prices/siliconflow-deepseek-v4.1-flash-20261022.json").read_bytes()
+    # 历史价格快照的 model_id 属 v1 SiliconFlow 时代；冻结校验现在绑定 CANONICAL_MODEL
+    # （2026-11-07 统一为 auto-hy3，见复盘 R3 S7），夹具同步改写以保持语义一致。
+    price_payload = read_json(
+        ROOT / "studies/prices/siliconflow-deepseek-v4.1-flash-20261022.json"
     )
+    price_payload["model_id"] = CANONICAL_MODEL
+    binding = price_payload.get("connection_requirements")
+    if isinstance(binding, dict):
+        binding["model_id"] = CANONICAL_MODEL
+    write_json(price, price_payload)
     master = {
         "phase": "dev",
         "frozen": True,
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "benchmark": "swe-bench-pro-v2",
         "seed": "fixed-shard-behavior",
         "tasks": tasks,

@@ -13,6 +13,8 @@ from typing import Any
 import pytest
 from resource_samples import complete_resource_fixture
 
+from sayacode_bench.connections import CANONICAL_MODEL
+
 
 @pytest.fixture
 def sensitivity() -> ModuleType:
@@ -61,7 +63,7 @@ def example(
     manifest = {
         "phase": phase,
         "frozen": True,
-        "canonical_model": "DeepSeek-V4.1-Flash",
+        "canonical_model": CANONICAL_MODEL,
         "configurations": labels,
         "baseline": "baseline",
         "candidate": None if phase == "validation" else "candidate",

@@ -14,6 +14,7 @@ from test_observed_cache_budget import PROFILES
 
 from sayacode_bench import cli, installation, pilot_carry, study
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 
 ROOT = Path(__file__).resolve().parents[1]
 PRICE = ROOT / "studies/prices/siliconflow-deepseek-v4.1-flash-observed-cache-20261023-v3.json"
@@ -36,9 +37,18 @@ def epoch(tmp_path: Path, monkeypatch: Any, historical: dict[str, Any]) -> dict[
     monkeypatch.setattr(
         installation, "validate_installation_preflight", lambda *args, **kwargs: {}, raising=False
     )
+    # 历史价格快照的 model_id 属 v1 SiliconFlow 时代；冻结校验现在绑定
+    # CANONICAL_MODEL（2026-11-07 统一为 auto-hy3，见复盘 R3 S7），夹具同步改写。
+    price = tmp_path / "price-v3.json"
+    payload = read_json(PRICE)
+    payload["model_id"] = CANONICAL_MODEL
+    binding = payload.get("connection_requirements")
+    if isinstance(binding, dict):
+        binding["model_id"] = CANONICAL_MODEL
+    write_json(price, payload)
     arguments = dict(
         limit_cny=100,
-        price_snapshot=PRICE,
+        price_snapshot=price,
         prior_records=[paid],
         historical_settlement=historical["path"],
         connection_profiles=PROFILES,
@@ -133,11 +143,21 @@ def test_restart_cannot_omit_original_historical_settlement(epoch: dict[str, Any
         study._paid_inputs(epoch)
 
 
-def test_another_internally_valid_price_cannot_reprice_pilot(epoch: dict[str, Any]) -> None:
+def test_another_internally_valid_price_cannot_reprice_pilot(
+    epoch: dict[str, Any], tmp_path: Path
+) -> None:
     old = epoch["paid_budget"]
+    # 另一份内部自洽但模型身份需重绑定的历史价格（R3 S7）
+    other = tmp_path / "price-base.json"
+    payload = read_json(ROOT / "studies/prices/siliconflow-deepseek-v4.1-flash-20261022.json")
+    payload["model_id"] = CANONICAL_MODEL
+    binding = payload.get("connection_requirements")
+    if isinstance(binding, dict):
+        binding["model_id"] = CANONICAL_MODEL
+    write_json(other, payload)
     epoch["paid_budget"] = study.freeze_paid_budget(
         limit_cny=100,
-        price_snapshot=ROOT / "studies/prices/siliconflow-deepseek-v4.1-flash-20261022.json",
+        price_snapshot=other,
         prior_records=[Path(ref["path"]) for ref in old["prior_records"]],
         historical_settlement=Path(old["historical_settlement"]["path"]),
         pilot_carry=Path(old["pilot_carry"]["path"]),

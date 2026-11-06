@@ -1,4 +1,4 @@
-"""空 patch 终态与断点续跑判据：不再永久 pending。"""
+"""空 patch 终态与断点续跑判据：不再永久 pending；trial 目录按内容识别。"""
 
 from __future__ import annotations
 
@@ -7,12 +7,23 @@ from pathlib import Path
 
 from scripts import verify_patches
 
+DEFAULT_TRIAL = "instance_task__x1"
+#: SWE-EVO 的 trial 目录命名，不含 ``instance_`` 前缀
+SWEEVO_TRIAL = "sweevo-dask-2022-9-2__R2jYLdj"
 
-def make_inner(root: Path, job: str, *, patch: bytes | None, reward: float | None = None) -> Path:
-    inner = root / "jobs" / job / "instance_task__x1"
+
+def make_inner(
+    root: Path,
+    job: str,
+    *,
+    patch: bytes | None,
+    reward: float | None = None,
+    trial_name: str = DEFAULT_TRIAL,
+) -> Path:
+    inner = root / "jobs" / job / trial_name
     (inner).mkdir(parents=True)
     (inner / "result.json").write_text(
-        json.dumps({"task_name": "swebench-pro/instance_task__x1"}), encoding="utf-8"
+        json.dumps({"task_name": f"swebench-pro/{trial_name}"}), encoding="utf-8"
     )
     if patch is not None:
         (inner / "agent").mkdir()
@@ -44,3 +55,23 @@ def test_reward_and_pending_detection(tmp_path: Path) -> None:
     make_inner(tmp_path, "job-no-patch", patch=None)
     pending = verify_patches.collect_pending(tmp_path / "jobs")
     assert [entry[0] for entry in pending] == ["job-needs-verify"]
+
+
+def test_non_instance_trial_dir_is_collected(tmp_path: Path) -> None:
+    """接 SWE-EVO 后 trial 目录名不含 ``instance_``：阶段 2 不能因此返回 0 个。"""
+    make_inner(tmp_path, "job-evo", patch=b"diff", trial_name=SWEEVO_TRIAL)
+
+    pending = verify_patches.collect_pending(tmp_path / "jobs")
+
+    assert [entry[0] for entry in pending] == ["job-evo"]
+    assert pending[0][1] == SWEEVO_TRIAL
+
+
+def test_non_instance_empty_patch_records_terminal(tmp_path: Path) -> None:
+    inner = make_inner(tmp_path, "job-evo-empty", patch=b"", trial_name=SWEEVO_TRIAL)
+
+    pending = verify_patches.collect_pending(tmp_path / "jobs")
+    assert len(pending) == 1 and pending[0][2] == 0
+
+    verify_patches.record_empty_patch(inner, 0)
+    assert verify_patches.collect_pending(tmp_path / "jobs") == []

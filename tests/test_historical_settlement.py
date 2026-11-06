@@ -19,7 +19,8 @@ from test_shards import run as run_shard
 from test_study import freeze_arguments, gate_and_probe
 
 from sayacode_bench import budget, cli, shards, study
-from sayacode_bench.artifacts import file_sha256, write_json
+from sayacode_bench.artifacts import file_sha256, read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.locking import validate_candidate_receipt
 from sayacode_bench.publish import export_results
 
@@ -30,6 +31,21 @@ PRICE = (
 development = test_locking.experiment
 sharded = test_shards.experiment
 phased = test_study.experiment
+
+
+def repriced_price(directory: Path) -> Path:
+    """生成绑定当前规范模型的价格快照副本。
+
+    历史快照（v1 SiliconFlow 时代）的 ``model_id`` 是 ``deepseek-ai/DeepSeek-V4.1-Flash``；
+    ``freeze_paid_budget`` 现在按 ``CANONICAL_MODEL`` 校验（2026-11-07 统一为
+    ``auto-hy3``，见复盘 R3 S7），夹具同步改写，不修改仓库里的真实快照。
+    """
+    target = directory / "price.json"
+    if not target.is_file():
+        payload = read_json(PRICE)
+        payload["model_id"] = CANONICAL_MODEL
+        write_json(target, payload)
+    return target
 
 
 def reference(path: Path, *, base: Path | None = None) -> dict[str, str]:
@@ -107,7 +123,7 @@ def policy(historical: dict[str, Any], **changes: Any) -> dict[str, Any]:
     result = study.freeze_paid_budget(
         **{
             "limit_cny": 100,
-            "price_snapshot": PRICE,
+            "price_snapshot": repriced_price(historical["path"].parent),
             "historical_settlement": historical["path"],
             **changes,
         }
@@ -308,7 +324,7 @@ def test_cli_freeze_binds_explicit_settlement(phased: Any, historical: dict[str,
     gate, probe = gate_and_probe(phased)
     args = freeze_arguments(phased, gate, probe)
     args.paid_limit_cny = 100
-    args.paid_price_snapshot = PRICE
+    args.paid_price_snapshot = repriced_price(historical["path"].parent)
     args.historical_settlement = historical["path"]
     frozen = cli.freeze(args)
     assert frozen["paid_budget"]["historical_settlement"] == historical["reference"]

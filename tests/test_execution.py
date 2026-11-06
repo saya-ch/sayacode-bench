@@ -375,10 +375,17 @@ async def test_job_path_escape_is_rejected(task, tmp_path, job_name):
         await execution.run_official_trial(task, tmp_path / "jobs", job_name, {"name": "oracle"})
 
 
-@pytest.fixture
-def replay_source(task, tmp_path):
+@pytest.fixture(params=["instance_demo__only", "sweevo-demo__only"])
+def replay_source(request, task, tmp_path):
+    """两种真实 trial 命名都必须能定位到源 trial（R3 S3 回归）。
+
+    旧实现 ``glob("instance_*/result.json")`` 对 SWE-EVO 的 ``sweevo-*`` 目录
+    恒返回空 -> 独立重判恒 ``missing_source_trial``。参数化让所有重判测试
+    自动在两种命名上各跑一遍，防止有人把判定改回前缀。
+    """
+    trial_name = request.param
     source = tmp_path / "source"
-    runtime = source / "instance_demo__only" / "runtime.json"
+    runtime = source / trial_name / "runtime.json"
     write(runtime, runtime_evidence(image_id="sha256:fixed"))
     write(
         source / "normalized.json",
@@ -400,8 +407,8 @@ def replay_source(task, tmp_path):
             "runtime_identity": runtime_evidence(image_id="sha256:fixed"),
         },
     )
-    write(source / "instance_demo__only" / "result.json", {"task_name": task.name})
-    patch = source / "instance_demo__only" / "agent" / "model.patch"
+    write(source / trial_name / "result.json", {"task_name": task.name})
+    patch = source / trial_name / "agent" / "model.patch"
     patch.parent.mkdir(parents=True)
     patch.write_bytes(b"a real captured patch\n")
     return source, patch
@@ -726,11 +733,11 @@ async def test_multiple_source_trials_are_rejected_instead_of_first_patch(
 async def test_missing_native_trial_retains_runtime_failure_without_guessing_grade(
     task, tmp_path, replay_source, status
 ):
-    source, _ = replay_source
+    source, patch = replay_source
     record = json.loads((source / "normalized.json").read_text(encoding="utf-8"))
     record.update(status=status, success=False)
     write(source / "normalized.json", record)
-    (source / "instance_demo__only" / "result.json").unlink()
+    (patch.parent.parent / "result.json").unlink()
     result = await execution.replay_official_trial(
         task, tmp_path / "jobs", "fresh", source, tmp_path
     )
@@ -742,8 +749,8 @@ async def test_missing_native_trial_retains_runtime_failure_without_guessing_gra
 
 
 async def test_source_task_mismatch_is_rejected(task, tmp_path, replay_source):
-    source, _ = replay_source
-    write(source / "instance_demo__only" / "result.json", {"task_name": "instance_other"})
+    source, patch = replay_source
+    write(patch.parent.parent / "result.json", {"task_name": "instance_other"})
     with pytest.raises(ValueError, match="不一致"):
         await execution.replay_official_trial(task, tmp_path / "jobs", "fresh", source, tmp_path)
 
@@ -777,3 +784,17 @@ def test_resume_skips_completed_failures_and_preserves_sequence():
     prior["record_complete"] = False
     with pytest.raises(ValueError, match="未收尾"):
         execution.remaining_order(plan, [prior])
+
+
+def test_canonical_model_has_a_single_source():
+    """规范模型身份只能有一个来源（R3 S7）。
+
+    回归背景：``connections.py`` 与 ``execution.py`` 曾各写一份
+    ``DeepSeek-V4.1-Flash``（v1 SiliconFlow 遗留），而 ``scripts/locked_agents.py``
+    用 ``auto-hy3``；同一批记录因此出现两种 ``canonical_model``，
+    ``analysis`` 的 model_mismatch 会把合法记录判成不一致。
+    """
+    from sayacode_bench import connections, execution
+
+    assert execution.CANONICAL_MODEL is connections.CANONICAL_MODEL
+    assert connections.CANONICAL_MODEL == "auto-hy3"

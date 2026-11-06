@@ -8,7 +8,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-CANONICAL_MODEL = "DeepSeek-V4.1-Flash"
+#: 规范模型身份：**全仓唯一来源**（``execution`` / ``cli`` / ``study`` / ``shards`` /
+#: ``publish`` 都从这里取）。
+#:
+#: 实际被测模型是 Magpie 的 ``auto-hy3`` 组；``DeepSeek-V4.1-Flash`` 只是 SAYACODE
+#: 产品 profile 的内部别名，不是评测身份。2026-11-07 统一（复盘 R3 S7）：
+#: ``execution.py`` 与 ``scripts/locked_agents.py`` 曾各写一份常量，导致同一批记录
+#: 出现两种 ``canonical_model``，``analysis.analyze_experiment`` 的 model_mismatch
+#: 会把合法记录判成不一致。
+CANONICAL_MODEL = "auto-hy3"
 
 
 def messages_endpoint(base_url: str) -> str:

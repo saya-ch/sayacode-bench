@@ -11,6 +11,8 @@ from collections import defaultdict
 from pathlib import Path
 from statistics import NormalDist
 
+from sayacode_bench import trialdir
+
 pat = re.compile(r"instance_([A-Za-z0-9_.-]+?)(?:__|-r\d)")
 
 
@@ -25,7 +27,7 @@ def collect(jobs: Path) -> dict[str, list[float]]:
     out = defaultdict(list)
     if not jobs.is_dir():
         return out
-    for trial in jobs.rglob("instance_*"):
+    for trial in (path for path in jobs.rglob("*") if trialdir.is_trial_dir(path)):
         rw = trial / "verifier" / "reward.txt"
         if not rw.is_file():
             continue

@@ -3,7 +3,7 @@
 检查项：
 
 - 每条实际 trial 的 ``<agent>/jobs/<job>``（或 verify 目录）存在；否则报 ``no_job``；
-- 有 reward 的 trial，其 reward 与 ``instance_*/verifier/reward.txt`` 一致；
+- 有 reward 的 trial，其 reward 与 ``<trial>/verifier/reward.txt`` 一致（trial 目录按内容识别）；
 - planned 分母 = 题数 × 重复（每个 agent），且各 agent 相同；
 - 缺失分类只允许 ``{no_job, empty_patch, timeout, model_fault, unverified, infra}``；
 - 缺失分类与磁盘事实一致：``no_job`` 不应有目录，``empty_patch`` 等应有目录。
@@ -25,6 +25,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from sayacode_bench import trialdir
 
 ALLOWED_MISSING = {"no_job", "empty_patch", "timeout", "model_fault", "unverified", "infra"}
 DEFAULT_ROOT = Path(r"C:\sb\hard\v2-325")
@@ -57,11 +59,11 @@ def job_dirs(root: Path, agent: str, job: str) -> list[Path]:
 
 
 def read_reward(job_dir: Path) -> float | None:
-    rewards = list(job_dir.glob("instance_*/verifier/reward.txt"))
-    if not rewards:
+    reward = trialdir.find_trial_file(job_dir, *trialdir.REWARD_PARTS)
+    if reward is None:
         return None
     try:
-        return float(rewards[0].read_text(encoding="utf-8").strip())
+        return float(reward.read_text(encoding="utf-8").strip())
     except (OSError, ValueError):
         return None
 

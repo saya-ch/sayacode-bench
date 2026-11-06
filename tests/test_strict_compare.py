@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts import strict_compare as module
 
 
@@ -122,3 +124,68 @@ def test_patch_name_parsing_handles_dev_null(tmp_path: Path) -> None:
     files = module._patch_files(patch)
 
     assert files == ["new/__snapshots__/a.snap"]
+
+
+def test_pass_without_patch_is_not_counted_as_strict(tmp_path: Path) -> None:
+    """方向性 bug 回归：pass 但找不到 patch 时**不得**计入 strict（旧实现会高估）。"""
+    jobs = tmp_path / "jobs"
+    make_job(jobs, "t-nopatch", reward="1", patch_files=None)
+
+    row = module.analyse(tmp_path, planned_total=1)
+
+    assert row["passes"] == 1
+    assert row["strict_passes"] == 0, "无 patch 证据的通过不能算 strict"
+    assert row["missing_patches"] == 1
+    assert row["strict_rate_planned"] == 0.0
+
+
+@pytest.mark.parametrize("raw", ["1", "1.0", "1\n", "1.0\n", "1.00", " 1 "])
+def test_reward_parsing_accepts_float_variants(tmp_path: Path, raw: str) -> None:
+    """reward.txt 可能带换行/多余小数位；只认 '1'/'1.0' 会把合法通过算成失败。"""
+    jobs = tmp_path / "jobs"
+    make_job(jobs, "t-ok", reward=raw, patch_files=("src/app.py",))
+
+    row = module.analyse(tmp_path, planned_total=1)
+
+    assert row["passes"] == 1
+    assert row["strict_passes"] == 1
+
+
+def test_reward_zero_is_not_pass(tmp_path: Path) -> None:
+    jobs = tmp_path / "jobs"
+    make_job(jobs, "t-fail", reward="0.0", patch_files=("src/app.py",))
+
+    row = module.analyse(tmp_path, planned_total=1)
+
+    assert row["passes"] == 0
+    assert row["strict_passes"] == 0
+
+
+def test_non_instance_named_trial_dir_is_located(tmp_path: Path) -> None:
+    """trial 目录按内容识别：SWE-EVO 的 ``sweevo-...__xxx`` 也必须能定位 reward/patch。"""
+    job = tmp_path / "jobs" / "t-evo"
+    trial = job / "sweevo-dask-2022-9-2__R2jYLdj"
+    (trial / "verifier").mkdir(parents=True)
+    (trial / "agent").mkdir(parents=True)
+    (trial / "verifier" / "reward.txt").write_text("1\n", encoding="utf-8")
+    (trial / "agent" / "model.patch").write_text("+++ b/src/app.py\n", encoding="utf-8")
+
+    row = module.analyse(tmp_path, planned_total=1)
+
+    assert row["observed"] == 1
+    assert row["passes"] == 1
+    assert row["strict_passes"] == 1
+
+
+def test_cli_warns_that_strict_is_deprecated(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """strict 口径已废除：CLI 必须显式警告「不得引用」，避免输出被当结论。"""
+    jobs = tmp_path / "sayacode" / "jobs"
+    make_job(jobs, "t-ok", reward="1", patch_files=("src/app.py",))
+
+    assert module.main(["--root", str(tmp_path), "--agents", "sayacode"]) == 0
+
+    out = capsys.readouterr().out
+    assert "废除" in out and "不得引用" in out
+    assert "不得引用" in (module.__doc__ or "")

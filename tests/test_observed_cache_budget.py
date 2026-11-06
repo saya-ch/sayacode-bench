@@ -14,6 +14,7 @@ from test_locking import final_manifest, lock, save_records
 from sayacode_bench import budget, study
 from sayacode_bench.analysis import select_development_candidate
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 from sayacode_bench.locking import validate_candidate_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +23,7 @@ PROFILES = {
     "remote": {
         "protocol": "anthropic_messages",
         "base_url": "https://api.siliconflow.cn",
-        "model_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+        "model_id": CANONICAL_MODEL,
     }
 }
 
@@ -58,6 +59,13 @@ def estimate(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def snapshot(tmp_path: Path) -> Path:
     value = read_json(OLD)
+    # 历史价格快照的 model_id 属于 v1 SiliconFlow 时代；测试合成的快照必须绑定当前
+    # 规范模型，否则 study.freeze_paid_budget 的模型一致性校验会拒绝（CANONICAL_MODEL
+    # 于 2026-11-07 统一为 auto-hy3，见复盘 R3 S7）。
+    value["model_id"] = CANONICAL_MODEL
+    binding = value.get("connection_requirements")
+    if isinstance(binding, dict):
+        binding["model_id"] = CANONICAL_MODEL
     value.update(
         pricing_method="observed_cache_v1",
         cache_semantics="input_includes_cache_read_and_creation_v1",

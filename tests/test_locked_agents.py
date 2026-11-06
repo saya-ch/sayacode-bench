@@ -83,9 +83,12 @@ def test_run_formal_240_unified_canonical_model() -> None:
 
 def test_skip_existing_ignores_patch_only() -> None:
     source = (locked_agents.ROOT / "scripts" / "run_formal_240.py").read_text(encoding="utf-8")
-    assert "verifier/terminal.json" in source
-    # 归档/跳过判据都要求 reward 或 terminal；patch 只是附加条件
-    assert "not has_patch" in source
+    assert "trialdir.has_trial_file" in source
+    # skip-existing 判据必须是 reward 或 terminal；patch 只用于「无任何产物才归档」的辅助判断。
+    skip_block = source.split("if skip_existing and (", 1)[1].split("):", 1)[0]
+    assert "REWARD_PARTS" in skip_block
+    assert "TERMINAL_PARTS" in skip_block
+    assert "PATCH_PARTS" not in skip_block
 
 
 def test_noop_agent_identity() -> None:

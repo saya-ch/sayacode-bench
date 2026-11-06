@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from sayacode_bench.artifacts import read_json, write_json
+from sayacode_bench.connections import CANONICAL_MODEL
 
 
 def load_script():
@@ -33,7 +34,7 @@ def inputs(tmp_path):
         source_job / "normalized.json",
         {
             "task_id": "known-calibration",
-            "canonical_model": "DeepSeek-V4.1-Flash",
+            "canonical_model": CANONICAL_MODEL,
             "endpoint": "local",
             "task_checksum": "same-task",
         },

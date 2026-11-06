@@ -4,7 +4,8 @@
       token / cost-per-success / bloat ratio / step-per-success / 重复方差
 
 用法: python analyze_trials.py <jobs目录> [<jobs目录2> ...]
-兼容两种层级：jobs/<trial>/... 或 jobs/<job>/instance_<...>/...
+兼容两种层级：jobs/<trial>/... 或 jobs/<job>/<trial>/...；trial 目录按内容识别，
+不依赖 ``instance_`` 前缀（SWE-EVO 等题库的 trial 目录另有命名）。
 """
 
 import json
@@ -13,6 +14,8 @@ import re
 import statistics as st
 import sys
 from pathlib import Path
+
+from sayacode_bench import trialdir
 
 pat_req = re.compile(r"Required tests:\s*(\d+)")
 pat_reqpass = re.compile(r"Required tests that passed:\s*(\d+)")
@@ -35,19 +38,8 @@ def load_json(p):
         return None
 
 
-def find_inner(job: Path):
-    # 先找 trial 级 instance_* 子目录（ho-/reg- job 结构）
-    for d in job.iterdir():
-        if d.is_dir() and d.name.startswith("instance_"):
-            return d
-    # 退化：job 本身即 trial（jobs/instance_xxx 结构）
-    if (job / "verifier").is_dir() or (job / "agent").is_dir():
-        return job
-    return None
-
-
 def analyze_trial(job: Path):
-    inner = find_inner(job)
+    inner = trialdir.find_trial_dir(job)
     if inner is None:
         return None
     out = {

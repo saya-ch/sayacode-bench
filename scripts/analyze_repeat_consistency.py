@@ -14,6 +14,8 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+from sayacode_bench import trialdir
+
 ROOTS = {
     "SAYACODE 3.2.7": (Path(r"C:\sb\hard\v4-327"), "sayacode"),
     "SAYACODE 3.2.5": (Path(r"C:\sb\hard\v2-325"), "sayacode"),
@@ -50,10 +52,7 @@ def collect(root: Path, agent: str) -> dict[str, dict[int, set[str] | None]]:
             if meta is None:
                 continue
             task, rep = meta
-            inner = next(
-                (p for p in job.iterdir() if p.is_dir() and p.name.startswith("instance_")),
-                None,
-            )
+            inner = trialdir.find_trial_dir(job)
             if inner is None:
                 continue
             f = inner / "verifier" / "output.json"
@@ -76,7 +75,9 @@ def main() -> None:
     print("=" * 100)
     print("同题 r1/r2 失败测试集合一致性（每组）")
     print("=" * 100)
-    print(f"{'group':16}{'配对题':>8}{'稳定通过':>10}{'稳定失败(同集合)':>18}{'随机翻转':>10}{'不稳定失败':>12}")
+    print(
+        f"{'group':16}{'配对题':>8}{'稳定通过':>10}{'稳定失败(同集合)':>18}{'随机翻转':>10}{'不稳定失败':>12}"
+    )
     details: list[tuple[str, str, str, set[str]]] = []
     for label, (root, agent) in ROOTS.items():
         data = collect(root, agent)

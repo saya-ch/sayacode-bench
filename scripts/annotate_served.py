@@ -11,6 +11,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sayacode_bench import trialdir
+
 USAGE_DEFAULT = Path.home() / ".config" / "magpie" / "usage.jsonl"
 AGENT_FILTER = "langchain-anthropic"
 
@@ -46,7 +48,7 @@ def main():
     usage = load_usage(usage_path)
     agg_all = defaultdict(int)
     n_trials = 0
-    for start in jobs.rglob("instance_*"):
+    for start in (path for path in jobs.rglob("*") if trialdir.is_trial_dir(path)):
         if not start.is_dir():
             continue
         res = start / "result.json"

@@ -19,6 +19,8 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
+from sayacode_bench import trialdir
+
 SATURATED = 0.995
 DEAD = 0.005
 MIN_OBS = 3
@@ -61,10 +63,7 @@ def collect(roots: list[Path]) -> dict[str, dict[str, list[set[str]]]]:
                     key = (agent, task, rep)
                     if key in seen:
                         continue
-                    inner = next(
-                        (p for p in job.iterdir() if p.is_dir() and p.name.startswith("instance_")),
-                        None,
-                    )
+                    inner = trialdir.find_trial_dir(job)
                     if inner is None:
                         continue
                     f = inner / "verifier" / "output.json"

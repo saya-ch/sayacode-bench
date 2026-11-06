@@ -12,6 +12,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from sayacode_bench import trialdir
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
 from sayacode_bench.execution import run_official_trial
 from sayacode_bench.network import docker
@@ -97,7 +98,7 @@ def native_config_observations(
     job = Path(raw.get("job_dir", "")).resolve()
     if not job.is_relative_to(raw_root.resolve()):
         raise ValueError("原生配置路径越过本次输出目录")
-    paths = list(job.glob("instance_*/config.json"))
+    paths = trialdir.find_trial_files(job, "config.json")
     if len(paths) != 1:
         raise ValueError("缺少唯一原生 Trial 配置")
     job_path, trial_path = job / "config.json", paths[0]

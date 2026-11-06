@@ -58,7 +58,7 @@ def experiment(tmp_path: Path, monkeypatch: Any) -> Any:
         "protocol": "anthropic_messages",
         "base_url": "https://model.invalid/v1",
         "api_key": "private-never-publish",
-        "model_id": "DeepSeek-V4.1-Flash",
+        "model_id": CANONICAL_MODEL,
         "context_length": 65536,
         "max_output_tokens": 8192,
     }
@@ -488,7 +488,14 @@ def paid_policy(
         / "siliconflow-deepseek-v4.1-flash-20261022.json"
     )
     snapshot = bundle.root / "price.json"
-    snapshot.write_bytes(source.read_bytes())
+    # 历史价格快照的 model_id 属 v1 SiliconFlow 时代；冻结校验现在绑定 CANONICAL_MODEL
+    # （2026-11-07 统一为 auto-hy3，见复盘 R3 S7），夹具同步改写。
+    price_payload = read_json(source)
+    price_payload["model_id"] = CANONICAL_MODEL
+    binding = price_payload.get("connection_requirements")
+    if isinstance(binding, dict):
+        binding["model_id"] = CANONICAL_MODEL
+    write_json(snapshot, price_payload)
     policy = study.freeze_paid_budget(
         limit_cny=limit_cny, price_snapshot=snapshot, prior_records=prior
     )

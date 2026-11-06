@@ -15,6 +15,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from sayacode_bench import trialdir
 from sayacode_bench.artifacts import file_sha256, read_json, write_json
 from sayacode_bench.execution import run_official_trial
 from sayacode_bench.network import docker
@@ -172,10 +173,10 @@ def collect_trial(
     job_dir = Path(raw.get("job_dir", "")).resolve()
     if not job_dir.is_relative_to(raw_root.resolve()):
         raise ValueError("原始 job 路径越过本次独占输出目录")
-    trials = list(job_dir.glob("instance_*/result.json"))
-    if len(trials) != 1:
+    results = trialdir.find_trial_files(job_dir, *trialdir.RESULT_PARTS)
+    if len(results) != 1:
         return {**result, "image_matches_expected": None, "trial_evidence": "not_unique_or_missing"}
-    trial = trials[0].parent
+    trial = results[0].parent
     target = public / "trials" / job_name
     target.mkdir(parents=True, exist_ok=True)
     runtime_path = trial / "runtime.json"

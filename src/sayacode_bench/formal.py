@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from . import trialdir
 from .artifacts import file_sha256
 
 SCHEMA_VERSION = 2
@@ -48,6 +49,20 @@ INFRA_EXCEPTIONS = frozenset(
         "EnvironmentSetupError",
     }
 )
+
+#: 超时类异常 → ``timeout``（协议 §6：**不补**，属行为类而非环境类）。
+#:
+#: 异常名按 harbor 0.24.0 源码核实，不凭猜测：
+#: - ``harbor/trial/errors.py`` 定义 ``class AgentTimeoutError(asyncio.TimeoutError)``；
+#: - ``harbor/models/job/config.py`` 的 ``RetryConfig.exclude_exceptions`` 同时列出
+#:   ``AgentTimeoutError`` 与 ``VerifierTimeoutError``；
+#: - 标准库超时（``asyncio.TimeoutError`` 在 3.11+ 是 ``TimeoutError`` 的别名）可能
+#:   以 ``TimeoutError`` 落盘，一并归入，避免漏判。
+#:
+#: 2026-11-07 复盘（R3 S8）：此前 ``MISSING_CLASSES`` 声明了 ``timeout`` 却没有
+#: 任何分支返回它，导致「超时 + 有 patch」落成 ``unverified``（可补）—— 违反
+#: PROTOCOL-V2 §6「timeout 不补」。
+TIMEOUT_EXCEPTIONS = frozenset({"AgentTimeoutError", "VerifierTimeoutError", "TimeoutError"})
 _REQUIRED_RE = re.compile(r"Required tests:\s*(\d+)")
 _REQUIRED_PASSED_RE = re.compile(r"Required tests that passed:\s*(\d+)")
 
@@ -348,20 +363,13 @@ def _iter_jobs(base: Path) -> Iterable[Path]:
 
 
 def _inner_dir(job: Path) -> Path | None:
-    """定位 Harbor 的 trial 目录（``<task>__<random>``）。
+    """定位 Harbor 的 trial 目录（委托 :mod:`trialdir`，按内容而非命名前缀）。
 
-    按内容识别而非 ``instance_`` 前缀：SWE-EVO 的 trial 目录形如
-    ``sweevo-dask-...__R2jYLdj``，前缀判定会让每个 job 都被当成「无 trial」，
-    汇总时全部落到 ``empty_patch``。
+    SWE-EVO 的 trial 目录形如 ``sweevo-dask-...__R2jYLdj``；按 ``instance_`` 前缀
+    判定会让每个 job 都被当成「无 trial」，汇总时全部落到 ``empty_patch``。
+    2026-11-07 复盘（R3 S1/S5）把该判定收敛到 ``trialdir``，本函数只做委托。
     """
-    children = [c for c in sorted(job.iterdir()) if c.is_dir()]
-    with_result = [c for c in children if (c / "result.json").is_file()]
-    if with_result:
-        return with_result[0]
-    prefixed = [c for c in children if c.name.startswith("instance_")]
-    if prefixed:
-        return prefixed[0]
-    return children[0] if children else None
+    return trialdir.find_trial_dir(job)
 
 
 def _collect_phase(
@@ -469,6 +477,10 @@ def classify_missing(trial: Trial | None) -> str | None:
     if trial.exception_type in INFRA_EXCEPTIONS:
         # 环境/网络/安装失败：agent 没真正执行，patch 为 0 不代表能力（协议 §3 可补）。
         return "infra"
+    if trial.exception_type in TIMEOUT_EXCEPTIONS:
+        # 超时属行为类，协议 §6 明确「不补」。必须排在 empty_patch/unverified 之前：
+        # 否则「超时但已有部分 patch」会落 unverified（可补），等于给该 trial 额外机会。
+        return "timeout"
     if trial.faults:
         return "model_fault"
     if trial.patch_bytes is None or trial.patch_bytes == 0:
