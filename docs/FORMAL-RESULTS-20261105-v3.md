@@ -131,13 +131,13 @@
 
 ## 六、可写进简历的口径（2026-11-07 修正版）
 
-> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2 的 **40 题开发迭代集**上，`planned` 口径 pass@1 **78.8%（63/80，3.2.5 本地制品）**；3.2.7 批次为 **76.2%（61/80，PyPI）**。该题集**不是冻结签收集**，与三个基线**跨批次**（3.2.7 vs 3.2.5 期），**不可横向排名**。与 mini-swe-agent / Claude Code / OpenCode 的题级 McNemar **未检出统计显著差异（p ≥ 0.070）**，不能表述为『同量级』或『优于/劣于』。单任务成本约 1.43M tokens（3.2.5 批次口径）。建设可复现评测体系（planned/observed/partial 三口径、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位修复 5 个产品缺陷与 8 个评测基建缺陷。」
+> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2 的 **40 题开发迭代集**上，`planned` 口径 pass@1 **78.8%（63/80，3.2.5 本地制品）**；3.2.7 批次为 **76.2%（61/80，PyPI）**。该题集**不是冻结签收集**，与三个基线**跨批次**（3.2.7 vs 3.2.5 期），**不可横向排名**。与 mini-swe-agent / Claude Code / OpenCode 的题级 McNemar **未检出统计显著差异（p ≥ 0.070）**，不能表述为『同量级』或『优于/劣于』。单任务成本约 1.43M tokens（3.2.5 批次口径）。建设可复现评测体系（planned/observed/partial 三口径、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位 **11 项产品缺陷**（其中 2 项有前后对照证据、1 项为 p≈0.289 的不显著 A/B、**7 项仅有代码与单元测试、按证据标准属"未证实"**）与 8 项评测基建缺陷。」
 
 **不能写**：「strict 78.8% / 80.0% / 73.8% / 67.5%」「三种口径三种排名」「优于/劣于某基线」「与基线同量级」「SAYACODE snap=0 更干净」「修复带来提升」。
 
 ## 七、产物
 
-- 汇总：`C:\sb\hard\v2-325\FINAL-SUMMARY-V4.json`、`STRICT-COMPARE.json`、`TRAJ-AUDIT-claude-code.json`、`TRAJ-AUDIT-opencode.json`
-- 工具：`scripts/strict_compare.py`、`scripts/audit_agent_traj.py`、`scripts/split_sample.py`
+- 汇总：`C:\sb\hard\v2-325\FINAL-SUMMARY-V4.json`、`TRAJ-AUDIT-claude-code.json`、`TRAJ-AUDIT-opencode.json`；**`STRICT-COMPARE.json` 已废（陈旧产物，strict 口径作废），不得引用**
+- 工具：`scripts/strict_compare.py`（**仅 planned/observed 输出可用**）、`scripts/audit_agent_traj.py`、`scripts/split_sample.py`
 - 文档：`docs/CODEX-BASELINE-INVALID.md`、`docs/CLAUDE-CODE-BASELINE.md`、`docs/OPENCODE-BASELINE.md`
 - 日志：`C:\sb\hard\v2-325\logs\{claude-light,claude-heavy,opencode-light,opencode-heavy,verify-final5}.log`
