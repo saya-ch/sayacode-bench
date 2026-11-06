@@ -142,7 +142,65 @@
 
 ---
 
-## 6. 复现
+## 7. 基线组受阻：Windows 命令行长度限制（技术障碍，未解决）
+
+**基线三组（mini-swe / Claude Code / OpenCode）无法用同样的方式注入噪声**，这是本实验当前最大的缺口。
+
+### 7.1 现象
+
+`C:\sb\hard\ab-ctx\ABANDONED-baselines-WinError206`（保留证据，221 个文件）：
+
+| agent | 结果 | 每 trial 耗时 |
+|---|---|---|
+| mini-swe | `有效 0/12`，12/12 `FileNotFoundError` | ~1 分钟即失败 |
+| claude-code | 全部 `infrastructure_error` | 32–49 秒即失败 |
+
+### 7.2 根因
+
+```
+FileNotFoundError: [WinError 206] 文件名或扩展名太长。
+  ...
+  hp, ht, pid, tid = _winapi.CreateProcess(executable, args, ...)
+```
+
+Harbor 把 instruction 直接拼进命令行参数：
+
+```python
+# harbor/agents/installed/mini_swe_agent.py:746,847
+escaped_instruction = shlex.quote(augmented_instruction)
+command = f"mini-swe-agent --yolo --model={...} --task={escaped_instruction} ..."
+```
+
+**Windows `CreateProcess` 的命令行上限约 32KB**，而我们的 noise instruction 是 **350,946 字符**（≈343KB）——超限 10 倍。
+
+### 7.3 为什么 SAYACODE 不受影响
+
+SAYACODE 走 `variant["instruction_append"]`：噪声被写进 `variant.json` 文件，由产品侧在**容器内部**读取，全程不经过 Windows 命令行。所以它 12/12 正常完成。
+
+**这解释了为什么本实验只有 SAYACODE 的数据** —— 不是设计选择，是被环境限制逼出来的。
+
+### 7.4 可行方案与代价
+
+| 方案 | 做法 | 代价 |
+|---|---|---|
+| **A. 改注入通道为「容器内文件 + 提示读取」** | `upload_file()` 把噪声传进容器，instruction 只加一句「背景材料见 /tmp/BACKGROUND.md」 | ① 语义变了：测的是「会不会去读无关文件」而非「prompt 里有无关内容」；② **SAYACODE 也必须改成同样方式并重跑**，否则两组不可比；③ 耗时 +1 小时 |
+| **B. 改写 harbor 调用，用 `--task="$(cat file)"` 绕过长度限制** | 在 `LockedMiniSwe.exec_as_agent()` 里拦截超长 `--task=`，改成读容器内文件 | 语义保留（模型收到的仍是完整 instruction）；但要对 3 个 agent 各写一份适配，且依赖 harbor 内部实现细节，升级易碎 |
+| **C. 在 WSL/Linux 侧跑** | 命令行上限 2MB，350KB 可直传 | 需要把整套跑批搬到 WSL，工作量大 |
+| **D. 缩小噪声到 32KB（≈9k tokens）** | 不超限即可 | **测不到长上下文效应**——9k 与 clean 的 30–35k 同量级，等于没做 |
+
+### 7.5 对当前结论的影响
+
+- ✅ **SAYACODE 单组的 Δ=41.7pp 仍然成立**（12/12 正常完成，机制与环境均已核验）。
+- ❌ **但归因不完整**：无法回答「这个退化是 SAYACODE 特有的，还是所有 agent 都会退化」。按 `EXPERIMENT-CONTEXT-AB.md` 的预注册判定，缺基线就**不能**判「假设成立」。
+- **建议走方案 B**（语义保留、不动 SAYACODE 已有结果、不重跑），如果时间允许再补方案 A 作交叉验证。
+
+### 7.6 教训（值得记进坑库）
+
+**「设计定稿」不等于「可执行」。** 这份实验设计 2026-11-05 就写完了、工具也写好了，但注入钩子直到今天才实现——而实现后才发现**基线通道有平台级限制**。教训是：**任何跨平台的长参数传递，必须在设计阶段就用最长的输入做一次端到端 smoke**，而不是假设"instruction 就是个字符串"。
+
+---
+
+## 8. 复现
 
 ```powershell
 # 1) 生成统一噪声（排除 6 个目标仓库，二次过滤掉提到目标仓库名的素材）
