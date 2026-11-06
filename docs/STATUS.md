@@ -131,44 +131,27 @@ Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。*
 | 交接 | [HANDOFF.md](HANDOFF.md) |
 | 历史/作废 | [docs/archive/](archive/README.md) |
 
-## 9. 进行中的批次（P0）：SAYACODE 3.2.7 + served pin
+## 9. 已完成批次（P0）：SAYACODE 3.2.7（可获取制品）
 
-**目的**：让数字对应**第三方可获取的制品**（PyPI 3.2.7），并把记录里的模型身份写清楚。
+**2026-11-06 06:35 完成。** 目的达成：数字现在对应 PyPI 上第三方可安装的制品。
 
 | 项 | 值 |
 |---|---|
-| 制品 | `C:\sb\tmp\hard\wheel-release-3.2.7\out\sayacode-3.2.7-py3-none-any.whl`（PyPI，sha256 `49db58d1…`）|
-| 依赖 | `C:\sb\hard\product-requirements-3.2.6.txt`（实测 3.2.7 运行时依赖与 3.2.6 **完全相同**，只多一个 `evals` extra）|
-| profile | `C:\sb\hard\magpie-hy3-pinned.json`（`model_id=workbuddy/hy3`）|
-| 记录身份 | `SAYACODE_BENCH_CANONICAL_MODEL=workbuddy/hy3` → `normalized.json` 的 `canonical_model` 与实际 served 对齐 |
+| 制品 | `sayacode-3.2.7-py3-none-any.whl`（PyPI，sha256 `49db58d1…`）|
 | 结果根 | `C:\sb\hard\v4-327`（80 trial）|
-| 启动器 | `C:\sb\tmp\launch-v4-327.cmd`（WMI 创建，脱离会话进程树，见 AGENTS 坑 36）|
-| 日志 | `C:\sb\hard\v4-327-run2.log` |
+| **planned / observed / strict** | **76.2% (61/80) / 77.2% / 76.2%**，**snap pass = 0** |
+| 缺失 | 1（`vuls-4b680b99606 r1`，`empty_patch`）|
+| 题级 | 完整题 39/40，task-macro 76.9%，CI95 [66.7, 85.9]|
+| served | `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572，**零 hy3-x、零 deepseek** |
 
-**served pin 的实测依据**（严格可归因探测：每次请求带唯一 `User-Agent: sayaprobe`，只统计自己的 usage 记录）：
+**与 3.2.5 的配对对比（78 个 trial）**：80.8% → 78.2%，Δ −2.6pp，
+**McNemar p = 0.8145**，题块 bootstrap CI95 [−12.5, +6.2]pp（跨 0）。
 
-| model_id | 协议 | served 结果 |
-|---|---|---|
-| `auto-hy3` | `/v1/messages` | **8/8 = hy3** |
-| `workbuddy/hy3` | `/v1/messages` | **8/8 = hy3** |
-| `workbuddy-ai/hy3` | `/v1/messages` | **8/8 = hy3** |
-| `auto-hy3` | `/v1/chat/completions` | **8/8 = hy3**（provider workbuddy / workbuddy-ai 各半）|
-| `workbuddy/hy3` | `/v1/chat/completions` | **8/8 = hy3** |
+→ **3.2.6/3.2.7 的三项产品修复没有可测的评测收益，也没有退化**；在 40 题规模下证不了有效或无效。
+翻转的 18 个 trial 里有多组「同题 r1/r2 镜像反转」，说明题目级随机性是主要噪声来源。
 
-- **没有观测到任何路由漂移**。⚠️ 早前一版探测报告「`auto-hy3` 有概率漂到 deepseek」是**错误结论**：那个脚本按时间窗取 usage 的「最后一条」记录、没按 agent 过滤，把本机 DSH 会话自己的 `deepseek/deepseek-v4.1-flash` 请求（agent=`dsh`，provider=`command-code-goat`）算成了探测结果。已用唯一 UA 复核推翻，见 AGENTS 坑 38。
-- `provider` 会在 `workbuddy` / `workbuddy-ai` 之间轮换，但 `served` 恒为 `hy3`——是同一模型的额度池差异，不影响模型身份。
-- smoke（2 题）期间 25 次模型调用 **25/25 `hy3/workbuddy`**。
+完整报告：[FORMAL-RESULTS-20261106-327.md](FORMAL-RESULTS-20261106-327.md)。
 
-**接续方式**（若进程中断）：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\sb\tmp\run-v4-327.ps1   # 内含 --skip-existing
-# 或脱离会话：
-Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c "C:\sb\tmp\launch-v4-327.cmd"'}
-```
-
-**跑完后**：`final_summary.py` + `strict_compare.py` + `annotate_served.py`；对比 v2-325 的 3.2.5 结果，得到"产品修复是否有效"的第一份评测证据。
-
-## 10. P1（待 P0 完成后执行）
+## 10. P1（下一步）
 
 设计见 [EXPERIMENT-CONTEXT-AB.md](EXPERIMENT-CONTEXT-AB.md)；工具已就绪：`scripts/make_context_noise.py`（确定性噪声生成，已 smoke）、`scripts/analyze_context_ab.py`（配对退化分析）。**噪声注入钩子尚未加入 `locked_agents.py`**——P0 跑批进程依赖该文件，改它会污染 P0 结果。
