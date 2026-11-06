@@ -30,8 +30,9 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 
 | 文档 | 内容 |
 |---|---|
-| **★[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)** | **全部对外数字的唯一权威来源**：两批次分表、口径定义（planned/observed/partial）、配对比较、已知数据缺陷。**其他文档只引用，不复制数字。** |
-| **★[最新复盘（权威）](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **2026-11-07 全面复盘**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本、P0/P1/P2 计划。**与它冲突的旧文档以它为准**；子报告见 [R1 方法论](docs/review/2026-11-07/R1-methodology.md) / [R2 数据](docs/review/2026-11-07/R2-data-verification.md) / [R3 基建](docs/review/2026-11-07/R3-infrastructure.md) / [R4 产品](docs/review/2026-11-07/R4-product-fixes.md) / [R5 文档债](docs/review/2026-11-07/R5-doc-debt.md) |
+| **★[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)** | **全部对外数字的唯一权威来源**：两批次分表、口径定义（planned/observed/partial）、配对比较、成本与机时、已知数据缺陷。**其他文档只引用，不复制数字。** |
+| **★[第二轮复盘](docs/review/round2/RETROSPECTIVE-ROUND2.md)** | **证据层 + 运行层**：对第一轮复盘本身的审计（找出 4 处错误并更正）、七通道并行（元复盘/环境考古/产品评测/测试质量/可复现性/时间账本/结论演化）、**返工率 61.4%**、磁盘真实瓶颈、可复现性分级。子报告 [M1](docs/review/round2/M1-meta-review.md)–[M7](docs/review/round2/M7-conclusion-lineage.md) |
+| **★[第一轮复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **结论层**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本。**与它冲突的旧文档以它为准**；子报告 [R1](docs/review/2026-11-07/R1-methodology.md) / [R2](docs/review/2026-11-07/R2-data-verification.md) / [R3](docs/review/2026-11-07/R3-infrastructure.md) / [R4](docs/review/2026-11-07/R4-product-fixes.md) / [R5](docs/review/2026-11-07/R5-doc-debt.md) |
 | [历史全景（部分已被推翻）](docs/RETROSPECTIVE-20261105.md) | v1→v4 六阶段演进、结论账本、文档债；其中 strict 口径、跨批次结论已被上一行推翻 |
 | **[STATUS](docs/STATUS.md)** | **当前真实状态**：四组终版数字、制品身份、作废结论、已知局限、下一步 |
 | **[HANDOFF](docs/HANDOFF.md)** | **接手必读**：进度、关键事实、环境、坑、下一步 |
