@@ -4,6 +4,14 @@
 > 方法：只读。`docker images` / `docker image inspect` 只读查询；用 python 从 trial 产物重算；未跑模型、未删除/移动任何文件。
 > 演练脚本：`C:\sb\tmp\explore\m5\drill.py`（只读）。
 
+> 🛑 **2026-11-07 Lead 更正：本报告对 pilot 的判断有误。**
+> 报告称 pilot「10 个 trial 的 `verifier/` 全空、无 `reward.txt`」，据此判为「不可复现」（§13、§15、§36、§88、§122 处）。
+> **实测：10 个 `reward.txt` 全部存在，只是都在 `verify/jobs/` 下而不是 `jobs/` 下**——与第一轮 `instance_` 前缀假设是同一类错误（只查一个目录层）。
+> 证据：`C:\sb\newset\runs\pilot1\sayacode\verify\jobs\verify-*\*__*\verifier\reward.txt`，10 个，
+> 值依次为 `0,0,0,1,1,1,0,0,1,1` → **5/10，与 `FINAL-SUMMARY-PILOT.json` 一致，完全可复算**。
+> **正确分级**：pilot = 「**可重算、不可重跑**」（镜像确实全丢，`docker image inspect` rc=1 成立）。
+> 本报告其余结论（v2/v4 可重算、3.2.5 study 输入目录消失、配对脚本在 tmp、partial 必须用 `output.json`）**经复核均成立**。
+
 ## 一、结论摘要
 
 **如果换一台机器，只靠仓库和文档，不能重建全部已发表数字。** 分三层：

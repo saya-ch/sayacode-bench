@@ -175,6 +175,10 @@
 - **collaboration 两侧结论其实完全兼容**：显式命令派发 × team = `task_count=2`（稳定复现 2 次）；不要求 × team = 0；single 全 0（结构性）。bench 的 0 评价的是真实题、产品的 2 评价的是合成题，因果链同一。
 - **一个被低估的资产**：`evals/scenarios/context.jsonl` 是**唯一能测到摘要路径**的场景。DEEP-ANALYSIS §10 证明了 bench 现有题永远到不了 150.4k 触发线（峰值最大 102k），要验证摘要修复必须用它。
 
+**Lead 补充发现（M3 未覆盖）：那 18 份文档从未进入版本控制。** `sayacode/.gitignore:55-56` 写着 `# internal evaluation notes (not published)` 并整目录忽略 `docs/evaluation/`，`git log --all -- docs/evaluation` 为空——**这些文档只存在于本地磁盘**。后果：bench 的结论依赖它们（330 题功效推导的出处、65.0%/63.3% 的原始记录、8/8 与 20/20 饱和的真实出处），但换一台机器就全部拿不到，"可复核"无从谈起。已扫描确认无凭据/密钥，解除忽略并纳入 git（产品仓 `9858741`）。
+
+**同一批修复还解决了**：25 处相对路径死链（`](src/...)` 少写了一级 `../`，分布在 `PROMPT-OVERFIT-RISK.md` 11 处、`SUMMARY-FALLBACK-CHECK.md` 8 处、`VERIFY-20261103.md` 6 处）；台账里 10-21 那行的引用错位（真实出处是 10-28，差 7 天，且掩盖了"65%→100% 是连接故障恢复而非能力提升"）；以及「holdout」三处三义的术语表。
+
 ### 4.6 测试质量（比预期好）
 
 | | A 真断言行为 | B 断言实现细节 | C 自娱自乐 | D 空壳/跳过 | **C+D** |

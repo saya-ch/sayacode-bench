@@ -17,7 +17,7 @@
   - **hy3 不支持 `temperature`**：传 temperature 无意义（不接受该参数）。可复现性靠**固定来源 + 固定 seed + 重复次数**保证，不要写「temperature=0 已固定」。
   - profile 的 `max_output_tokens` v2 起配 **32,000**（模型上限 64,000，留余量给重试与长回答；v1 配 16,000 导致长任务收尾过早）。
 - **基准**：只用 **SWE-bench Pro V2**（642 题，排除 123 musl → **519 可评测**）；暂不使用 Terminal-Bench。
-  - **题集深度必须随结论声明**：40 题的 **gold patch** 中位 **3 个文件 / 72 行**（均值 132.5 行、最大 881 行/12 文件）；**agent 实际 patch** 中位 **2 个文件 / 64 行**（SAYACODE 62% 的 trial 只碰 1–2 文件）。两个数字口径不同（gold vs agent），引用时必须说明是哪一个。对照 SWE-EVO 平均 21 文件、SWE-Bench ProMax 平均 11.4 文件/261.6 行。**"四组压在 67.5–80.0% 是因为题太浅"是待检验假设（长上下文 A/B 未跑），不是已证结论**；已观测到的只是"饱和题 26–28/40、有区分度 4–8 题"。
+  - **题集深度必须随结论声明**（口径见 [DATASET-CARD](docs/DATASET-CARD.md)）：40 题的 **gold patch** 中位 **3 文件 / 70 行**（精确 70.5；均值 132.5 行、最大 881 行/12 文件）；**全部 agent** 的 `model.patch` 中位 **3 文件 / 72 行**（n=477）；**仅 SAYACODE** 中位 **2 文件 / 64 行**（n=158；SAYACODE 62% 的 trial 只碰 1–2 文件）。三个数字对象不同，引用时必须写清。对照 SWE-EVO 平均 21 文件、SWE-Bench ProMax 平均 11.4 文件/261.6 行。**"四组压在 75.0–85.0% 是因为题太浅"是待检验假设（长上下文 A/B 未跑），不是已证结论**；已观测到的是"饱和题 25–28/40、可区分 7–8 题"（口径见 DATASET-CARD §2/§3）。
 - **开发迭代集**：`studies/sample-40-final.json`（40 题，按仓库分层 + seed 可复现）。**gold-check 实际是 36 good / 1 bad / 3 null**，不是「40 题全绿」；bad 题不在 40 题内，3 个 null 需补齐或替换。
   - ⚠️ 它是**开发集，不是 holdout**。`protocol.md` 要求最终成绩来自冻结的 holdout/validation，而**独立 holdout 从未执行**；SAYACODE 的提示词规则（R1–R5）正是从这 40 题的失败个案调出来的（`C:\develop\sayacode\docs\PROMPT-OVERFIT-RISK.md`）。引用任何分数时必须声明这一点。
 - **评测制品身份（最容易搞错）**：**双批次**——

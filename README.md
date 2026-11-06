@@ -22,7 +22,7 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 **三条必须随结论声明的事实**：
 1. **制品身份是双批次**：3.2.7 来自 PyPI（`C:\sb\hard\v4-327`，2026-11-06），3.2.5 是**本地构建、PyPI 从未发布**的 wheel（`C:\sb\hard\v2-325`，2026-11-02）；两者 Δ = −2.6pp、p = 0.8145（不显著）。
 2. **不是同批次实验**：三个基线只在 v2-325 批次里跑过，v4-327 批次没有基线。跨批次配对受批次效应污染，**不得做排名或配对检验**。
-3. **40 题是开发迭代集**（gold patch 中位 3 文件 / 72 行；agent 实际 patch 中位 2 文件 / 64 行），SAYACODE 的提示词规则正是从这套题调出来的，**独立 holdout 从未执行**；且按 [PROTOCOL-V2](docs/PROTOCOL-V2.md) §7，**冻结签收流程从未执行**，因此严格意义上尚无"对外正式成绩"。
+3. **40 题是开发迭代集**（gold patch 中位 **3 文件 / 70.5 行**；全部 agent 的 patch 中位 3 文件 / 72 行、SAYACODE 单独 2 文件 / 64 行——三套口径见 [DATASET-CARD](docs/DATASET-CARD.md)），SAYACODE 的提示词规则正是从这套题调出来的，**独立 holdout 从未执行**；且按 [PROTOCOL-V2](docs/PROTOCOL-V2.md) §7，**冻结签收流程从未执行**，因此严格意义上尚无"对外正式成绩"。
 
 详见 **[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)**（唯一权威数字源）、[最新复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)、[STATUS](docs/STATUS.md) §2。
 

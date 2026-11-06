@@ -5,6 +5,16 @@
 - 调查方式：**只读**（`Get-ChildItem` / `Measure-Object` / `docker system df` / `wsl -d ... -e sh -c`），未删除、未移动任何文件
 - 执行人：env-runner
 
+> 🛑 **2026-11-07 Lead 更正：本报告对 `v4-327` 的完成度判断有误。**
+> 报告多处（§18、§72、§137、§147、§164、§344）称 `hard\v4-327`「实验未完成，阶段 2 仅 33/79」。
+> **实测：`v4-327` 已完整跑完 80/80**——
+> - `sayacode\jobs` 80 个 job（阶段 1，`--skip-verifier`，不产生 reward，**这是"33/79"误判的来源**：数阶段 1 目录里没有 reward）；
+> - `sayacode\verify\jobs` **77 个 job，77 个 `reward.txt`**（阶段 2）；
+> - `FINAL-SUMMARY-327.json` 的 trials 为 `verify 77 + native 2 + 缺 1 = 80`，`observed=79`、`missing=1`、`passes=61`（76.2%），与 ledger 完全一致；
+> - 那 2 条 native 是 `terminal=skipped_empty_patch`（`vuls-dc496468b9e r1`、`qutebrowser-3e21c8214a r1`），缺的 1 条是 `vuls-4b680b99606 r1`。
+> **"不可删"的结论不变**（它是 3.2.7 批次的唯一原始产物），但理由要改为「已完成的唯一原始产物」，不是「未完成」。
+> 本报告其余结论（`C:\sb` 非主矛盾、55.4% 是 checkpoints、8 项唯一副本、可回收量三档）**经复核均成立**。
+
 ---
 
 ## 0. 结论先行
