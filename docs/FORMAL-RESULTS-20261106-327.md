@@ -18,13 +18,16 @@
 
 | 口径 | 值 | 分子/分母 |
 |---|---|---|
-| planned | **76.2%** | 61 / 80（缺失按失败）|
-| observed | 77.2% | 61 / 79 |
-| **strict** | **76.2%** | 61 / 80，**snap pass = 0** |
+| planned | **76.2%** | 61 / 80（缺失按失败，主报）|
+| observed | 77.2% | 61 / 79（辅助；幸存者偏差：只覆盖 79/80）|
+| **partial** | **97.6%** | 有 test-stdout 的 trial 的 Required tests 通过率均值（n=72/80；题级 97.8%，39 题）|
+| worst / best（planned 界） | **76.25% / 77.5%** | `FINAL-SUMMARY-327.json` 的 `rates.worst_bound=0.7625`、`best_bound=0.775` |
 
 - 缺失 1 条：`vuls-4b680b996061044e93ef5977a0816616 r1`，类别 `empty_patch`（`model.patch` 缺失）。
 - 另有 2 条显式终态（`vuls-dc496468b9e r1`、`qutebrowser-3e21c8214a r1`）按 0 分计入 observed。
 - 题级：完整题 39/40，task-macro **76.9%**，题块 bootstrap95 [66.7%, 85.9%]，题级全通过 24/39 = 61.5%，pass@2 36/39 = 92.3%。
+- **题级分母口径**：`task_macro` 与 `pass@2` 的分母是 `complete_tasks=39`（只算两次都有 reward 的题），而 `planned` 的分母是 80（40 题）。`vuls-4b680b99606` 的 r2 通过、r1 空 patch，因此按 39 题算 `pass@2 36/39`，按 40 题全量算则是 `37/40`；两个数**不是同一口径**，引用时必须注明。
+- **partial 口径**：`verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`，按 trial 平均，分母 = 有该文件的 trial（缺失/空 patch 不计入）。`FINAL-SUMMARY-327.json` 的 `partial` 字段覆盖 77/80，但其中 6 条分母比 test-stdout 多 1（如 `flipt-8bd3604` 0.857=6/7 vs test-stdout 6/6），故主表用 `C:\sb\analysis\dataset.json` 复算值（97.6%，72 trial）。
 
 ## 3. 与 3.2.5（本地未发布制品）的配对对比
 
@@ -40,11 +43,11 @@
 - 题块 bootstrap（40 题）：estimate −2.5pp，**CI95 = [−12.5, +6.2]pp**（跨 0）
 - 翻转 18 个 trial：3.2.5 独过 10、3.2.7 独过 8
 
-**结论：3.2.7 与 3.2.5 在统计上没有差异。** 3.2.6/3.2.7 的三项产品修复
-（摘要失败降级 `c5d2973`、提示与工具集一致性 `60ca2f0`、CompletionGuard 判据收紧 `41b1e38`）
-**没有带来可测的提升，也没有造成退化**——效果落在运行间噪声内。
+**结论：3.2.7 与 3.2.5 在统计上没有差异**（Δ −2.6pp，p=0.8145，CI 跨 0）。
 
-## 4. 为什么不能解读成「修复无效」
+**但必须纠正一处硬性事实：3.2.7 制品内只有两项产品修复，不是三项。** `git diff --stat v3.2.5 ba43e04 -- src/` 只涉及 4 个文件（`graph.py` 4 行、`summary.py` +116、`application.py` +1、`prompts.py` +26），精确对应摘要失败降级 `c5d2973` 与提示/工具集一致性 `60ca2f0`；`41b1e38`（11-04 13:22）**晚于**发布提交 `ba43e04`（11-04 03:46），**不在 3.2.7 制品内**。另：PyPI 3.2.7 **没有对应 git tag**（最后 tag 是 `v3.2.6`），HEAD 另有 4 个提交不在制品内。
+
+## 4. 为什么不能解读成「修复无效」：三重作用面错配
 
 翻转的 18 个 trial 里有明显的**镜像反转**：
 
@@ -56,8 +59,14 @@
 
 同一题的两个重复在同一次运行内**方向相反**，说明这些题的通过与否主要由运行间随机性决定
 （与 `DEEP-DIVE-20261102` 的「5 题一过一败里 3 题系统性」结论一致）。
-在 40 题 × 2 重复的规模下，±2.6pp 远小于这种噪声，**既证不了有效，也证不了无效**。
-要检验修复效果需要：更大题量（≥100 题）或对每题更多重复。
+
+更根本的问题是**三重作用面错配**（详见 `docs/review/2026-11-07/RETROSPECTIVE-20261107.md` §四.4、R4）：
+
+1. **摘要失败降级 `c5d2973`**：40 题的单次调用 input 峰值仅 102k–127k，**从未达到摘要触发线（约 150,400）**——摘要路径从未触发，修复没有作用对象。
+2. **提示/工具集一致性 `60ca2f0`**：本批配置 `team_enabled=true`，修复前后系统提示**逐字节不变**，作用面为零。
+3. **CompletionGuard 判据收紧 `41b1e38`**：该提交不在 3.2.7 制品内，且 `completion_guard` 默认 False、从未装配。
+
+因此：**这套题 × 这套配置对该修复的作用面为零，Δ 的信息量为零。** 既不能解读成「修复无效」，也不能解读成「有效」；在 40 题 × 2 重复的规模下，±2.6pp 本就远小于运行间噪声。要检验修复效果，需要构造走到对应路径的场景（长上下文触发摘要、`team_enabled=false`、开启 CompletionGuard），而不是继续在这套题上加重复。
 
 ## 5. 本轮与历史批次的差异（必须声明）
 
@@ -84,7 +93,7 @@
 
 | 内容 | 路径 |
 |---|---|
-| 三口径 | `C:\sb\hard\v4-327\STRICT-COMPARE-327.json` |
+| 三口径（strict 已废除） | `C:\sb\hard\v4-327\STRICT-COMPARE-327.json`；仅作历史，**不作证据** |
 | 逐 trial 汇总 | `C:\sb\hard\v4-327\FINAL-SUMMARY-327.json` |
 | served 分布 | 各 trial 目录下 `served-distribution.json`；汇总 `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572 |
 | 跑批日志 | `C:\sb\hard\v4-327-run3.log` |

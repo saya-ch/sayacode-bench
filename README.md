@@ -4,15 +4,23 @@
 
 Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续运行生产应用里的 LangChain / LangGraph 图、工具、检查点与异步子任务。两者用独立 Python 环境，避免评测依赖覆盖产品依赖。
 
-**当前状态：v4 已完成，四组基线定稿。** 40 题 × 2 重复，planned **78.8% / 85.0% / 77.5% / 75.0%**、strict **78.8% / 80.0% / 73.8% / 67.5%**（SAYACODE / mini-swe / Claude Code / OpenCode，80 分母、缺失按失败）；两两 McNemar **全部不显著（p ≥ 0.070）**，**不能声称谁更强**。Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评价多 agent；v1 结论仍作废（见 [archive](docs/archive/README.md)）。
+**当前状态：v4 已完成，四组基线定稿。** 40 题 × 2 重复，`planned` 口径（分母 80、缺失按失败）：SAYACODE 3.2.7（PyPI 制品）**76.2%**、3.2.5（本地 wheel）**78.8%**；mini-swe **85.0%**、Claude Code **77.5%**、OpenCode **75.0%**。SAYACODE 与三个基线的题级差异**未检出统计显著性**（题级 McNemar，p ≥ 0.070，Bonferroni 校正后更不显著），**不能声称谁更强，也不能声称谁更差**。Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评价多 agent；v1 结论仍作废（见 [archive](docs/archive/README.md)）。
 
-**两个必须随结论声明的事实**：① SAYACODE 数字跑的是**本地构建的 3.2.5 wheel**，PyPI 上从未发布 3.2.5/3.2.6（最新 3.2.7）；② 40 题是**开发迭代集**（题面中位 2 文件 / 64 行），SAYACODE 的提示词规则正是从这套题调出来的，**独立 holdout 从未执行**。详见 [STATUS](docs/STATUS.md) §3/§6、[RETROSPECTIVE](docs/RETROSPECTIVE-20261105.md)、[四组结果](docs/FORMAL-RESULTS-20261105-v3.md)。
+> ⚠️ **`strict` 口径已废除（2026-11-07）**。该口径假设"verifier 不重置 `__snapshots__`"，实测为假：642/642 个 `tests/test.sh:97-105` 在判分前对测试数据面（含快照）执行 `git checkout HEAD`。因此 `strict` 列（80.0 / 73.8 / 67.5 / 78.8）及其衍生的"三种口径三种排名"叙事**全部作废**。现行口径为 `planned`（主报）+ `observed`（辅助，须标幸存者偏差）+ `partial`（新增，见 [DEEP-ANALYSIS](docs/DEEP-ANALYSIS-20261106.md)）。
+
+**三条必须随结论声明的事实**：
+1. **制品身份是双批次**：3.2.7 来自 PyPI（`C:\sb\hard\v4-327`，2026-11-06），3.2.5 是**本地构建、PyPI 从未发布**的 wheel（`C:\sb\hard\v2-325`，2026-11-02）；两者 Δ = −2.6pp、p = 0.8145（不显著）。
+2. **四组不是同批次实验**：SAYACODE 行来自 v4-327，三个基线来自 v2-325，served 分布、并发与网络修复状态均不同 —— **只能做描述性对照，不能做跨批次排名或配对检验**。
+3. **40 题是开发迭代集**（gold patch 中位 3 文件 / 72 行；agent 实际 patch 中位 2 文件 / 64 行），SAYACODE 的提示词规则正是从这套题调出来的，**独立 holdout 从未执行**；且按 [PROTOCOL-V2](docs/PROTOCOL-V2.md) §7，**冻结签收流程从未执行**，因此严格意义上尚无"对外正式成绩"。
+
+详见 [最新复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)、[STATUS](docs/STATUS.md) §3/§6、[四组结果](docs/FORMAL-RESULTS-20261105-v3.md)。
 
 ## 文档索引（只列现行文档）
 
 | 文档 | 内容 |
 |---|---|
-| **[RETROSPECTIVE](docs/RETROSPECTIVE-20261105.md)** | **历史全景**：v1→v4 六阶段演进、结论账本（能说/不能说/已作废）、文档债、方法论四个洞 |
+| **★[最新复盘（权威）](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **2026-11-07 全面复盘**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本、P0/P1/P2 计划。**与它冲突的旧文档以它为准**；子报告见 [R1 方法论](docs/review/2026-11-07/R1-methodology.md) / [R2 数据](docs/review/2026-11-07/R2-data-verification.md) / [R3 基建](docs/review/2026-11-07/R3-infrastructure.md) / [R4 产品](docs/review/2026-11-07/R4-product-fixes.md) / [R5 文档债](docs/review/2026-11-07/R5-doc-debt.md) |
+| [历史全景（部分已被推翻）](docs/RETROSPECTIVE-20261105.md) | v1→v4 六阶段演进、结论账本、文档债；其中 strict 口径、跨批次结论已被上一行推翻 |
 | **[STATUS](docs/STATUS.md)** | **当前真实状态**：四组终版数字、制品身份、作废结论、已知局限、下一步 |
 | **[HANDOFF](docs/HANDOFF.md)** | **接手必读**：进度、关键事实、环境、坑、下一步 |
 | **[评测方案](docs/EVALUATION-PLAN-20261030.md)** | 总纲：目标 / 基准 / 题集 / 模型 / 指标 / 方法 / 三 agent |
@@ -29,11 +37,13 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [真实踩坑与教训](docs/LESSONS-20261102-v2.md) | v2 重跑遇到的环境/管线/agent/统计问题与处置（现象/根因/预防）|
 | **[v2 完整重跑结果](docs/FORMAL-RESULTS-20261102-v2.md)** | 三 agent 终版五指标、McNemar、缺失分类、补跑效应与边界 |
 | [报告模板](docs/REPORT-TEMPLATE.md) | 出 `FORMAL-RESULTS-<批次>.md` 的固定版式与不可声称清单 |
-| [改测试真相](docs/TEST-EDIT-ANALYSIS-20261102.md) | 测试代码被 verifier 重置、仅 `.snap` 快照有效；严格口径差异 |
+| [改测试真相（结论已更正）](docs/TEST-EDIT-ANALYSIS-20261102.md) | **原文的"仅 `.snap` 有效"结论已被证伪**：verifier 同时重置测试代码与测试数据面（含 `__snapshots__`），因此"改快照换 pass"不成立、`strict` 口径废除。保留作历史 |
 | [协作场景验证](docs/COLLABORATION-CHECK-20261102.md) | team/single 小样本；autonomous 题 task_count=0 的原因 |
 | [task_count 归因](docs/TASKCOUNT-ATTRIBUTION.md) | 团队工具链完好；显式分工题下 task_count=2，及提示/开关一致性 bug |
 | [v2 深挖分析](docs/DEEP-DIVE-20261102.md) | 方差轨迹、element-hq 归因、语义 diff、成本-部分相关、磁盘盘点 |
-| **[v4 四组结果](docs/FORMAL-RESULTS-20261105-v3.md)** | **当前正式结果**：四组三口径、六组 McNemar、适配健康度、必须标注的限制 |
+| **[深度分析（部分得分/题库体检）](docs/DEEP-ANALYSIS-20261106.md)** | 391 trial 的连续部分得分、26/40 饱和题、2 题环境性不可过、翻转率、**40 题从未触发上下文摘要** |
+| **[v4 四组结果（strict 部分作废）](docs/FORMAL-RESULTS-20261105-v3.md)** | 四组 planned/observed、六组 McNemar、适配健康度；**其中 `strict` 列与"三口径排名"已作废**，见最新复盘 |
+| **[SAYACODE 3.2.7 结果](docs/FORMAL-RESULTS-20261106-327.md)** | PyPI 制品复现：planned 76.2%、与 3.2.5 的配对 Δ −2.6pp（p=0.8145）；**其"三项修复"表述有一项事实错误**，见 [R4](docs/review/2026-11-07/R4-product-fixes.md) |
 | [Codex 组作废](docs/CODEX-BASELINE-INVALID.md) | 整组不可比的证据：apply_patch 不可用 373 次、websocket 405 960 次 |
 | [Claude Code 基线](docs/CLAUDE-CODE-BASELINE.md) | 第三基线接入：`/v1/messages` 原生协议、nginx `?beta=true` 拦截修复、结果 |
 | [OpenCode 基线](docs/OPENCODE-BASELINE.md) | 第四基线接入：provider-agnostic 说明（无自家模型）、预置二进制、结果 |
@@ -41,6 +51,11 @@ Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续�
 | [云成本估算](docs/CLOUD-COST-ESTIMATE.md) | 机器 vs 模型 token 的成本拆解（结论：付费 API 方案超预算）|
 | [硬件评估](docs/HARDWARE-ASSESSMENT-20261103.md) | CPU 过剩、内存/磁盘限制扩样与并发 |
 | [不升级硬件的扩样](docs/SCALE-WITHOUT-UPGRADE.md) | 保留 40 题镜像 + 每片 20 题滚动的可行路径 |
+| **[大评测集设计（未开跑）](docs/LARGE-EVAL-SET.md)** | 100 题 × 1 重复、四题库分层（pro-v2 / promax / swe-evo / tb21）；**注意：1 重复会丢掉题内方差估计，见 [R1 §6](docs/review/2026-11-07/R1-methodology.md)** |
+| **[长上下文受控 A/B（未开跑）](docs/EXPERIMENT-CONTEXT-AB.md)** | 12 题 × 2 噪声档 × 4 组；**当前唯一能检验摘要修复路径的实验**（40 题的上下文峰值到不了触发线）；噪声钩子尚未注入 |
+| **[CompletionGuard 判据 A/B](docs/COMPLETION-GUARD-RESULT.md)** | 开/关 +10pp 但 p 不显著、token +53% 超护栏，**不默认开启** |
+| **[新题库接入指南](docs/NEW-BENCHMARK-ONBOARDING.md)** | SWE-EVO 接入流程、六个工程坑、准入清单；**§5 已补"全量基线 + 分层抽样"两条硬规则** |
+| **[SWE-EVO 试点（有选择偏差）](docs/PILOT-SWE-EVO-20261106.md)** | 5 题 × 2 = 50%；**usable 只有 4 条且全是 1–2 文件小题，唯一重题 0/2，50% 不能支撑"新题库更难"** |
 
 ## 固定基准
 
@@ -101,7 +116,7 @@ uv run --no-sync mypy
 | 题集清单 | `studies/sample-40-final.json`（40 题开发迭代集）|
 | 阶段1 解题 | `python scripts/run_formal_240.py --out <dir> --repeats 2 --skip-verifier --concurrency 4` |
 | 阶段2 验证 | `python scripts/verify_patches.py --out <dir> --agents sayacode mini-swe claude-code opencode --concurrency 4` |
-| 严格口径对比 | `python scripts/strict_compare.py`（planned/observed/strict 三口径 + 题级配对）|
+| 三口径对比（strict 已废） | `python scripts/strict_compare.py`（planned / observed + 题级配对；**脚本内 `strict` 判定基于已被证伪的快照前提，输出仅供历史核对，不得引用**）|
 | 轨迹适配审计 | `python scripts/audit_agent_traj.py`（全量轨迹，抓 unsupported call / API error / 协议缺陷）|
 | 重题分片 | `python scripts/split_sample.py --heavy-repo future-architect`（vuls 单题 3.3GB，必须分片 + 并发 1）|
 | 汇总 | `python scripts/final_summary.py` |
@@ -115,7 +130,7 @@ uv run --no-sync mypy
 
 历史一次性工具与「被测试/代码身份绑定、不可移动」的脚本见 [scripts/README.md](scripts/README.md)。
 
-横向对比：SAYACODE vs mini-swe-agent vs **Claude Code** vs **OpenCode**（同 hy3）。对比时**分母必须统一为 planned 80**（缺失按失败，主报 planned），**并同时给 strict 口径**（扣除改 `.snap` 快照换来的 pass）；不给单一排名。Codex 组已作废，不参与对比。
+横向对比：SAYACODE vs mini-swe-agent vs **Claude Code** vs **OpenCode**（同 hy3）。**分母统一为 `planned` 80**（缺失按失败，主报），`observed` 只作辅助并标注幸存者偏差，另报 `partial`（连续部分得分）。`strict` 口径**已废除**（前提被证伪，见开头的说明）。**不给单一排名**；四组混两个批次，跨批次对照只能描述性并列。Codex 组已作废，不参与对比。
 
 ## 证据与结果原则
 
@@ -124,7 +139,7 @@ uv run --no-sync mypy
 - 每次试验一个补丁、一轮干净环境重判，避免重复试验串补丁。
 - 主差值与区间用任务块配对统计（bootstrap / McNemar），重复跟随任务抽样。
 - 过程指标（步数/token/改测试）是**诊断**，不作为「模型更强」的证据；partial 必须与 reward hacking 同报（防刷）。
-- **改测试的两种口径不可混**（均为 v1 口径，v2 尚未采集，引用须注明已作废）：产品侧检测率（SAYACODE 39/80 = 48.8%）与 patch 含测试文件比例（SAYACODE 0% / mini-swe 70.9% / Codex 54.2%）是不同量。
+- **测试面只有一个事实**：verifier 在判分前重置测试代码与测试数据面（`tests/`、`testdata`、`fixtures`、`__snapshots__` 等），因此任何 agent 改测试/快照都**不影响评分**。不要再用「patch 含测试文件比例」或「snap pass」做能力或作弊判断（v1 的 49%/73%/42% 与 strict 口径均已作废）。
 - 轨迹保存不等于已完成工具语义质量评分；没有实际子任务时不声称协作收益。
 - Linux 容器结果不代替原生 Windows/PowerShell 验证。
 

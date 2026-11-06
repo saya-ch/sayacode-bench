@@ -3,19 +3,24 @@
 > 题集：冻结 `studies/sample-40-final.json` 40 题 × 2 重复 = 80 trial/组
 > 模型：统一 `auto-hy3`（**hy3**，WorkBuddy 网关；context 192k / max_output 64k，profile 配 32k）；同题集、同预算、同口径
 > 验证器：官方 Harbor + SWE-bench Pro V2 verifier（`tests/test.sh` 重置测试代码表面）
-> 口径：**planned**（缺失计失败）/ **observed**（排除缺失）/ **strict**（再扣「改 `__snapshots__/*.snap` 通过」的 pass）
+> 口径：**planned**（缺失计失败，主报）/ **observed**（排除缺失，辅助）/ **partial**（Required tests 通过率）；**strict 已废除**（见顶部横幅）。
 
 > ⚠️ **2026-11-05 更正**：本文初版把 `auto-hy3` 标成「DeepSeek-V4.1-Flash」，**这是错的**。网关 `/v1/models` 显示 `auto/hy3`（owned_by `workbuddy`，192k/64k）与 `auto/deepseek-v4.1-flash`（owned_by `opencode-zen`，1M/200k）是**两个不同模型**；评测窗口内 42681 条 usage 记录里，四个基线的 `served` **全部是 `hy3` / `hy3-x`，没有任何 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。详见 §五.6。
 
+> 🛑 **2026-11-07 状态：本文的 `strict` 列、`snap pass` 列与「三种口径三种排名」结论已作废。** 复盘证实 verifier 在判分前会对 `*__snapshots__/*` 执行 `git checkout HEAD`（642/642 个 `tests/test.sh:97-105`），「改快照换 pass」的前提不成立。本文保留仅作历史记录；现行口径见 [STATUS.md](STATUS.md) 与 [review/RETROSPECTIVE-20261107.md](review/2026-11-07/RETROSPECTIVE-20261107.md)。**另：§一 mini-swe 行的数字来自 `FINAL-SUMMARY-V4.json`（不是同名的 V3 文件）**，见该节注。
+
 ## 一、最终数字
 
-| agent | planned | observed | **strict** | 缺失 | 题级 task-macro | bootstrap95 | 题级全通过 |
+| agent | planned | observed | **partial** | 缺失 | 题级 task-macro | bootstrap95 | 题级全通过 |
 |---|---|---|---|---|---|---|---|
-| **SAYACODE** | **78.8%** (63/80) | 79.7% | **78.8%** (63) | 1 | **80.8%** | [69.2, 91.0] | 29/39 = 74.4% |
-| **mini-swe-agent** | 85.0% (68/80) | 86.1% | **80.0%** (64) | 1 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% |
-| **Claude Code** | 77.5% (62/80) | 78.5% | **73.8%** (59) | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% |
-| **OpenCode** | 75.0% (60/80) | 75.0% | **67.5%** (54) | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% |
-| ~~Codex CLI~~ | 68.8% | 68.8% | 65.0% | 0 | — | — | **不可比**（见下） |
+| **SAYACODE** | **78.8%** (63/80) | 79.7% | 99.2% | 1 | **80.8%** | [69.2, 91.0] | 29/39 = 74.4% |
+| **mini-swe-agent** | 85.0% (68/80) | 86.1% | 98.5% | 1 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% |
+| **Claude Code** | 77.5% (62/80) | 78.5% | 97.9% | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% |
+| **OpenCode** | 75.0% (60/80) | 75.0% | 94.4% | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% |
+| ~~Codex CLI~~ | 68.8% | 68.8% | — | 0 | — | — | **不可比**（见下） |
+
+- **mini-swe 行数据源**：本行数字（68/80、macro 87.2%、CI[79.5,94.9]）来自 `FINAL-SUMMARY-V4.json`（补跑后终版）；同名的 `FINAL-SUMMARY-V3.json` 是**中途快照**（67/80、macro 86.84%、CI[78.95,93.42]），两者不可混用。
+- **partial 口径**：`verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`，按 trial 平均；分母 = 有该文件的 trial（SAYACODE 3.2.5 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80），缺失/空 patch 不计入。数据源 `C:\sb\analysis\dataset.json`；题级均值与完整脚注见 [STATUS.md](STATUS.md) §2。
 
 ### 两两配对（题级全通过，McNemar exact）
 
@@ -39,20 +44,13 @@
 | Claude Code | — | 77.5% | — | 单批跑完（首跑即含修复后的网络配置）|
 | OpenCode | — | 75.0% | — | 单批跑完，零缺失 |
 
-⚠️ **mini-swe 的 +15.0pp 必须一直带着看**：它的 85.0% / 80.0% strict 都是在补跑 12 条之后得到的；补的那 12 条按语义是 `infra`，不是能力。原始 `exception.txt` 证据在 `C:\sb\hard\v2-325\mini-swe\abandoned-retry-20261102-165011\`，分析见 [RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)。
+⚠️ **mini-swe 的 +15.0pp 必须一直带着看**：它的 85.0% planned 是在补跑 12 条之后得到的；补的那 12 条按语义是 `infra`，不是能力。原始 `exception.txt` 证据在 `C:\sb\hard\v2-325\mini-swe\abandoned-retry-20261102-165011\`，分析见 [RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)。
 
-### 口径为什么重要（同一份数据，三种排名）
+### 口径说明（2026-11-07 修正：strict 已废除，本节排名作废）
 
-| 口径 | 排名 |
-|---|---|
-| planned | mini-swe 85.0% > SAYACODE 78.8% > Claude Code 77.5% > OpenCode 75.0% > Codex 68.8% |
-| observed | mini-swe 86.1% > SAYACODE 79.7% > Claude Code 78.5% > OpenCode 75.0% > Codex 68.8% |
-| **strict** | mini-swe 80.0% > **SAYACODE 78.8%** > Claude Code 73.8% > OpenCode 67.5% > Codex 65.0% |
-
-- mini-swe 的 planned 85.0% 里有 **4 个 pass 是改 `.snap` 快照换来的**；strict 扣掉后 80.0%。
-- **OpenCode 的 snap pass 最多（6 个）**，planned 75.0% → strict 67.5%（−7.5pp），是四组里被快照口径影响最大的。
-- SAYACODE **0 个改快照**（strict = planned）。
-- 因此「谁最强」完全取决于口径——**报告必须同时给三个口径，不给单一排名**。
+- `strict` 口径的前提是「verifier 不重置 `.snap`」，该前提被 642/642 个 `tests/test.sh:97-105` 证伪（判分前对 `__snapshots__` 执行 `git checkout HEAD`）。因此原「三种口径三种排名」不成立，**任何 strict 排名不得引用**。
+- 删除原「snap pass」讨论（mini-swe 4、OpenCode 6、SAYACODE 0）：该计数只说明 patch 触碰过 snap 文件，**不影响判分结果，也不参与排名**（如需保留，只能报 `touches_snap_pass`）。
+- 现行可报的是 planned（主）/ observed（辅）/ partial（新增）；三者都不构成单一排名，且 SAYACODE 3.2.7 与三基线跨批次，本身不可排名。
 
 ### 四组的适配健康度（`scripts/audit_agent_traj.py`）
 
@@ -107,12 +105,12 @@
 1. **各组的模型适配前提不同，必须分开说清**（不能用一句「都非为 hy3 调优」糊过去）：
    - **Claude Code**：Anthropic 自家产品，system prompt / 工具契约围绕 Claude 模型深度调优 → 跑 hy3 有**方向性适配损耗**。
    - **Codex CLI**：OpenAI 自家产品，同理（且还叠加了工具契约与协议缺陷，整组作废）。
-   - **OpenCode**：**开源、provider-agnostic**，设计上就接入任意模型（Anthropic/OpenAI/Google/OpenRouter 等），**接 hy3 是它的常规用法，不存在「对自家模型的偏好」**。它的低分不能归因于模型错配，更可能来自脚手架自身的重量（默认工具/skills/slash-commands 更多、system prompt 更长、agent loop 探索轮次更多）以及 **6 个 snap pass（四组最多）**所反映的行为倾向。
+   - **OpenCode**：**开源、provider-agnostic**，设计上就接入任意模型（Anthropic/OpenAI/Google/OpenRouter 等），**接 hy3 是它的常规用法，不存在「对自家模型的偏好」**。它的低分不能归因于模型错配，更可能来自脚手架自身的重量（默认工具/skills/slash-commands 更多、system prompt 更长、agent loop 探索轮次更多）。（原文「6 个 snap pass 所反映的行为倾向」归因已随 strict 废除，见顶部横幅。）
    - **mini-swe-agent**：模型无关的最简脚手架，短任务上几乎无额外故障面。
    - **SAYACODE**：prompt / 摘要降级 / 输出预算等围绕 hy3 所在网关打磨过（这是它的现实优势），但同时自带相应复杂度。
    因此「四组同模型」只统一了**模型变量**，没有统一**脚手架-模型适配度**；组间比较有意义，但**不能据此评价任一产品的真实能力**。
 2. **40 题样本功效不足**：检测 10pp 需约 330 题（`docs/MULTI-MODEL-PLAN.md` 口径）。当前 CI 宽 ±12pp，任何「更强」都谈不上。
-3. **strict 口径下 OpenCode 最低（67.5%）、Claude Code 次低（73.8%）**，但 planned 口径下差距都缩到 2–5 个 pass；四组配对 McNemar 全不显著（最接近的 p=0.070）。
+3. **planned 口径下四组差距只有 2–5 个 pass**；四组配对 McNemar 全不显著（最接近的 p=0.070）。~~strict 口径下的 OpenCode 67.5% / Claude Code 73.8%~~ 已随 strict 废除，不再引用。
 4. **v2 的 Codex 组与 v3/v4 四组不同口径**：Codex 组因适配缺陷整体作废，不参与排名。
 5. **未做的对照**：任一 agent + 其原生模型（付费 API，超 ¥50 预算）；同题集上的 holdout 提示词检验。
 6. **模型身份与 served 分布（2026-11-05 更正 + 新披露）**：
@@ -131,11 +129,11 @@
     - 上表的 `hy3-x` 占比差异（5.3% ~ 35.2%）只是额度池分摊，不影响「四组统一模型」这个前提。
     - `ROUTING-DRIFT` 记作「腾讯 hy3」。
 
-## 六、可写进简历的口径（保守版）
+## 六、可写进简历的口径（2026-11-07 修正版）
 
-> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2（40 题 × 2 重复，官方 Harbor 验证，模型 hy3）上 pass@1 **78.8%**（strict 口径同为 78.8%，0 个改快照通过），与 mini-swe-agent（80.0% strict）、Claude Code（73.8% strict）、OpenCode（67.5% strict）**同量级，题级 McNemar 均不显著**（p ≥ 0.070）。单任务成本 1.43M tokens。建设可复现评测体系（三口径分母、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位修复 5 个产品缺陷与 8 个评测基建缺陷。」
+> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2 的 **40 题开发迭代集**上，`planned` 口径 pass@1 **78.8%（63/80，3.2.5 本地制品）**；3.2.7 批次为 **76.2%（61/80，PyPI）**。该题集**不是冻结签收集**，与三个基线**跨批次**（3.2.7 vs 3.2.5 期），**不可横向排名**。与 mini-swe-agent / Claude Code / OpenCode 的题级 McNemar **未检出统计显著差异（p ≥ 0.070）**，不能表述为『同量级』或『优于/劣于』。单任务成本约 1.43M tokens（3.2.5 批次口径）。建设可复现评测体系（planned/observed/partial 三口径、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位修复 5 个产品缺陷与 8 个评测基建缺陷。」
 
-**不能写**：「优于 Codex / 优于 Claude Code / 优于 OpenCode / SOTA」。
+**不能写**：「strict 78.8% / 80.0% / 73.8% / 67.5%」「三种口径三种排名」「优于/劣于某基线」「与基线同量级」「SAYACODE snap=0 更干净」「修复带来提升」。
 
 ## 七、产物
 

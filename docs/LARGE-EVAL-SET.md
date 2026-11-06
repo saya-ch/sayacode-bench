@@ -37,7 +37,7 @@
 
 | 指标 | 按 source 出 | 合并总体 |
 |---|---|---|
-| planned / observed / **strict** / 缺失 / snap pass | ✅ | ✅ |
+| planned / observed / **partial** / 缺失 / `touches_snap_pass` | ✅ | ✅ |
 | 题级 Wilson CI | ✅ | ✅ |
 | 分层诊断（哪个仓库/语言/项目拖后腿）| ✅ | — |
 | 题级配对 McNemar（组间）| ✅ | ✅ |

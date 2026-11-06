@@ -39,13 +39,14 @@ npm pack opencode-linux-x64@1.19.5 --registry=https://registry.npmmirror.com --p
 | 口径 | OpenCode |
 |---|---|
 | planned | 75.0%（60/80） |
-| observed | 75.0% |
-| **strict**（扣改 `.snap` 的 pass） | **67.5%**（54/80） |
+| observed | 75.0%（本组零缺失，与 planned 相同，无幸存者偏差） |
+| **partial**（trial 级 / 题级） | **94.4% / 94.6%** |
+| `touches_snap_pass`（仅行为描述，**不参与排名**） | 6 |
 | 缺失 | 0 |
 | 题级 task-macro | 75.0%，bootstrap95 [65.0, 83.8] |
 | 题级全通过 | 23/40 = 57.5% |
 
-- **OpenCode 的 snap pass 是四组里最多的（6 个）**，planned→strict 掉 7.5pp；说明它更倾向改快照而不是改产品代码。
+- ~~「OpenCode 的 snap pass 最多（6 个），planned→strict 掉 7.5pp，说明它倾向改快照」~~ —— **该结论已于 2026-11-07 作废**。verifier 在判分前对 `__snapshots__/*` 执行 `git checkout HEAD`（642/642 个 `tests/test.sh:97-105`），agent 对快照的修改已被还原，因此 `touches_snap_pass` 与它是否通过**无关**。`strict` 口径整体废除，见 [review/RETROSPECTIVE-20261107](review/2026-11-07/RETROSPECTIVE-20261107.md)。
 - 轨迹健康：80/80 trial 有 `tool_use`（共 2480 次），**0 API Error / 0 unsupported call / 0 websocket 405 / 0 unrecognized_model**。
 - 配对：vs SAYACODE delta −3.8%、McNemar p=0.070（未过 Bonferroni，是四组里最接近显著的一对）；vs mini-swe p=0.118；vs Claude Code p=0.607。
 
@@ -54,5 +55,5 @@ npm pack opencode-linux-x64@1.19.5 --registry=https://registry.npmmirror.com --p
 - **OpenCode 没有「原生模型」**：它是开源、provider-agnostic 的脚手架，接入任意 provider 都是其常规用法，
   所以这里接 `auto-hy3` **不构成模型错配**（这点和 Claude Code / Codex 本质不同）。
   它的低分更可能来自脚手架自身的重量（默认工具 / skills / slash-commands 更多、system prompt 更长、
-  agent loop 探索轮次更多）以及 6 个 snap pass 所反映的「改快照而非改产品代码」倾向。
+  agent loop 探索轮次更多）；~~以及 6 个 snap pass 所反映的「改快照而非改产品代码」倾向~~（**该归因已于 2026-11-07 作废**：快照在判分前被 verifier 还原，与本组低分无关）。**注意：脚手架重量这一条本身也只是假设，从未做过复杂度对照**。另：本组 `partial`（94.4% / 94.6%）是四组最低，说明它差的不是"整体做不对"，而是"卡在最后几个断言上"。
 - 单题内存峰值约 3.9GB（vuls），必须走高内存分片（`split_sample.py` + 并发 1），否则会打爆 WSL 7GB。

@@ -1,7 +1,7 @@
 # 实验设计：长上下文压力下的受控 A/B（2026-11-05）
 
-> 状态：**设计定稿，待 P0（3.2.7 重跑）完成后再执行**。执行期间不得修改 `scripts/locked_agents.py`（跑批进程依赖它）。
-> 目的：检验「四组压缩在 67.5–80.0% 是因为题目太浅（不需要长上下文）而非模型能力趋同」这一假设。
+> 状态：**设计定稿；前置条件（P0 3.2.7 重跑）已完成，但 2026-11-07 复盘后需按新口径修订再执行**。执行期间不得修改 `scripts/locked_agents.py`（跑批进程依赖它）。
+> 目的：检验「四组 `planned` 落在 **75.0–85.0%** 的窄带，是因为题目太浅（不需要长上下文）而非模型能力趋同」这一假设。
 > 预算：本地 ¥0（既是本地网关，也是本地算力）。
 
 ## 1. 研究问题
@@ -10,7 +10,7 @@
 
 | 事实 | 数值 | 来源 |
 |---|---|---|
-| 四个可用 agent 的 strict 通过率 | 78.8 / 80.0 / 73.8 / 67.5（窄带 12.5pp）| `FORMAL-RESULTS-20261105-v3.md` |
+| 四个可用 agent 的 planned 通过率 | 78.8 / 85.0 / 77.5 / 75.0（窄带 10.0pp）| `docs/RESULTS-LEDGER.md` §2.1 |
 | 题面改动规模（中位） | **2 个文件 / 64 行** | `C:\sb\tmp\explore\task_scale.py` 实测 |
 | SAYACODE 只碰 1–2 文件的 trial 占比 | **62%**（49/79） | 同上 |
 | 对照：SWE-EVO 平均改动 | 21 文件 | `SWE-bench ProMax` / SWE-EVO 公开数据 |
@@ -37,7 +37,8 @@
 
 ### 2.2 因变量
 
-- **planned 通过率**（主）、**strict**（扣改 `.snap`）
+- **planned 通过率**（主）、**partial**（连续量，对本实验尤其敏感）、**observed**（辅助，须标幸存者偏差）
+- `strict` 口径已于 2026-11-07 废除（前提被证伪），**不得再作为因变量**
 - **退化量 Δ** = clean 通过 − noise 通过（配对，按题 × repeat 对齐）
 - 辅助诊断：input tokens、模型调用次数、摘要触发次数、tool 调用分布、是否出现"读了噪声文件"
 
@@ -110,7 +111,7 @@ def _append_noise(instruction: str) -> str:
 2. 给 `locked_agents.py` 加噪声钩子 + 单测（验证 4 个 agent 的最终 instruction 一致）。
 3. 单题 smoke（1 题 × noise-100k × sayacode），确认 instruction 真的变长、上下文占用上升、无摘要触发。
 4. 四组 × 12 题 × 2 档跑批（分片：非 vuls 并发 2）。
-5. 汇总：`strict_compare` 口径 + 配对退化分析（新增 `scripts/analyze_context_ab.py`）。
+5. 汇总：`planned` + `partial` 口径 + 配对退化分析（新增 `scripts/analyze_context_ab.py`）。**不要用 `strict_compare`**——其 `strict` 输出已于 2026-11-07 废除，仅保留 planned/observed 可用。
 
 ## 5. 与简历/结论的关系
 

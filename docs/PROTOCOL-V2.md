@@ -6,7 +6,7 @@
 
 ## 0. 一句话
 
-**统一 planned 80 分母；题级 Wilson + 任务块 bootstrap；题级 McNemar；缺失必须分类并给 worst/best 界；环境类可补、timeout 不补；冻结签收后才算对外成绩。** 开发期诊断数字一律不对外。
+**统一 planned 80 分母；题级 Wilson + 任务块 bootstrap；题级 McNemar（α 按实际比较对数定）；缺失必须分类（7 类）并给 worst/best 界；环境类可补、timeout 不补；partial 必须与 planned 同表；`strict` 口径废除；冻结签收后才算对外成绩。** 开发期诊断数字一律不对外。
 
 ## 1. 开发期诊断 vs 对外正式成绩（硬边界）
 
@@ -14,24 +14,28 @@
 |---|---|---|
 | 目的 | 找方向、定位失败模式、迭代 harness | 报告可对外引用的完成率与成本 |
 | 数据 | 40 题开发迭代集，允许复用缓存题 | 冻结的 manifest（题 ID、seed、实现哈希）|
-| 分母 | 可 observed/task_macro 辅助，但必须同时给 planned | **以 planned 为主**，缺失按失败 |
+| 口径 | 可 observed / partial 辅助，但必须同时给 planned | **以 planned 为主**，缺失按失败 |
 | 缺失 | 分类记录，用于诊断 | 冻结前补齐或按 worst 计入，不接受「删掉失败」|
 | 身份 | 不对外，不作模型强弱证据 | 签收单 + 报告模板 + 实现身份 |
 | 变更 | 可反复重跑 | 签收后不得改分母/换题/改补跑规则 |
 
 **规则**：开发期跑出的任何数字（包括 v2 的 78.8% / 70.0% / 68.8%）都是**开发期诊断**，不得写成对外正式成绩，也不得据此宣称「SAYACODE 更强/更弱」。对外结论必须走 §7 冻结签收。
 
-## 2. 分母：planned / observed / task_macro
+## 2. 口径：planned / observed / partial
 
 同一批数据必须同时给三个口径，**主报 planned**：
 
 | 口径 | 定义 | 用途 |
 |---|---|---|
 | **planned** | 设计的所有 trial（40 题 × 2 重复 = 每 agent 80）；任何缺失按失败计 | **主报**，对外唯一可用分母 |
-| observed | 有 reward / 终态的子集 | 辅助；必须显式标注幸存者偏差 |
-| task_macro | 先对每题重复求均值、再对题求均值 | 辅助；与 trial 级 pass@1 并列时说明差异 |
+| observed | 有 reward / 终态的子集 | 辅助；**每次出现必须标注幸存者偏差** |
+| **partial** | `verifier/output.json` 中 required 测试的通过比例（0–1，连续量）；trial 级求均值 | 辅助；对小样本对比比 0/1 敏感，必须与 planned 同表 |
 
 **反例（v2 实测）**：mini-swe observed 84.8%，但 planned 只有 70.0%（56/80，只有 66 条终态）。**只报 observed 会把 70.0% 说成 84.8%**，是典型高估。任何表格缺 planned 列即不合格。
+
+**partial 的取数与边界**：数据已在 `FINAL-SUMMARY-*.json` 的 `partial` 字段与 `C:\sb\analysis\dataset.json`（391 条记录），无需重跑。只有**有 verifier 输出**的 trial 参与均值（各组 n 在 §5.1 表内），缺失不补 0；若要看「缺失按 0 的 partial 上界」，用 `sum(partial)/80`（同样在 §5.1 表内）。partial 不能替代 planned 的通过率结论。
+
+`task_macro`（先对每题重复求均值、再对题求均值）仍可作题级辅助指标，但不属于三个主口径，且不得单独用于排名。
 
 ## 3. 缺失分类（互斥、逐条可核）
 
@@ -45,7 +49,10 @@
 | `empty_patch` | agent 正常完成但 `model.patch` 为 0 字节 | patch 字节数 + verified + reward | **不补**（能力）|
 | `model_fault` | 真 API 故障（ECONNRESET、5xx 连续） | model_failures 字段 | 可补（同一 condition，需记录）|
 | `unverified` | 有 patch 但未完成独立验证 | verify/jobs 缺失或 ValueError | **可补**（重跑验证）|
+| `unattributed` | 无法归因到以上任何一类（兜底）| 上述证据均不成立 | 不补；必须逐条人工复核 |
 
+- **缺失分类共 7 类**，与 `formal.py:35` 的 `MISSING_CLASSES` 一致；协议表与代码不得再出现 6/7 类不一致。
+- **`timeout` 当前不可达（待修缺陷）**：它虽出现在 `MISSING_CLASSES`（`formal.py:35`）与本表，但 `classify_missing`（`formal.py:464-476`）没有 timeout 分支。实际后果有方向性：超时且 `patch=0` → 记为 `empty_patch`（不补，合规）；**超时且有部分 patch → 记为 `unverified`（可补）**，即「越接近完成的超时越会被补跑」——这正是 §6 要防的选择性补偿。已列为 P0 待修，修复前任何超时被补跑的批次必须在报告中单列。
 - **`empty_patch` ≠ `model_fault`**：v1 tutanota 两条 `completed + verified + reward=0` 是空 patch，曾被误报为模型故障；只有 ECONNRESET 才是真故障（v1 仅 1 条）。分类错误会系统性冤枉模型（LESSONS §3.4）。
 - **`timeout` 归行为类**：mini-swe 的 vuls 死循环（`sleep 29` 撞 30s 工具超时）是轮询逻辑问题，不能算 infra，也不能用 SWE-bench timeout 直接评价其能力（LESSONS §3.1）。
 - 报告必须给「每条缺失的 agent / 题 / repeat / 分类」明细表，不能只给总数。
@@ -63,34 +70,59 @@
 
 1. **Wilson CI 用题级 n**：n = 题数（40），不是 trial 数（80）。每题的两次重复先合并成题级 pass 定义，再算 CI。
 2. **任务块 bootstrap**：10,000 次、固定 seed（如 20261022），重复试验跟随其任务一起抽样；任务数 < 2 不生成区间。
-3. **题级 McNemar**：用**题级 pass（不用 best-of-2）**做配对；两两比较 Bonferroni α/3 = 0.0167。
+3. **题级 McNemar**：用**题级 pass（不用 best-of-2）**做配对；**Bonferroni α 按实际比较对数定**：三组 3 对 α/3 ≈ 0.0167，四组 6 对 α/6 ≈ 0.0083。报告必须写清「几对比较 × 哪个 α」，不得混用两套数字（见 §5.1 末）。
 4. **仓库簇 bootstrap**（9 仓库）只作敏感性分析，不能独立证明生产泛化。
 5. 区间跨零或 p 未过校正 → 写「证据不足 / 不显著」，不写「已证明提升」。v2 三 agent 校正后**均不显著**。
 
-### 5.1 改快照通过（snapshot-modification pass，单列）
+### 5.1 快照触碰（`touches_snap_pass`）与 `strict` 口径废除
 
-**verifier 的 reset 范围**（以 `tests/test.sh` 为准）：
+> **2026-11-07 更正**：本节旧版断言「数据/快照目录命中则排除、不重置，改 `.snap` 对 reward 有效」，该前提已被实测证伪。`strict` 口径随之作废；证据见下。
 
-- **测试代码**（`tests/`、`test`、`__tests__`、`spec`、`specs` 目录；`*_test.go`、`*.test.tsx`、`test_*.py` 等）→ 判分前 `git checkout HEAD -- <path>` **重置**，对 reward **无效**。
-- **数据/快照目录**（`testdata`、`test_data`、`fixtures`、`fixture`、`mocks`、`mock`、**`__snapshots__`**）→ 命中则**排除、不重置**；因此修改 `__snapshots__/*.snap` 对 reward **有效**。
+**实测 verifier 行为**（642/642 个任务镜像的 `tests/test.sh`）：
 
-**结论：**「修改快照而后通过」是**有效但必须单列的类别**——它不是作弊（快照本就是允许更新的数据），也不能混进 pass@1 主表当作普通 pass。纯改测试代码（如 `test_pip.py`、`*_test.go`）会被重置，**不构成作弊**。
+```bash
+# tests/test.sh:97-105（635/642 个模板；另有 7 个 flipt/openlibrary 模板整体偏移 5 行，位于 102-110）
+git diff --name-only HEAD -- > /tmp/v6_modified.txt
+while read -r p; do
+  case "$p" in
+    *testdata/*|*test_data/*|*fixtures/*|*fixture/*|*mocks/*|*mock/*|*__snapshots__/*)
+      echo "$p" | grep -qE '(__NONE__)' && continue
+      git checkout HEAD -- "$p" 2>/dev/null || true ;;
+  esac
+done < /tmp/v6_modified.txt
+```
 
-**严格口径（扣除靠改 `.snap` 通过）**：
+统计（本次实测：逐个读取 642 个 `tests/test.sh`）：
 
-| agent | 主表 planned | 改 `.snap` 通过的 pass | 严格 planned% |
-|---|---|---|---|
-| SAYACODE | 78.8% | 0 | **78.8%** |
-| mini-swe | 85.0% | 4 | **80.0%** |
-| Claude Code | 77.5% | 3 | **73.8%** |
-| OpenCode | 75.0% | 6 | **67.5%** |
-| ~~Codex~~ | 68.8% | 3 | 65.0% | **整组作废，不参与排名** |
+- **642/642** 个 `test.sh` 在 `:97-105` 区段（7 个模板偏移至 102-110）包含 `*__snapshots__/*` 分支；
+- **640/642** 在同一区段含 `git checkout HEAD --`（另 2 个仅行偏移，实际执行同一命令）；
+- **635/642** 的豁免行使用 `__NONE__` 哨兵：`grep -qE '(__NONE__)'` 要求路径含该字符串，**任何真实路径都不含，`continue` 永不触发**；其余 7 份的豁免是具体 testdata 路径（如 `internal/config/testdata/advanced.yml`），**不豁免任何 `__snapshots__` 路径**；
+- 因此：**agent 对 `.snap` 的修改在判分前一律被 `git checkout HEAD` 还原**。「改快照换来的 pass」不存在——旧 `strict` 列把「mini-swe 4 / Claude Code 3 / OpenCode 6 / SAYACODE 0」当作有效扣除，是错误归因。
 
-- **主报口径始终是 planned**（缺失按失败）；**strict 必须同表给出**（不得只给 planned 而不给 strict，也不得只给 strict）。
-- 允许在两套口径下分别排名，但必须并列展示，因为**三种口径给出三种排名**（planned 与 strict 下 mini-swe 对 SAYACODE 的领先从 6.2pp 缩到 1.2pp）。
-- 依据与逐题明细：[TEST-EDIT-ANALYSIS-20261102.md](TEST-EDIT-ANALYSIS-20261102.md)、[FORMAL-RESULTS-20261105-v3.md](FORMAL-RESULTS-20261105-v3.md)。
-- **报告要求**：每张成绩表附「改 `.snap` 通过的条数」与严格口径；**不得**用「patch 含测试文件」当作弊指标——它混入了大量会被 verifier 重置的无效改动。
-- **多重比较**：四组共 6 对比较，Bonferroni 校正后 α/6 ≈ 0.0083（三组时为 α/3 ≈ 0.0167）。报告必须写清「几对比较 × 哪个 α」，不能混用。
+**结论**：
+
+1. **`strict` 口径废除**。任何表格不得再出现 `strict` 列；历史文档里的 strict 数字（80.0 / 73.8 / 67.5 / 76.2 等）**一律作废**，不得引用或重算。
+2. 若确需保留一个相关描述列，**唯一允许的名字是 `touches_snap_pass`**（= patch 触碰 `.snap` 且 reward=1 的 trial 数）。使用该列时**必须**同时注明：「这些快照在判分前已被 verifier 还原，不影响结果；该列只描述行为，不参与任何排名，不得用于能力对比。」
+3. 「patch 含测试文件」仍不能当作弊指标：测试代码由 `CODE_DIRS` / `is_test_code` 分支重置（`test.sh:37-74`），与快照分支是两套机制，但结论同向——两者都不影响 reward。
+
+**planned + partial 对照（标批次）**：
+
+| agent / 批次 | planned | partial（trial 均值 / n）| partial（`sum/80`，缺失按 0）| 数据批次 |
+|---|---|---|---|---|
+| SAYACODE 3.2.5 | 78.8%（63/80）| 0.992 / 73 | 0.905 | v2-325 |
+| SAYACODE 3.2.7 | 76.2%（61/80）| 0.976 / 72 | 0.879 | v4-327 |
+| mini-swe | 85.0%（68/80）| 0.985 / 77 | 0.949 | v2-325 |
+| Claude Code | 77.5%（62/80）| 0.979 / 76 | 0.930 | v2-325 |
+| OpenCode | 75.0%（60/80）| 0.944 / 77 | 0.909 | v2-325 |
+| ~~Codex~~ | 68.8% | — | — | 整组作废 |
+
+- **SAYACODE 3.2.5 与 3.2.7 是不同批次、不同制品（本地 3.2.5 wheel vs PyPI 3.2.7），只能各自对照，跨批次不可排名。**
+- partial 数据源：`C:\sb\analysis\dataset.json`（391 条记录，`partial` 字段）；n 为有 verifier 输出的 trial 数，缺失不补 0。
+- `touches_snap_pass` 若要从数据取：`dataset.json` 的 `touches_snap` 只对 claude-code / opencode 有值，其余为 null，**不得用它反推「snap pass 数」**。
+
+**多重比较**：三组 3 对 α/3 ≈ 0.0167；四组 6 对 α/6 ≈ 0.0083。报告必须写清「几对比较 × 哪个 α」，不得混用（旧文同时出现 α/3 与 α/6，已在本轮统一为「按对数定」）。
+
+**依据**：[RETROSPECTIVE-20261107](review/2026-11-07/RETROSPECTIVE-20261107.md) §四.1（P0-1，含 642/642 实测与代码片段）、`tests/test.sh` 原始文件；旧前提的原始分析见 [TEST-EDIT-ANALYSIS-20261102.md](TEST-EDIT-ANALYSIS-20261102.md)（顶部已加更正横幅）。
 
 ## 6. 补跑规则（v2 最大教训）
 
@@ -125,10 +157,12 @@
 
 ### 7.3 签收前检查清单
 
-- [ ] 三口径（planned/observed/task_macro）齐全，主报 planned
-- [ ] 每条缺失有分类 + 证据，无 `unverified` 遗留
+- [ ] 三口径（planned / observed / partial）齐全，主报 planned；observed 已标幸存者偏差
+- [ ] 每条缺失有分类 + 证据，无 `unverified` / `unattributed` 遗留
 - [ ] worst/best 两界都给出
-- [ ] Wilson n = 题数；McNemar 用题级 pass
+- [ ] Wilson n = 题数；McNemar 用题级 pass，α 按比较对数定
+- [ ] **`strict` 已废除**：产物与报告不含 strict 列/排名；如保留 `touches_snap_pass`，已附「快照在判分前已被还原、不参与排名」声明
+- [ ] **partial 必报**（与 planned 同表；注明 n 与缺失不补 0）
 - [ ] 补跑清单与归档同源，补跑前后同表
 - [ ] 实现身份（wheel / 分析脚本 SHA）冻结
 - [ ] `task_count` 与多 agent 声明一致（见 §8）
@@ -136,7 +170,7 @@
 
 ## 8. 必须遵守的 v2 坑（引用 LESSONS-20261102-v2.md）
 
-1. **分母必须统一**：planned/observed/task_macro 同报，只报 observed 会高估（§四.1）。
+1. **分母必须统一**：planned / observed / partial 同报，只报 observed 会高估（§四.1）。
 2. **补跑效应巨大**：环境失败系统性惩罚某些 agent，补跑前数字不能当能力（§0、§四.2）。
 3. **Wilson 用题级 n，McNemar 用题级 pass**，不用 trial 数或 best-of-2（§四.3）。
 4. **聚类 bootstrap 仅敏感性**（§四.4）。
@@ -147,7 +181,7 @@
 ## 9. 报告与协调
 
 - 报告的**字段与版式**由 `docs/REPORT-TEMPLATE.md` 统一定义（另一队友维护）；本协议只规定口径，不重复模板内容。
-- 每张成绩表至少包含：planned / observed / task_macro、缺失分类表、worst/best、Wilson CI、McNemar p 与校正、补跑前后对照。
+- 每张成绩表至少包含：planned / observed / partial、缺失分类表（7 类）、worst/best、Wilson CI、McNemar p 与按对数定的 α、补跑前后对照；**不得出现 `strict` 列**。若保留 `touches_snap_pass`，必须附「快照在判分前已被 verifier 还原，不影响结果；该列只描述行为，不参与任何排名」。
 - 对外发布前核对：模型身份、harness 版本、题集与 seed、实现哈希、缺失处理，全部可追溯。
 
 ## 10. 尚待冻结项

@@ -4,7 +4,7 @@
 
 ## 必须遵守
 
-1. **维护文档**：每次实验或方案变更后，更新 [STATUS](docs/STATUS.md)、[HANDOFF](docs/HANDOFF.md)、[RETROSPECTIVE](docs/RETROSPECTIVE-20261105.md)，必要时更新 [EVALUATION-PLAN](docs/EVALUATION-PLAN-20261030.md)、[ITERATION-WORKFLOW](docs/ITERATION-WORKFLOW.md)。被推翻的结论要显式标「已作废」及原因，并移到 `docs/archive/`；不要静默删改，也不要在 `docs/` 根继续摆着作废文档。**真实踩坑写进 [LESSONS](docs/LESSONS-20261102-v2.md)**（现象/根因/处置/预防），不要只留在聊天记录里。**新坑同时补进本文件「常见坑」**——两份都要写，缺一份就会丢。
+1. **维护文档**：每次实验或方案变更后，更新 [STATUS](docs/STATUS.md)、[HANDOFF](docs/HANDOFF.md)、**[2026-11-07 复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)（当前权威）**，必要时更新 [EVALUATION-PLAN](docs/EVALUATION-PLAN-20261030.md)、[ITERATION-WORKFLOW](docs/ITERATION-WORKFLOW.md)。被推翻的结论要显式标「已作废」及原因，并移到 `docs/archive/`；不要静默删改，也不要在 `docs/` 根继续摆着作废文档。**真实踩坑写进 [LESSONS](docs/LESSONS-20261102-v2.md)**（现象/根因/处置/预防），不要只留在聊天记录里。**新坑同时补进本文件「常见坑」**——两份都要写，缺一份就会丢。
 2. **时常推送**：完成一批改动就 `git commit` + `git push origin main`，不要在本地长期累积未推送的提交。
 3. **跑前汇报配置**：每次评测启动前用 `python scripts/profile_summary.py <profile>` 汇报模型 / 上下文 / 摘要触发点 / max_output，并取得确认（见 ITERATION-WORKFLOW §8）。
 4. **诚实边界**：开发期数字不当正式成绩；作废数字不引用；过程指标（步数/token/改测试）只作诊断，不作「模型更强」的证据；分母不一致不得并列比较。
@@ -17,10 +17,13 @@
   - **hy3 不支持 `temperature`**：传 temperature 无意义（不接受该参数）。可复现性靠**固定来源 + 固定 seed + 重复次数**保证，不要写「temperature=0 已固定」。
   - profile 的 `max_output_tokens` v2 起配 **32,000**（模型上限 64,000，留余量给重试与长回答；v1 配 16,000 导致长任务收尾过早）。
 - **基准**：只用 **SWE-bench Pro V2**（642 题，排除 123 musl → **519 可评测**）；暂不使用 Terminal-Bench。
-  - **题集深度必须随结论声明**：40 题组里 patch 中位 **2 个文件 / 64 行**（SAYACODE 62% 的 trial 只碰 1–2 文件）。对照 SWE-EVO 平均 21 文件、SWE-Bench ProMax 平均 11.4 文件/261.6 行。**四组压在 67.5–80.0% 很可能是题太浅，不是"模型都一样强"。**
+  - **题集深度必须随结论声明**：40 题的 **gold patch** 中位 **3 个文件 / 72 行**（均值 132.5 行、最大 881 行/12 文件）；**agent 实际 patch** 中位 **2 个文件 / 64 行**（SAYACODE 62% 的 trial 只碰 1–2 文件）。两个数字口径不同（gold vs agent），引用时必须说明是哪一个。对照 SWE-EVO 平均 21 文件、SWE-Bench ProMax 平均 11.4 文件/261.6 行。**"四组压在 67.5–80.0% 是因为题太浅"是待检验假设（长上下文 A/B 未跑），不是已证结论**；已观测到的只是"饱和题 26–28/40、有区分度 4–8 题"。
 - **开发迭代集**：`studies/sample-40-final.json`（40 题，按仓库分层 + seed 可复现）。**gold-check 实际是 36 good / 1 bad / 3 null**，不是「40 题全绿」；bad 题不在 40 题内，3 个 null 需补齐或替换。
   - ⚠️ 它是**开发集，不是 holdout**。`protocol.md` 要求最终成绩来自冻结的 holdout/validation，而**独立 holdout 从未执行**；SAYACODE 的提示词规则（R1–R5）正是从这 40 题的失败个案调出来的（`C:\develop\sayacode\docs\PROMPT-OVERFIT-RISK.md`）。引用任何分数时必须声明这一点。
-- **评测制品身份（最容易搞错）**：所有 SAYACODE 正式数字跑的是**本地构建的 `sayacode-3.2.5-py3-none-any.whl`**（`scripts/locked_agents.py:48`）。**PyPI 上从未发布 3.2.5 / 3.2.6**，序列是 `… 3.2.4 → 3.2.7`。产品 HEAD 已含 3 个版本的产品修复（`summary.py` / `graph.py` / `prompts.py`），**都没进被测制品** → 不能说「78.8% 是 PyPI 版本的分数」，也不能说「修复带来提升」（无评测证据，只有单题对照）。
+- **评测制品身份（最容易搞错）**：**双批次**——
+  - **3.2.7 = PyPI 可获取**（`C:\sb\hard\v4-327`，planned 76.2%）；注意 PyPI 3.2.7 **没有对应 git tag**，HEAD 在发布提交 `ba43e04` 之后还有 4 个提交不在制品内。
+  - **3.2.5 = 本地构建、PyPI 从未发布**（`C:\sb\tmp\hard\wheel-release-3.2.5\out\sayacode-3.2.5-py3-none-any.whl`，`scripts/locked_agents.py:48`；planned 78.8%）。PyPI 版本序列是 `… 3.2.4 → 3.2.7`。
+  - 两者 Δ −2.6pp、McNemar p=0.8145（不显著）。**不要再写"所有 SAYACODE 数字跑的是 3.2.5"**；也不能说「修复带来提升」——三项修复的实际作用面为零（摘要路径从未触发、提示修复只在 `team_enabled=false` 生效、`completion_guard` 从未装配且 `41b1e38` 不在制品内），见 [R4](docs/review/2026-11-07/R4-product-fixes.md)。
 - **基线（v4 现状）**：mini-swe / Claude Code / OpenCode 三组可用；**Codex 整组作废**（`apply_patch` 不可用 373 次、`/v1/responses` websocket 405 960 次），不参与任何排名。各脚手架与 hy3 的原生适配度未被统一，组间比较只统一了模型变量。
 - **容器内存实测**（50 trial 采样）：空载 3–5MB；agent 执行阶段 140–500MB；**验证器阶段峰值可达 2.26GB**（vuls）；任务差异远大于 agent 差异。
 - **阶段耗时实测**（50 trial）：environment_setup 8s（1%）、agent_setup 172s（22.5%）、**agent_execution 540s（70.5%，低内存）**、verifier 46s（6%，高内存）。单 trial 均值 12.8 分钟。
@@ -29,15 +32,15 @@
 - **Docker 磁盘**：构建缓存与旧镜像可回收约 **142GB**（`docker system prune -a` 前先确认没有要保留的镜像；这是实测可回收量，不是当前占用）。
 - **网络**：Clash Verge 已开 TUN + fake-ip；规则模板 `profiles/rNSaXJaGi0rv.yaml` 已加国内镜像（tuna/aliyun/ustc/tencent/huawei）**DIRECT** 规则——否则国内源被代理拖到 30KB/s。改规则后需重启 Clash Verge 生效。
 - **每个 trial 占 2 个 Docker 网络**（`instance_*__env_default` + `saya-isolated-*`），默认地址池约 17 个；跑批前后必须 `docker network prune -f`，否则「all predefined address pools have been fully subnetted」。
-- 结果目录：v1 在 `C:\sb\hard\formal-240`；**v2/v3/v4 同在 `C:\sb\hard\v2-325`**（按产物文件区分：`FINAL-SUMMARY.json` 是三组历史，`FINAL-SUMMARY-V4.json` + `STRICT-COMPARE.json` + `TRAJ-AUDIT-*.json` 是四组当前权威；旧 `v2` 是 3.2.4 预览批次，已归档）。
+- 结果目录：v1 在 `C:\sb\hard\formal-240`；**3.2.5 期在 `C:\sb\hard\v2-325`**（`FINAL-SUMMARY.json` 三组历史、`FINAL-SUMMARY-V4.json` 三基线 + SAYACODE 3.2.5、`STRICT-COMPARE.json` **strict 列已废**、`TRAJ-AUDIT-*.json`）；**3.2.7 在 `C:\sb\hard\v4-327`**（`FINAL-SUMMARY-327.json`）；旧 `v2` 是 3.2.4 预览批次，已归档。SWE-EVO 试点在 `C:\sb\newset\runs\pilot1`。
 
 ## 常见坑
 
 1. **分母三套（最严重的坑）**：v1 的 SAYACODE 55/80、mini-swe 69/80、Codex **56/65** 被并列成 68.8%/86.2%/86.2%，制造 17.4pp 假差距；Codex 统一 80 分母是 **70.0%**。任何对比表分母必须一致，缺 trial 就写 79/80，不换分母。
-2. **改测试 / 改快照的口径**：verifier 会重置**测试代码**（`tests/`、`*_test.go` 等），所以「patch 含测试文件」绝大部分对分数无效，**不能当作弊指标**；只有 `__snapshots__/*.snap` 不被重置、改它才有效（见坑 24）。历史上把「产品侧检测率 48.8%（39/80）」与「patch 含测试 0% / 70.9% / 54.2%」并列是两个不同的量，旧数字 49%/73%/42% 全部作废。
+2. **改测试 / 改快照的口径**：verifier 在判分前**重置测试代码与测试数据面**（`tests/`、`*_test.go`、`testdata/`、`fixtures/`、`__snapshots__/*.snap` 等，见坑 24），所以任何「patch 含测试文件」或「改快照」对分数**都无效**，**不能当作弊指标、也不能当能力指标**。历史上把「产品侧检测率 48.8%（39/80）」与「patch 含测试 0% / 70.9% / 54.2%」并列是两个不同的量，旧数字 49%/73%/42% **全部作废**；「snap pass 4/3/6/0」与 `strict` 口径同样作废。
 3. **空 patch 死循环**：阶段1 跳过验证器时没有 `reward.txt`，旧的归档/`--skip-existing` 逻辑会把有 patch 的 job 反复归档或全量重跑。现行规则是「**有 reward 或 有 patch 都不归档、都跳过**」。判断「空 patch」必须看 `agent/model.patch` 是否 0 字节，不能只看 reward。
 4. **tutanota 超配**：`tutao-51818218` r1/r2 在 v1 出现 `completed + verified + reward=0` 的**空 patch**，曾被误报为模型故障并算进「3 条故障」。重跑时注意该题的资源与上下文预算；**空 patch 不等于 API 故障**，只有 ECONNRESET 这类才是真故障（v1 仅 `vuls-f6cc8c-r1` 一条）。
-5. **Docker 网络池耗尽**：并发 14 时 28 个网络必爆。跑前 `docker network prune -f`，并发 ≤ 6。
+5. **Docker 网络池耗尽**：并发 14 时 28 个网络必爆。跑前 `docker network prune -f`；**并发按「轻题 2–4（内存约束）/ 网络池上限 6 / 重题 1」执行**（见「并发策略」）。
 6. **PatchReplayAgent `source_job`**：必须传单个 trial 目录（`jobs/<job_name>`），不是整个 jobs 目录，否则「no source patch」、全 0 分。
 7. **对比脚本读错目录**：Codex 的 patch 在 `jobs/`，`verify/jobs/` 只有 `replay.json`；比 patch 大小必须读 `jobs/`。
 8. **PowerShell 引号地狱**：复杂 `python -c` 一律写成 .py 文件再执行。
@@ -55,8 +58,8 @@
 20. **归档与 retry sample 必须同源**：先列要补的 job，再由同一清单生成 `--sample`，最后归档；否则会出现「归档 28 个、sample 只覆盖 8 题」的 22 条 `no_job`。
 21. **`.wslconfig` 只能合并、不能覆盖**：原文件有 `networkingMode=mirrored`、`dnsTunneling`、`firewall`、`autoProxy`，覆盖会让容器网络失效；改前备份，改后用 `docker info` 的 MemTotal 验证。
 22. **Docker vhdx 删镜像不缩容**：`docker_data.vhdx` 是稀疏文件，删镜像后 C: 不会自动涨；需管理员 `diskpart compact vdisk`（脚本 `C:\sb\hard\v2\logs\compact-docker-vhdx.ps1`）。
-23. **补跑后数字会变**：v2 中 SAYACODE 67.5%→78.8%、mini-swe 47.5%→70.0%；任何 >1pp 变化都要更新报告，不能拿补跑前快照当终版。
-24. **`.snap` 快照不被 verifier 重置**：`tests/test.sh` 只 reset 测试**代码**目录（`tests`/`spec`/`__tests__` 等，`git checkout HEAD`），`__snapshots__` 属 data 目录被**排除、不重置**。真正「靠改快照通过」的 v4 计数是 mini-swe 4、Claude Code 3、OpenCode 6、**SAYACODE 0**。**主表必须同时给 planned 与 strict**（strict = planned 扣掉 snap pass），因为三种口径给三种排名；**不要只报 planned**。详见 [TEST-EDIT-ANALYSIS](docs/TEST-EDIT-ANALYSIS-20261102.md) 与 [STRICT-COMPARE 脚本](scripts/strict_compare.py)。
+23. **补跑后数字会变**：v2 中 SAYACODE 67.5%→78.8%、mini-swe 47.5%→70.0%；**11-05 又补了 12 条，mini-swe 70.0%→85.0%（+15.0pp）**。任何 >1pp 变化都要更新报告，不能拿补跑前快照当终版；mini-swe 的 85.0% 必须与 70.0% 并列。
+24. **~~`.snap` 快照不被 verifier 重置~~（2026-11-07 已证伪，见坑 39）**：本条原结论（"`__snapshots__` 属 data 目录被排除、不重置"）**是错的**——只读了 `test.sh` 的 `is_test_code()` 分支，漏读了第 97-105 行的 v6 段。实测 verifier **会**重置快照。因此原有的"snap pass 计数"（mini-swe 4 / Claude Code 3 / OpenCode 6 / SAYACODE 0）与"主表必须同时给 strict"的要求**全部作废**。现行口径：`planned` 主报 + `observed` 辅助 + `partial` 新增，**`strict` 废除**。
 25. **`team_enabled=False` 时必须裁剪系统提示的 Dispatch 段**：否则模型会反复探测团队工具、甚至谎称已派发（浪费 token、污染轨迹）。已修 `prompts.py` 并新增测试；改提示模板时务必保持该裁剪。
 26. **`evals.run` 用 CLI subprocess 调 docker，在「Python 子进程无法访问 npipe」的环境不可用**：`python -m evals.run` 会报 `permission denied ... npipe:////./pipe/dockerDesktopLinuxEngine`（DSH 沙箱限制子进程访问 named pipe）。已加 `evals/docker_backend.py`（SDK + CLI 回退）；仍失败时按 [COLLABORATION-CHECK](docs/COLLABORATION-CHECK-20261102.md) 手动复刻流程。
 27. **网关曾拦掉带 query 的请求**：`network.py` 里 `if ($args != "") { return 400; }` 让 Claude Code 的 `?beta=true` 首个请求即 400（该组 0 通过）。现只保留精确路径白名单，**不要再加全局 query 拦截**。
@@ -71,6 +74,9 @@
 36. **长跑批不能用 agent 会话的后台 job**：会话重启/重连会把 job object 里的子进程一起杀掉——表现为日志在某时刻停写、进程全无、**没有 traceback**、容器也被清（实测跑了 5 个 trial 就没了）。长跑批必须用**脱离进程树**的方式启动：`Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c <launcher.cmd>'}`（父进程变成 WmiPrvSE），launcher 里还要**显式设 PATH**（WMI 进程不继承交互会话的 PATH，`uv`/`docker` 会找不到）。范例：`C:\sb\tmp\launch-v4-327.cmd`。
 37. **日志只剩心跳 + 进度不动 = 进程已死，不是卡住**：先比 `log.LastWriteTime` 与当前时间，再看 `Win32_Process` 里还有没有 `run_formal_240`；有残留 job 目录不代表进程活着。恢复用 `--skip-existing`（认「有 reward 或 有 patch」都跳过，见坑 3），已完成的 trial 不必重跑。
 38. **用 `usage.jsonl` 做 served 归因必须按 agent/UA 精确过滤**：本机同时在跑 DSH 会话（agent=`dsh`，用 `deepseek/deepseek-v4.1-flash`，provider=`command-code-goat`）。若脚本按时间窗取「最后一条」记录，会把自己的请求算成探测结果，得出「`auto-hy3` 会漂到 deepseek」这种**完全错误的结论**（实测已发生并写入文档后推翻）。正确做法：请求带唯一 `User-Agent`（如 `sayaprobe`），只统计 `agent == UA` 的记录。范例：`C:\sb\tmp\probe_strict.py`。
+39. **verifier 同时重置测试代码与测试数据面（含 `__snapshots__`）**：642/642 个 `tests/test.sh` 的第 97-105 行对 `*testdata/*|*fixtures/*|*mocks/*|*__snapshots__/*` 的**已跟踪修改**执行 `git checkout HEAD`；第 101 行的 `__NONE__` 哨兵使 `continue` **永不触发**（正常路径不含该串）。另有第 82-94 行（v5 段）对 test_patch 涉及的路径再做一次 `git checkout`，最后第 108 行才 `git apply test_patch`。**结论：任何 agent 改测试/快照都不影响判分**；「改快照换 pass」「strict 口径」全部不成立。诊断这类问题必须**读完整脚本**，不能只看函数名（`is_test_code` 的 DATA_DIRS 分支与 v6 段是两段独立逻辑）。
+40. **`instance_` 前缀假设仍有 15 处存活**：`src/` 4 个文件 15 行（`formal.py` 10、`execution.py` 2、`artifact_replay.py` 1、`pilot_carry.py`/`sources.py` 各 1），`scripts/` 约 30 个文件 60 行命中。其中 **5 处仍是硬假设**：`run_formal_240.py:196-198,224-225`（归档/skip 判据）、`execution.py:487`（重判取源 trial）、`execution._request_identity`（补丁内容不进幂等哈希）、`artifact_replay.py:19`、`benchmark_health.py:64-69`。**后果**：换非 `instance_` 命名的题库（SWE-EVO 的 `sweevo-*`、ProMax）会**静默丢数据**——SWE-EVO 实测 10/10 个已完成 job 被判"无结果"，加 `--skip-existing` 会重跑、不加会被移进 `abandoned/`；重判恒返回 `missing_source_trial`。`46f57f0` 只修了 4 处且 **test-lines=0**（无回归测试），下一次换题库会以同样方式再崩。修法：抽公共 `find_trial_dir()` 按内容识别，并补非 `instance_` 命名的合成测试。
+41. **新题库基线验证会系统性偏向小题**：`verify_task_baseline.py` 的判定是"f2p 至少一个在基线失败 → usable"，并把基线失败的 p2p 剔除。机制上，**大改动题 p2p 数量多（dask 那题 2861 个）、镜像大** → 基线失败/镜像不可用概率更高 → 更可能被判 `broken`/`fake` 剔除 → **usable 集系统性偏向小改动题**。SWE-EVO 实测：usable 只有 4 条且全是 dvc 的 1–2 文件/2–21 行题；pilot 第 5 题（dask，50 文件/1525 行）是 `--include` 强制纳入的，实测 **0/2**。**后果**：不能用 usable 全集扩样，否则结果系统性偏乐观且与旧题集不可比。修法：① 基线验证**全量跑**（不能只跑能过的），记录每题剔除原因与 gold 改动量；② 选样按 gold 改动量**分层**（1–2 / 3–5 / 6–10 / 11+ 文件）。
 
 ## 目录速览
 
