@@ -4,21 +4,33 @@
 
 Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续运行生产应用里的 LangChain / LangGraph 图、工具、检查点与异步子任务。两者用独立 Python 环境，避免评测依赖覆盖产品依赖。
 
-**当前状态：v4 已完成，四组基线定稿。** 40 题 × 2 重复，`planned` 口径（分母 80、缺失按失败）：SAYACODE 3.2.7（PyPI 制品）**76.2%**、3.2.5（本地 wheel）**78.8%**；mini-swe **85.0%**、Claude Code **77.5%**、OpenCode **75.0%**。SAYACODE 与三个基线的题级差异**未检出统计显著性**（题级 McNemar，p ≥ 0.070，Bonferroni 校正后更不显著），**不能声称谁更强，也不能声称谁更差**。Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评价多 agent；v1 结论仍作废（见 [archive](docs/archive/README.md)）。
+**当前状态：两个批次已完成，但不可合成一张对照表。**
+
+| 批次 | 制品 | planned | 说明 |
+|---|---|---|---|
+| **v2-325**（11-02~05）| SAYACODE **3.2.5**（本地 wheel，PyPI 未发布）| **78.8%** | 同批次还跑了三个基线：mini-swe **85.0%**、Claude Code **77.5%**、OpenCode **75.0%** |
+| **v4-327**（11-06）| SAYACODE **3.2.7**（PyPI 可获取）| **76.2%** | 本批次**只跑了 SAYACODE**，没有基线 |
+
+两批制品、served 分布、并发、网络修复状态全不同，**组间差异与批次效应完全混淆，不能排名、不能互相比较**。3.2.7 与 3.2.5 的配对对比：Δ −2.6pp、McNemar p = 0.8145（不显著）。
+
+**唯一能说的一致结论**：在 v2-325 批次内，SAYACODE 3.2.5 与三个基线的题级差异**未检出统计显著性**（6 对比较，最小 p = 0.070 出现在 OpenCode vs SAYACODE，Bonferroni α/6 ≈ 0.0083 下全部未达）。**不能声称谁更强，也不能声称谁更差。** 注意 p = 0.070 属于 **3.2.5**，**不是** 3.2.7——3.2.7 与基线之间从未做过同批次配对。
+
+Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评价多 agent；v1 结论仍作废（见 [archive](docs/archive/README.md)）。**全部数字的唯一权威来源：[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)。**
 
 > ⚠️ **`strict` 口径已废除（2026-11-07）**。该口径假设"verifier 不重置 `__snapshots__`"，实测为假：642/642 个 `tests/test.sh:97-105` 在判分前对测试数据面（含快照）执行 `git checkout HEAD`。因此 `strict` 列（80.0 / 73.8 / 67.5 / 78.8）及其衍生的"三种口径三种排名"叙事**全部作废**。现行口径为 `planned`（主报）+ `observed`（辅助，须标幸存者偏差）+ `partial`（新增，见 [DEEP-ANALYSIS](docs/DEEP-ANALYSIS-20261106.md)）。
 
 **三条必须随结论声明的事实**：
 1. **制品身份是双批次**：3.2.7 来自 PyPI（`C:\sb\hard\v4-327`，2026-11-06），3.2.5 是**本地构建、PyPI 从未发布**的 wheel（`C:\sb\hard\v2-325`，2026-11-02）；两者 Δ = −2.6pp、p = 0.8145（不显著）。
-2. **四组不是同批次实验**：SAYACODE 行来自 v4-327，三个基线来自 v2-325，served 分布、并发与网络修复状态均不同 —— **只能做描述性对照，不能做跨批次排名或配对检验**。
+2. **不是同批次实验**：三个基线只在 v2-325 批次里跑过，v4-327 批次没有基线。跨批次配对受批次效应污染，**不得做排名或配对检验**。
 3. **40 题是开发迭代集**（gold patch 中位 3 文件 / 72 行；agent 实际 patch 中位 2 文件 / 64 行），SAYACODE 的提示词规则正是从这套题调出来的，**独立 holdout 从未执行**；且按 [PROTOCOL-V2](docs/PROTOCOL-V2.md) §7，**冻结签收流程从未执行**，因此严格意义上尚无"对外正式成绩"。
 
-详见 [最新复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)、[STATUS](docs/STATUS.md) §3/§6、[四组结果](docs/FORMAL-RESULTS-20261105-v3.md)。
+详见 **[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)**（唯一权威数字源）、[最新复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)、[STATUS](docs/STATUS.md) §2。
 
 ## 文档索引（只列现行文档）
 
 | 文档 | 内容 |
 |---|---|
+| **★[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)** | **全部对外数字的唯一权威来源**：两批次分表、口径定义（planned/observed/partial）、配对比较、已知数据缺陷。**其他文档只引用，不复制数字。** |
 | **★[最新复盘（权威）](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **2026-11-07 全面复盘**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本、P0/P1/P2 计划。**与它冲突的旧文档以它为准**；子报告见 [R1 方法论](docs/review/2026-11-07/R1-methodology.md) / [R2 数据](docs/review/2026-11-07/R2-data-verification.md) / [R3 基建](docs/review/2026-11-07/R3-infrastructure.md) / [R4 产品](docs/review/2026-11-07/R4-product-fixes.md) / [R5 文档债](docs/review/2026-11-07/R5-doc-debt.md) |
 | [历史全景（部分已被推翻）](docs/RETROSPECTIVE-20261105.md) | v1→v4 六阶段演进、结论账本、文档债；其中 strict 口径、跨批次结论已被上一行推翻 |
 | **[STATUS](docs/STATUS.md)** | **当前真实状态**：四组终版数字、制品身份、作废结论、已知局限、下一步 |

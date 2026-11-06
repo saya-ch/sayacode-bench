@@ -6,54 +6,69 @@
 
 ## 1. 一句话状态
 
-40 题 × 2 重复的四组对照，**SAYACODE 已换成 PyPI 可获取的 3.2.7**（运行根 `C:\sb\hard\v4-327`，2026-11-06），三个基线仍是 v2-325 批次（跨批次，见 §2 脚注）。planned **76.2% / 85.0% / 77.5% / 75.0%**（SAYACODE 3.2.7 / mini-swe / Claude Code / OpenCode），**四组落在 75.0–85.0% 窄带，跨批次不可排名**；题级 McNemar **全部不显著**（旧四组配对 p ≥ 0.070；327 跨批次配对不复算，见 §2.1）。Codex 组整组作废；v1 结论继续作废。`strict` 口径已废除（前提被证伪），不再给出 strict 数字与名次。
+40 题 × 2 重复的评测，**分两个批次、不可合成一张对照表**：
+- **v2-325 批次**（2026-11-02~05，SAYACODE **3.2.5** 本地 wheel）：planned **78.8% / 85.0% / 77.5% / 75.0%**（SAYACODE / mini-swe / Claude Code / OpenCode），题级 McNemar **全部不显著（p ≥ 0.070）**。
+- **v4-327 批次**（2026-11-06，SAYACODE **3.2.7** PyPI）：planned **76.2%**。与 3.2.5 配对 Δ −2.6pp、p = 0.8145（不显著）。
 
-## 2. 终版数字（以 `FINAL-SUMMARY-V4.json` / `FINAL-SUMMARY-327.json` 为准）
+两个批次的制品、served 分布、并发、网络修复状态全不同，**组间差异与批次效应完全混淆，不能排名、不能互相比较**。Codex 组整组作废；v1 结论继续作废。`strict` 口径已废除（前提被证伪：verifier 判分前会重置 `.snap`）。数字唯一权威来源见 [RESULTS-LEDGER](RESULTS-LEDGER.md)。
 
-| agent | planned | observed | **partial** | 缺失 | 题级 task-macro | bootstrap95 | 题级全通过 |
+## 2. 终版数字
+
+> **唯一权威来源：[RESULTS-LEDGER.md](RESULTS-LEDGER.md)。** 本节只作摘要；两处不一致时以 ledger 为准。
+> **两个批次不得合成一张表**——制品、时间、served 分布、并发、网络修复状态全都不同，组间差异与批次效应完全混淆。
+
+### 2.1 v2-325 批次（运行根 `C:\sb\hard\v2-325`；2026-11-02 ~ 11-05）
+
+| agent | planned | observed | **partial**（trial / 题级） | 缺失 | 题级 task-macro | bootstrap95 | 题级全通过 |
 |---|---|---|---|---|---|---|---|
-| **SAYACODE 3.2.7** | **76.2%** (61/80) | 77.2% | 97.6% | 1 | **76.9%** | [66.7, 85.9] | 24/39 = 61.5% |
-| **mini-swe** | 85.0% (68/80) | 86.1% | 98.5% | 1 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% |
-| **Claude Code** | 77.5% (62/80) | 78.5% | 97.9% | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% |
-| **OpenCode** | 75.0% (60/80) | 75.0% | 94.4% | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% |
-| ~~Codex CLI~~ | 68.8% | 69.6% | — | 1 | — | — | **不可比** |
+| **SAYACODE 3.2.5**（本地 wheel）| **78.8%** (63/80) | 79.7% | **99.2% / 98.9%** | 1 | **80.8%** | [69.2, 91.0] | 29/39 = 74.4% |
+| **mini-swe** | 85.0% (68/80) | 86.1% | 98.5% / 98.6% | 1 | 87.2% | [79.5, 94.9] | 30/39 = 76.9% |
+| **Claude Code** | 77.5% (62/80) | 78.5% | 97.8% / 98.0% | 1 | 78.2% | [67.9, 88.5] | 25/39 = 64.1% |
+| **OpenCode** | 75.0% (60/80) | 75.0% | 94.4% / 94.6% | **0** | 75.0% | [65.0, 83.8] | 23/40 = 57.5% |
+| ~~Codex CLI~~ | ~~68.8%~~ | — | — | — | — | — | **整组作废，不参与任何排名** |
 
-口径：
 - **planned = 80 分母**（缺失按失败，主报）。
-- **observed**（只含有 reward/终态的子集，单独报会高估；mini-swe 的 observed 86.1% 只覆盖 79/80，存在幸存者偏差）。
-- **partial** = `verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`，**按 trial 平均**；分母 = **有该文件的 trial**（缺失/空 patch 无 test-stdout，不计入）。覆盖：SAYACODE 3.2.7 72/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80。**题级均值**（先按题归约重复再平均）分别为 97.8% / 98.6% / 98.0% / 94.6%。数据源：`C:\sb\analysis\dataset.json`（其 `required/passed` 即 test-stdout 的 N/M）。`FINAL-SUMMARY-V4.json` / `FINAL-SUMMARY-327.json` 的 `partial` 字段覆盖更全（79–80/80），但其中 11–12 条分母比 test-stdout 多 1（如 `flipt-8bd3604` 0.857=6/7 vs test-stdout 6/6），因此未作为主口径。
-- **strict 已废除**：其前提「verifier 不重置 `__snapshots__/*.snap`」被 642/642 个 `tests/test.sh:97-105` 证伪（判分前对 `.snap` 执行 `git checkout HEAD`）。如仍需保留 snap 信息，只能报 `touches_snap_pass`（patch 触碰 snap 且 reward=1 的 trial 数：0/4/3/6/3），并注明**不影响结果、不参与排名**。
-- **跨批次警告（强化）**：SAYACODE 行来自 2026-11-06 的 `v4-327`（PyPI 3.2.7、served 全 hy3）；三个基线来自 2026-11-02 的 `v2-325`（served 约 14.3% hy3-x）。题集、模型族、evaluator 相同，但**不是同批次同跑**，组间差异与批次效应完全混淆，**只可做描述性对照，不能当作严格的同条件实验，也不能据此排名**。
+- **observed** 只含有 reward/终态的子集，单独报会高估（mini-swe 的 86.1% 只覆盖 79/80，存在幸存者偏差）。
+- **partial** = `verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`。分母 = 有该文件的 trial（SAYACODE 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80）。数据源 `C:\sb\analysis\dataset.json`（其 `required/passed` 即 test-stdout 的 N/M）。`FINAL-SUMMARY-*.json` 的 `partial` 字段覆盖更全但其中 11–12 条分母比 test-stdout 多 1（如 `flipt-8bd3604` 0.857=6/7 vs test-stdout 6/6），故未作主口径。
+- **`touches_snap_pass`**（仅行为描述，**不影响结果、不参与排名**）：SAYACODE 0 / mini-swe 4 / Claude Code 3 / OpenCode 6。这些快照在判分前已被 verifier 还原（见 §2.3）。
 
-### 2.0 补跑前后必须同报（协议 §6）
+### 2.2 v4-327 批次（运行根 `C:\sb\hard\v4-327`；制品 **PyPI 3.2.7**；2026-11-05 22:55 → 11-06 06:35）
+
+| agent | planned | observed | **partial**（trial / 题级） | worst/best | 缺失 |
+|---|---|---|---|---|---|
+| **SAYACODE 3.2.7** | **76.2%** (61/80) | 77.2% | **97.6% / 97.8%** | 76.2% / 77.5% | 1（`vuls-4b680b99606 r1`，`empty_patch`）|
+
+- 题级：`task_macro` **76.9%**（complete_tasks=39）、题级全通过 **24/39 = 61.5%**、`pass@2` **36/39 = 92.3%**。
+  **分母注意**：后三者的分母是 `complete_tasks = 39`；若按全部 40 题算，`pass@2` 是 **37/40 = 92.5%**（vuls 的 r2 通过、r1 空 patch）。引用时须说明用哪个分母。
+
+### 2.3 `strict` 口径已废除
+
+其前提「verifier 不重置 `__snapshots__/*.snap`」被证伪：**642/642** 个 `tests/test.sh:97-105` 在判分前对 `*__snapshots__/*` 执行 `git checkout HEAD`，`:101` 的 `__NONE__` 哨兵使跳过分支永不触发（含该哨兵的是 636/642，其余为模板变体，均不豁免 `.snap`）。agent 对快照的修改在判分时已被还原。证据与影响见 [review/2026-11-07/RETROSPECTIVE-20261107.md](review/2026-11-07/RETROSPECTIVE-20261107.md) §四.1。
+
+### 2.4 补跑前后必须同报（协议 §6；均为 v2-325 批次，SAYACODE 侧是 **3.2.5**）
 
 | agent | 补跑前 | 补跑后 | 增量 | 根因 |
 |---|---|---|---|---|
-| SAYACODE | 67.5% | **78.8%** | +11.3pp | TLS / apt / 网络 |
+| SAYACODE 3.2.5 | 67.5% | **78.8%** | +11.3pp | TLS / apt / 网络 |
 | mini-swe | **70.0%**（56/80）| **85.0%**（68/80）| **+15.0pp** | **全部是安装期网络失败**（`apt-get exit 100` 撞 Clash fake-ip；`NetworkConnectError`），agent 从未执行 |
 | Claude Code / OpenCode | — | 77.5% / 75.0% | — | 首跑即含修好的网络配置，无补跑 |
 
 **mini-swe 的 85.0% planned 建立在补跑 12 条之后**；那 12 条按语义是 `infra`（可补），但旧分类把它们记成 `empty_patch`（不补），造成「违反协议」的假象。证据与修复见 [RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)。
 
-### 2.1 两两配对（题级全通过，McNemar exact）
+### 2.5 两两配对（**仅限 v2-325 批次内**，题级全通过，McNemar exact）
 
-| 对比 | 共同题 | delta | a 独过 / b 独过 | p |
-|---|---|---|---|---|
-| Claude Code vs mini-swe | 38 | −7.9% | 3 / 7 | 0.344 |
-| Claude Code vs SAYACODE | 38 | 0.0% | 4 / 7 | 0.549 |
-| Claude Code vs OpenCode | 39 | +3.8% | 9 / 6 | 0.607 |
-| mini-swe vs SAYACODE | 38 | +7.9% | 6 / 5 | 1.000 |
-| mini-swe vs OpenCode | 39 | +11.5% | 11 / 4 | 0.118 |
-| **OpenCode vs SAYACODE** | 39 | −3.8% | 1 / 7 | **0.070** |
-| SAYACODE 3.2.7 vs mini-swe | 40 | −12.5% | 3 / 8 | 0.227 |
-| SAYACODE 3.2.7 vs Claude Code | 40 | −2.5% | 5 / 6 | 1.000 |
-| SAYACODE 3.2.7 vs OpenCode | 40 | +5.0% | 8 / 6 | 0.791 |
+| 对比 | 共同题 | a 独过 / b 独过 | p |
+|---|---|---|---|
+| Claude Code vs mini-swe | 38 | 3 / 7 | 0.344 |
+| Claude Code vs SAYACODE 3.2.5 | 38 | 4 / 7 | 0.549 |
+| Claude Code vs OpenCode | 39 | 9 / 6 | 0.607 |
+| mini-swe vs SAYACODE 3.2.5 | 38 | 6 / 5 | 1.000 |
+| mini-swe vs OpenCode | 39 | 11 / 4 | 0.118 |
+| **OpenCode vs SAYACODE 3.2.5** | 39 | **1 / 7** | **0.070** |
 
-后三行是 11-06 新批次对 11-02 旧批次的跨批次配对（40 题全交集）；口径与上表一致（题级全通过）。
+四组共 6 对比较，Bonferroni α/6 ≈ 0.0083；即使按更宽松的 α/3 ≈ 0.0167 也**全部未达**。**一个显著都没有。**
 
-⚠️ **后三行不作为证据**：R2 复算（[review/2026-11-07/R2-data-verification.md](review/2026-11-07/R2-data-verification.md) §2.3）显示其数字无法重现——common 写 40，实测 complete 交集为 38/39；Claude 一行 b 独过文档 6、实测 5，OpenCode 一行 a 独过文档 8、实测 7，OpenCode 一行 p=0.791、实测 1.0。且跨批次配对本身受批次效应污染，**不得引用这三行的 p 值与独过数**。
-
-Bonferroni α/3 ≈ 0.0167（三组两两为上限口径）。**全部未过。**
+> **已删除的三行**：原表还有 `SAYACODE 3.2.7 vs mini-swe / Claude Code / OpenCode` 三行跨批次配对。删除理由有二：① 跨批次配对受批次效应污染，p 值不可解释；② R2 复算显示其数字本身无法重现（common 写 40 而实测 complete 交集 38/39；Claude 行 b 独过文档 6 实测 5；OpenCode 行 a 独过文档 8 实测 7、p=0.791 实测 1.0）。证据见 [R2 §2.3](review/2026-11-07/R2-data-verification.md)。
 
 ### 2.2 Codex 组为何不可比
 
