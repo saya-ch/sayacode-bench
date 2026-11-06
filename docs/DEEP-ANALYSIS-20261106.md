@@ -103,10 +103,85 @@ openlibrary-ba3a   93/94  = 98.9%
    - 控制「部分得分 99% 但 0/1 为 0」的比例 —— 它们只贡献噪声。
 3. **报告口径升级**：以后同时报 `0/1 通过率` 与 **`部分得分`**（连续），后者对小样本对比敏感得多。
 
-## 7. 可复现
+## 8. 行为层：工具调用结构（391 trial 的审计）
+
+sayacode 走 `audit.jsonl`（`tool.completed` 事件），三个基线走 ATIF-v1.7 `trajectory.json`（`steps[].tool_calls`）。
+
+### 8.1 每 trial 平均行为量
+
+| group | 工具调用 | 探索 | 编辑 | 执行 | 模型调用 | 输入 token |
+|---|---:|---:|---:|---:|---:|---:|
+| SAYACODE 3.2.7 | 49.6 | 23.9 | 8.2 | 12.9 | 33.4 | 960,348 |
+| SAYACODE 3.2.5 | 48.7 | 24.9 | 8.1 | 10.7 | 33.2 | 961,560 |
+| mini-swe | 57.3 | 0 | 0 | 57.3 | 58.8 | 1,711,870 |
+| Claude Code | 43.0 | 10.4 | 9.7 | 22.7 | 43.0 | 1,620,979 |
+| OpenCode | 30.9 | 7.8 | 7.1 | 15.2 | 31.6 | 779,131 |
+
+**SAYACODE 3.2.7 与 3.2.5 的行为几乎逐项相同**（49.6 vs 48.7 次调用、960K vs 961K token、工具分布一致）。
+这给了 3.2.6/3.2.7 三项修复「成绩没有变化」一个**机制性解释：修复没有改变 agent 的行为轨迹**，
+而不是「修复了但被掩盖」。
+
+### 8.2 探索 : 编辑比 —— SAYACODE 明显更「犹豫」
+
+| group | 每次编辑对应的探索次数 |
+|---|---:|
+| **SAYACODE 3.2.7 / 3.2.5** | **2.9 / 3.1** |
+| Claude Code | 1.1 |
+| OpenCode | 1.1 |
+
+SAYACODE 在编辑前平均要看 2.9 次（读文件 + grep + glob），是基线的 2.6 倍。
+工具分布上 `grep_search` 占 22%、`read_file` 24%、`execute_command` 26%，而基线以 `Bash` 为主（49–53%）。
+
+### 8.3 失败 trial 的行为特征：探索变多、编辑变少
+
+| 组 | 失败 n | 成功 n | 工具调用（失败 vs 成功）| 编辑（失败 vs 成功）|
+|---|---:|---:|---|---|
+| SAYACODE 3.2.7 | 13 | 59 | 56.2 vs 46.1 | **7.5 vs 8.1** |
+| SAYACODE 3.2.5 | 11 | 62 | 51.6 vs 47.1 | **7.5 vs 8.4** |
+| Claude Code | 10 | 66 | 61.5 vs 41.3 | **15.4 vs 9.1** |
+
+两种截然不同的失败模式：
+- **SAYACODE：越失败越不编辑**（探索 +22%、编辑反而更少）→ 卡在理解，没落到改动上；
+- **Claude Code：越失败越猛改**（编辑 +69%）→ 反复试错。
+
+合并 5 组看，失败 trial 的探索次数 +32%（16.7 vs 12.6），是「找不到方向」的典型信号。
+
+### 8.4 工具耗时与输出体量（sayacode 3865 次调用）
+
+| tool | n | 耗时中位 | p95 | 输出中位 | **输出 max** |
+|---|---:|---:|---:|---:|---:|
+| execute_command_tool | 1005 | 332ms | **71s** | 572 | 13,089 |
+| analyze_project | 22 | 202ms | 1.6s | 6,976 | 19,373 |
+| glob_search | 214 | 108ms | 9.6s | 41 | 5,055 |
+| grep_search | 862 | 57ms | 3.8s | 147 | **125,622** |
+| read_file | 909 | 18ms | 79ms | 2,988 | 23,763 |
+| search_replace | 545 | 9ms | 54ms | 66 | 103 |
+
+两处风险：
+1. **`grep_search` 单次输出最高 12.5 万字符**（约 3–4 万 token），一次就能吃掉大半上下文 ——
+   这正好接上 3.2.6 修的「摘要失败降级」，说明**触发摘要的路径是真实存在的**；
+2. **`execute_command_tool` p95 达 71 秒**（最长 418 秒），长命令是 agent 时间的主要消耗。
+
+### 8.5 观测盲区：工具失败没有被记录
+
+3865 次 `tool.completed` 里，**`error_type` 全部为 `null`，没有任何一次工具失败被记录**。
+这意味着：
+- 无法从审计数据判断「命令返回非零 / 文件不存在 / patch 失败」等失败率；
+- 8.3 的「失败 trial」只反映 verifier 结果，不反映过程受阻情况。
+
+**这是产品侧应修的一项观测缺陷**（工具执行异常应写入 `error_type`），否则后续任何行为分析都缺一半。
+
+### 8.6 成本
+
+只有 ATIF 基线带 `cost_usd`：Claude Code 每 trial **$2.27**（中位 $1.19），77 trial 合计 **$174.61**。
+SAYACODE 走本地网关，无计价字段，只能用 token 量对比（960K/ trial，是 Claude Code 的 59%、mini-swe 的 56%）。
+
+## 9. 可复现
 
 ```powershell
-python C:\sb\tmp\build_dataset.py      # 391 trial → C:\sb\analysis\dataset.json
-python C:\sb\tmp\analyze_deep.py       # 部分得分 / 难度矩阵 / 差一点 / patch 特征
-python C:\sb\tmp\analyze_flip.py       # 同题 r1/r2 一致性 + 稳定失败题清单
+python scripts/build_analysis_dataset.py    # 391 trial → 部分得分/用量/时长
+python scripts/analyze_partial_scores.py    # §1–§5
+python scripts/analyze_repeat_consistency.py # §4 r1/r2 一致性
+python scripts/analyze_behavior.py          # §8.1–§8.2 工具结构
+python scripts/analyze_behavior_result.py   # §8.3–§8.4 失败模式与工具耗时
 ```
