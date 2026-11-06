@@ -1,0 +1,138 @@
+{
+ "schema_version": 1,
+ "script": {
+  "path": "scripts/audit_served.py",
+  "version": "1.0.0"
+ },
+ "source": {
+  "input": "C:\\sb\\magpie-export\\config\\routing",
+  "files": [
+   {
+    "path": "C:\\sb\\magpie-export\\config\\routing\\2026-10-26.jsonl.gz",
+    "records_counted": 80,
+    "size_bytes": 353550,
+    "first_time": "2026-10-26T20:18:35.266323+08:00",
+    "last_time": "2026-10-26T23:34:57.729538+08:00"
+   },
+   {
+    "path": "C:\\sb\\magpie-export\\config\\routing\\2026-10-27.jsonl.gz",
+    "records_counted": 273,
+    "size_bytes": 790985,
+    "first_time": "2026-10-27T13:16:33.576739+08:00",
+    "last_time": "2026-10-27T23:57:40.727562+08:00"
+   },
+   {
+    "path": "C:\\sb\\magpie-export\\config\\routing\\2026-10-28.jsonl.gz",
+    "records_counted": 4919,
+    "size_bytes": 2894229,
+    "first_time": "2026-10-28T00:01:04.623769+08:00",
+    "last_time": "2026-10-28T23:59:56.068783+08:00"
+   },
+   {
+    "path": "C:\\sb\\magpie-export\\config\\routing\\2026-10-29.jsonl",
+    "records_counted": 2055,
+    "size_bytes": 33189812,
+    "first_time": "2026-10-29T00:00:01.345928+08:00",
+    "last_time": "2026-10-29T18:40:22.977450+08:00"
+   }
+  ]
+ },
+ "window": {
+  "since": null,
+  "until": null,
+  "timezone": "+08:00"
+ },
+ "totals": {
+  "records": 7327,
+  "excluded_dsh": 6005,
+  "by_served": {
+   "deepseek": 5697,
+   "glm": 1474,
+   "other": 132,
+   "unknown": 24
+  }
+ },
+ "agents": {
+  "Claude Code": {
+   "records": 4,
+   "served": {
+    "deepseek": 2,
+    "unknown": 1,
+    "glm": 1
+   },
+   "providers": {
+    "workbuddy-ai": 2,
+    "workbuddy": 1
+   },
+   "first_time": "2026-10-26T20:52:29.316323+08:00",
+   "last_time": "2026-10-28T19:37:47.261022+08:00"
+  },
+  "Codex": {
+   "records": 144,
+   "served": {
+    "other": 130,
+    "deepseek": 10,
+    "unknown": 3,
+    "glm": 1
+   },
+   "providers": {
+    "openai": 129,
+    "workbuddy-ai": 9,
+    "workbuddy": 1
+   },
+   "first_time": "2026-10-27T21:31:48.557709+08:00",
+   "last_time": "2026-10-28T17:32:30.001098+08:00"
+  },
+  "SAYACODE": {
+   "records": 5105,
+   "served": {
+    "deepseek": 3646,
+    "glm": 1451,
+    "unknown": 8
+   },
+   "providers": {
+    "workbuddy": 2600,
+    "workbuddy-ai": 1968,
+    "commandcode-plan": 484,
+    "qoder": 32
+   },
+   "first_time": "2026-10-28T03:10:33.926456+08:00",
+   "last_time": "2026-10-29T18:32:36.513596+08:00"
+  },
+  "unknown": {
+   "records": 2074,
+   "served": {
+    "deepseek": 2039,
+    "glm": 21,
+    "unknown": 12,
+    "other": 2
+   },
+   "providers": {
+    "workbuddy": 1121,
+    "workbuddy-ai": 939,
+    "codex": 2
+   },
+   "first_time": "2026-10-26T21:06:08.033334+08:00",
+   "last_time": "2026-10-28T19:54:39.720490+08:00"
+  }
+ },
+ "comparison": {
+  "claims": {
+   "records": 42681,
+   "zero_deepseek": true
+  },
+  "observed": {
+   "records": 7327,
+   "deepseek": 5697
+  },
+  "records_match": false,
+  "zero_deepseek_holds_in_observed_window": false,
+  "reasons": [
+   "记录数不一致：文档声称 42681 条，本数据源在给定时间窗内实测 7327 条",
+   "数据源覆盖范围：2026-10-26.jsonl.gz=80, 2026-10-27.jsonl.gz=273, 2026-10-28.jsonl.gz=4919, 2026-10-29.jsonl=2055",
+   "本地导出只到 2026-10-29 18:40；2026-10-30 之后的 routing 日志不在导出内，因此无法在当前机器上复核 42681 条",
+   "served 中出现 deepseek 模型 5697 条；需确认这些记录是否落在声称的评测窗口内（若不在，不能据此推翻原结论；若在，原结论「零 deepseek」需要修订）"
+  ]
+ },
+ "generated_at": "2026-11-07T01:04:40.366756+08:00"
+}

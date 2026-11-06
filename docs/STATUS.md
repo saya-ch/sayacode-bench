@@ -111,7 +111,7 @@
 ### 5.1 模型身份与 served 分布（2026-11-05 更正）
 
 - ⚠️ **`auto-hy3` ≠ `auto/deepseek-v4.1-flash`**。网关 `/v1/models` 是两条独立记录：`auto/hy3`（`workbuddy`，192k/64k）与 `auto/deepseek-v4.1-flash`（`opencode-zen`，1M/200k）。本仓库早期文档（v3 报告初版、Codex/Claude Code 基线文档）把两者混为一谈，**已更正**。
-- 评测窗口（10-31 ~ 11-05）内 42681 条 Magpie usage 记录，四组基线的 `served` **全是 `hy3` / `hy3-x`，零 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。
+- ⚠️ **「评测窗口内 42681 条 usage、四组 served 全是 hy3/hy3-x、零 deepseek」——该记录当前不可复核**（2026-11-07 第三轮复查）：本机唯一数据源 `C:\sb\magpie-export\config\routing` **只覆盖 10-26~10-29**，共 13,332 条，且该窗口 SAYACODE 的 served 是 deepseek 3,646 + glm 1,451（那时还没开始 hy3 评测）。**不能据此推翻原声称**（窗口不重叠），但**也不能再说"已验证"**。引用时写「按已有记录为 hy3/hy3-x，数据源已不在本机，未复核」。详见 [RESULTS-LEDGER](RESULTS-LEDGER.md) §5.6、`docs/evidence/served-distribution-20261107.json`。
 - `hy3` 与 `hy3-x` 是同一个模型（用户确认，`ROUTING-DRIFT-20261029.md:60`）；占比差异只是额度池分摊，不影响组间可比性。
 - 逐 trial 记录里 `canonical_model` 字段值是 `auto-hy3`（正确，没有被 src 的旧常量污染）。
 - 遗留隐患：`src/sayacode_bench/{connections,execution}.py` 的 `CANONICAL_MODEL = "DeepSeek-V4.1-Flash"` 是 v1 SiliconFlow 时代遗留（`study.py` 的 freeze 路径会用它校验 profile）；本批跑批走 `scripts/locked_agents.py` 的 `auto-hy3`，**两条路径的常量不一致，未统一**。
@@ -168,7 +168,7 @@
 | **planned / observed / partial** | **76.2% (61/80) / 77.2% / 97.6%**，snap 信息仅作 `touches_snap_pass`（0）参考 |
 | 缺失 | 1（`vuls-4b680b99606 r1`，`empty_patch`）|
 | 题级 | 完整题 39/40，task-macro 76.9%，CI95 [66.7, 85.9]|
-| served | `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572，**零 hy3-x、零 deepseek** |
+| served | 按已有记录 `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572，零 hy3-x、零 deepseek。⚠️ **未复核**（数据源已不在本机，见 §5.1）|
 
 **与 3.2.5 的配对对比（78 个 trial）**：80.8% → 78.2%，Δ −2.6pp，
 **McNemar p = 0.8145**，题块 bootstrap CI95 [−12.5, +6.2]pp（跨 0）。

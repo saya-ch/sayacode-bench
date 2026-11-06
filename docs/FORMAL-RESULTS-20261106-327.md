@@ -11,7 +11,7 @@
 | 制品 | `sayacode-3.2.7-py3-none-any.whl`（PyPI，sha256 `49db58d1…`）| Harbor `config.json` 的 `agent.kwargs.product_wheel` |
 | 依赖 | `product-requirements-3.2.6.txt` | 3.2.7 METADATA 与 3.2.6 运行时依赖逐项相同，仅多 `evals` extra |
 | 模型 | `auto-hy3`（多池分摊）| worker `result.json` 的 `model_id` |
-| served | `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572 | `scripts/annotate_served.py` 逐 trial；**零 `hy3-x`、零 deepseek** |
+| served | 按已有记录 `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572 | `scripts/annotate_served.py` 逐 trial；记录为零 `hy3-x`、零 deepseek。⚠️ **2026-11-07 降级：该记录不可复核**——本机 Magpie routing 日志只到 10-29，见 [RESULTS-LEDGER](RESULTS-LEDGER.md) §5.6 |
 | agent 版本 | `SAYACODE 3.2.7` | Harbor `result.json` 的 `agent_info.version` |
 
 ## 2. 三口径结果

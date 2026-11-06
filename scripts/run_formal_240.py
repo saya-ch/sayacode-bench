@@ -12,13 +12,42 @@
 import argparse
 import asyncio
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-BENCH = Path(r"C:\develop\sayacode-bench")
-sys.path.insert(0, str(BENCH / "src"))
-sys.path.insert(0, str(BENCH / "scripts"))
+
+def _bench_root() -> Path:
+    """仓库根：优先环境变量，否则从本文件推导（不再硬编码绝对路径）。
+
+    历史上这里写死 ``Path(r"C:\\develop\\sayacode-bench")``，导致：
+    ① 换机器 / 换克隆目录就跑不起来；
+    ② 模块级 ``sys.path.insert`` 在任何 import 时都执行，污染测试进程的
+       ``sys.path``，使「变异后在沙箱副本里跑」被原仓库代码掩盖
+       （2026-11-07 P1 变异检验时实测到）。
+    """
+    override = os.environ.get("SAYACODE_BENCH_ROOT")
+    if override:
+        return Path(override).resolve()
+    return Path(__file__).resolve().parents[1]
+
+
+BENCH = _bench_root()
+
+
+def _ensure_on_path(directory: Path) -> None:
+    """把目录加到 ``sys.path`` **末尾**（若尚未存在）。
+
+    用 append 而非 insert(0)：避免遮蔽调用方已装好的同名包。
+    """
+    entry = str(directory)
+    if entry not in sys.path:
+        sys.path.append(entry)
+
+
+_ensure_on_path(BENCH / "src")
+_ensure_on_path(BENCH / "scripts")
 
 from harbor.models.trial.config import AgentConfig  # noqa: E402,F401  (re-export 给旧调用方)
 from locked_agents import AGENTS, CANONICAL_MODEL, FormalPaths, build_agent, env_cfg  # noqa: E402
@@ -71,10 +100,82 @@ def archive_incomplete_jobs(out: Path, name: str) -> int:
     return moved
 
 
-def container_mem_mb() -> float:
-    """当前所有 trial 容器的总内存（MB）。"""
+# 目标内存利用率：Docker VM 8GB，目标 6GB（75%）。留 2GB 给突发（验证器峰值 2.26GB）。
+TARGET_MEM_MB = 6000.0
+HARD_CEIL_MB = 7000.0  # 超过立即收紧
+
+
+def parse_docker_stats_mb(text: str) -> float:
+    """把 ``docker stats --format '{{.MemUsage}}'`` 的输出解析成总 MB。
+
+    纯函数，便于在不起 Docker 的情况下验证单位换算（这是历史事故点之一：
+    单位解析错会让"内存自适应"失效，进而打爆 WSL）。
+    """
     import re as _re
 
+    total = 0.0
+    for line in (text or "").splitlines():
+        m = _re.match(r"([\d.]+)(B|KiB|MiB|GiB)", line.strip())
+        if not m:
+            continue
+        v, u = float(m.group(1)), m.group(2)
+        total += {"B": v / 1e6, "KiB": v / 1e3, "MiB": v, "GiB": v * 1024}[u]
+    return total
+
+
+def update_ema(previous: float, raw: float) -> float:
+    """EMA（α=0.3）平滑采样抖动；首次采样直接取原值，避免从 0 爬升。"""
+    return raw if previous == 0 else 0.7 * previous + 0.3 * raw
+
+
+def decide_limit(ema: float, max_limit: int) -> int:
+    """按平滑后的内存占用决定并发上限（多级阈值，必须返回 [1, max_limit]）。"""
+    if ema > HARD_CEIL_MB:
+        return 1
+    if ema > TARGET_MEM_MB:
+        return 2
+    if ema > 5000:
+        return 4
+    if ema > 4000:
+        return 6
+    if ema > 3000:
+        return 9
+    return max(1, max_limit)
+
+
+def decide_verifier_limit(ema: float) -> int:
+    """验证器并发：内存紧（>4.5GB）时收紧到 1，否则放大到 2。"""
+    return 1 if ema > 4500 else 2
+
+
+def _record_complete(job_dir: Path) -> bool:
+    """``normalized.json`` 是否已收尾（阶段1 跳过验证器时的唯一完成信号）。"""
+    record_path = job_dir / "normalized.json"
+    if not record_path.is_file():
+        return False
+    try:
+        return json.loads(record_path.read_text(encoding="utf-8")).get("record_complete") is True
+    except (OSError, ValueError):
+        return False
+
+
+def should_skip_existing(job_dir: Path, *, skip_existing: bool) -> bool:
+    """续跑判据：有 reward / 有显式 terminal / normalized 已收尾。
+
+    判据必须按内容识别（``trialdir``），不能按 ``instance_`` 前缀 —— 接入
+    SWE-EVO 后旧判据会让每个已完成 job 都匹配不上（见 ``archive_incomplete_jobs``）。
+    """
+    if not skip_existing:
+        return False
+    return (
+        trialdir.has_trial_file(job_dir, *trialdir.REWARD_PARTS)
+        or trialdir.has_trial_file(job_dir, *trialdir.TERMINAL_PARTS)
+        or _record_complete(job_dir)
+    )
+
+
+def container_mem_mb() -> float:
+    """当前所有 trial 容器的总内存（MB）。取不到时返回 0.0（调用方需容忍）。"""
     try:
         out = subprocess.run(
             ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}"],
@@ -84,14 +185,7 @@ def container_mem_mb() -> float:
         )
     except Exception:
         return 0.0
-    total = 0.0
-    for line in out.stdout.splitlines():
-        m = _re.match(r"([\d.]+)(B|KiB|MiB|GiB)", line.strip())
-        if not m:
-            continue
-        v, u = float(m.group(1)), m.group(2)
-        total += {"B": v / 1e6, "KiB": v / 1e3, "MiB": v, "GiB": v * 1024}[u]
-    return total
+    return parse_docker_stats_mb(out.stdout)
 
 
 class AdaptiveSemaphore:
@@ -154,40 +248,25 @@ def install_verifier_throttle(limit: int) -> None:
     print(f"已安装 verifier 限流：最多 {limit} 个并发验证", flush=True)
 
 
-# 目标内存利用率：Docker VM 8GB，目标 6GB（75%）。留 2GB 给突发（验证器峰值 2.26GB）。
-TARGET_MEM_MB = 6000.0
-HARD_CEIL_MB = 7000.0  # 超过立即收紧
-
-
 async def mem_supervisor(sem: AdaptiveSemaphore, tag: str) -> None:
     """EMA 平滑 + 滞回的多级限流，并把目标内存维持在 TARGET_MEM_MB 附近。
 
     - EMA（α=0.3）平滑采样抖动，避免抖动式开关
     - 多级阈值 + 滞回（降到某档后要回落到更低档才回升）
     - 同时动态调整验证器并发（内存紧时 1，宽松时 2）
+    决策逻辑抽成 ``update_ema`` / ``decide_limit`` / ``decide_verifier_limit``
+    纯函数，便于在不起 Docker 的情况下验证（历史上打爆过 WSL）。
     """
     ema = 0.0
     verifier_limit = 1
     while True:
         try:
             raw = container_mem_mb()
-            ema = raw if ema == 0 else 0.7 * ema + 0.3 * raw
-            # 多级限流（带滞回：降档后需回落到下一档才升回）
-            if ema > HARD_CEIL_MB:
-                await sem.set_limit(1)
-            elif ema > TARGET_MEM_MB:
-                await sem.set_limit(2)
-            elif ema > 5000:
-                await sem.set_limit(4)
-            elif ema > 4000:
-                await sem.set_limit(6)
-            elif ema > 3000:
-                await sem.set_limit(9)
-            else:
-                await sem.set_limit(sem.max_limit)
+            ema = update_ema(ema, raw)
+            await sem.set_limit(decide_limit(ema, sem.max_limit))
             # 动态验证器并发：内存 >4.5GB 收紧到 1，否则放宽到 2
             if _VERIFIER_SEM is not None:
-                want = 1 if ema > 4500 else 2
+                want = decide_verifier_limit(ema)
                 if want != verifier_limit:
                     await _VERIFIER_SEM.set_limit(want)
                     verifier_limit = want
@@ -228,21 +307,7 @@ async def run_agent(
             # 阶段1 用 --skip-verifier，完成时既无 reward.txt 也无 terminal.json，
             # 只有 normalized.json（record_complete=True）。续跑必须认它，否则会重复进入
             # run_official_trial 并撞 request hash 不一致的 ValueError。
-            record_complete = False
-            record_path = job_dir / "normalized.json"
-            if record_path.is_file():
-                try:
-                    record_complete = (
-                        json.loads(record_path.read_text(encoding="utf-8")).get("record_complete")
-                        is True
-                    )
-                except (OSError, ValueError):
-                    record_complete = False
-            if skip_existing and (
-                trialdir.has_trial_file(job_dir, *trialdir.REWARD_PARTS)
-                or trialdir.has_trial_file(job_dir, *trialdir.TERMINAL_PARTS)
-                or record_complete
-            ):
+            if should_skip_existing(job_dir, skip_existing=skip_existing):
                 rows.append(
                     {"task_id": tid, "repeat": repeat, "reward": "skipped", "status": "skipped"}
                 )

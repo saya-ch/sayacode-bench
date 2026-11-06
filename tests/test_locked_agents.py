@@ -81,14 +81,25 @@ def test_run_formal_240_unified_canonical_model() -> None:
     assert 'canonical_model="DeepSeek-V4.1-Flash" if name == "sayacode"' not in source
 
 
-def test_skip_existing_ignores_patch_only() -> None:
-    source = (locked_agents.ROOT / "scripts" / "run_formal_240.py").read_text(encoding="utf-8")
-    assert "trialdir.has_trial_file" in source
-    # skip-existing 判据必须是 reward 或 terminal；patch 只用于「无任何产物才归档」的辅助判断。
-    skip_block = source.split("if skip_existing and (", 1)[1].split("):", 1)[0]
-    assert "REWARD_PARTS" in skip_block
-    assert "TERMINAL_PARTS" in skip_block
-    assert "PATCH_PARTS" not in skip_block
+def test_skip_existing_ignores_patch_only(tmp_path: Path) -> None:
+    """续跑判据必须是 reward 或 terminal；只有 patch 时不得跳过。
+
+    判据必须按内容识别（``trialdir``），且 **patch 不是完成信号**：
+    patch 只用于「无任何产物才归档」的辅助判断。
+    （原实现是读源码文本断言；抽成 ``should_skip_existing`` 后改为行为断言。）
+    """
+    from scripts import run_formal_240
+
+    job_dir = tmp_path / "jobs" / "job-1"
+    trial = job_dir / "sweevo-demo__R1"
+    (trial / "agent").mkdir(parents=True)
+    (trial / "agent" / "model.patch").write_text("--- a\n+++ b\n", encoding="utf-8")
+
+    assert run_formal_240.should_skip_existing(job_dir, skip_existing=True) is False
+
+    (trial / "verifier").mkdir()
+    (trial / "verifier" / "reward.txt").write_text("1.0", encoding="utf-8")
+    assert run_formal_240.should_skip_existing(job_dir, skip_existing=True) is True
 
 
 def test_noop_agent_identity() -> None:

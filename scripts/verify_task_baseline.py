@@ -75,6 +75,41 @@ def sat(node: str, statuses: dict[str, str]) -> bool:
     return False
 
 
+def classify_baseline(
+    f2p: list[str], p2p: list[str], statuses: dict[str, str]
+) -> dict[str, object]:
+    """新题库准入判定（纯函数，便于离线测试三档结论）。
+
+    返回 ``verdict`` / ``reason`` / ``keep_p2p`` / ``f2p_pass`` / ``p2p_pass``。
+    - fake：基线跑下来 FAIL_TO_PASS 全部通过（题目本身已修好，不能用来评测）
+    - usable：基线 F2P 有失败（题目有效），同时把基线就失败的 P2P 剔除
+    - unknown：没有声明 F2P，无法判定
+    """
+    f2p_pass = sum(1 for t in f2p if sat(t, statuses))
+    p2p_pass = sum(1 for t in p2p if sat(t, statuses))
+    common = {"f2p_pass": f2p_pass, "p2p_pass": p2p_pass, "keep_p2p": []}
+    if f2p and f2p_pass == len(f2p):
+        return {**common, "verdict": "fake", "reason": "f2p_all_pass_at_baseline"}
+    if f2p_pass < len(f2p):
+        keep = [t for t in p2p if sat(t, statuses)]
+        return {**common, "verdict": "usable", "reason": "f2p_fails_at_baseline", "keep_p2p": keep}
+    return {**common, "verdict": "unknown", "reason": "no_f2p"}
+
+
+def apply_baseline_filter(task: Path, keep_p2p: list[str]) -> int:
+    """把基线就失败的 P2P 从 ``tests/config.json`` 剔除，返回剔除条数。"""
+    cfg_path = task / "tests" / "config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    original = len(cfg.get("pass_to_pass", []))
+    dropped = original - len(keep_p2p)
+    cfg["pass_to_pass"] = keep_p2p
+    cfg["baseline_filtered_p2p"] = dropped
+    cfg_path.write_text(
+        json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n"
+    )
+    return dropped
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=8)
@@ -112,33 +147,20 @@ def main() -> None:
             print(f"  -> broken ({res['reason']})", flush=True)
         else:
             payload = res["payload"]
-            statuses = payload["statuses"]
             f2p, p2p = payload["f2p"], payload["p2p"]
-            f2p_pass = sum(1 for t in f2p if sat(t, statuses))
-            p2p_pass = sum(1 for t in p2p if sat(t, statuses))
-
-            if f2p and f2p_pass == len(f2p):
-                verdict, reason = "fake", "f2p_all_pass_at_baseline"
+            baseline = classify_baseline(f2p, p2p, payload["statuses"])
+            verdict, reason = baseline["verdict"], baseline["reason"]
+            f2p_pass, p2p_pass = baseline["f2p_pass"], baseline["p2p_pass"]
+            if verdict == "fake":
                 print(f"  -> FAKE (f2p {f2p_pass}/{len(f2p)} passed at baseline)", flush=True)
-            elif f2p_pass < len(f2p):
-                verdict, reason = "usable", "f2p_fails_at_baseline"
-                # 按基线过滤 p2p
-                keep_p2p = [t for t in p2p if sat(t, statuses)]
-                cfg_path = task / "tests" / "config.json"
-                cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-                dropped = len(p2p) - len(keep_p2p)
-                cfg["pass_to_pass"] = keep_p2p
-                cfg["baseline_filtered_p2p"] = dropped
-                cfg_path.write_text(
-                    json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n"
-                )
+            elif verdict == "usable":
+                dropped = apply_baseline_filter(task, baseline["keep_p2p"])
                 print(
                     f"  -> USABLE (f2p {f2p_pass}/{len(f2p)}, p2p {p2p_pass}/{len(p2p)}; "
                     f"dropped {dropped} failing p2p)",
                     flush=True,
                 )
             else:
-                verdict, reason = "unknown", "no_f2p"
                 print("  -> unknown (no f2p)", flush=True)
 
             results.append(

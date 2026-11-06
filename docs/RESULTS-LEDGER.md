@@ -49,11 +49,11 @@
 - `task_macro` 76.9%（39 题）、题级全通过 24/39 = 61.5%、`pass@2` 36/39 = 92.3%。
   **分母说明**：`task_macro` / `pass@2` / 题级全通过的分母是 `complete_tasks = 39`；若按全部 40 题算，`pass@2` 是 **37/40**（vuls 的 r2 通过、r1 空 patch）。**引用时必须说明用的是哪个分母。**
 - `partial` 从 `C:\sb\analysis\dataset.json` 的 `sayacode/3.2.7` 子集算（**不能**从 `FINAL-SUMMARY-327.json` 直接取，见 §5.1）。
-- served：`hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572；零 `hy3-x`、零 deepseek。
+- served：按已有记录为 `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572，零 `hy3-x`、零 deepseek。⚠️ **该记录的数据源已不在本机，未复核**——见 §5.6。
 
 ### 2.3 ⚠️ 两个批次不可合并排名
 
-- 制品不同（3.2.5 本地 wheel vs PyPI 3.2.7）、时间不同（11-02~05 vs 11-06）、served 分布不同（约 14.3% `hy3-x` vs 零）、并发不同（2–4 vs 4/1）、网络修复状态不同。
+- 制品不同（3.2.5 本地 wheel vs PyPI 3.2.7）、时间不同（11-02~05 vs 11-06）、served 分布不同（按记录前者约 14.3% `hy3-x`、后者为零，**两者均未复核**，见 §5.6）、并发不同（2–4 vs 4/1）、网络修复状态不同。
 - **任何跨这两张表的排名、差值、p 值都是批次效应与处理效应的混合物，不得使用。**
 - `STATUS.md` 历史上出现过三行跨批次 McNemar（`327 vs mini` / `vs Claude` / `vs OpenCode`），经复算**无法重现**（common 写 40 而实测 38/39；OpenCode 行 p=0.791 实测 1.0），已从本 ledger 移除。
 
@@ -176,10 +176,32 @@ git diff --stat v3.2.5 ba43e04 -- src/
 
 ### 5.4 其他已知问题
 
+- **「served 零 deepseek」当前不可复核（2026-11-07 降级）**。详细见 §5.6。
 - `C:\sb\hard\v2-325\STRICT-COMPARE.json` 是**陈旧产物**（mtime 11-05 17:23，早于 11-06 的修复声明），其 `missing` 与 `FINAL-SUMMARY-V4.json` 不一致（mini 2 vs 1、Codex 1 vs 0）。**不要引用它的任何数字**，包括 `snap_passes`。
 - `reward is None` ≠ 缺失（327 是 3 vs 1、v2 mini 是 15 vs 14）。统计缺失必须同时看 `terminal` 与 `reward`。
 - 40 题是**开发迭代集**，SAYACODE 的提示词规则 R1–R5 正是从这套题的失败个案调出的，**偏置方向对 SAYACODE 有利**。
 - **从未执行冻结签收**（`lock_candidate`），因此按 `PROTOCOL-V2 §1` 的定义，以上全部是"开发期诊断"，不是"对外正式成绩"。
+- **trial 布局有四套不同结构**（v2 saya/mini 在 `verify/jobs`；v2 claude/opencode 内联在 `jobs`；v4 `jobs` 无 reward；pilot 不以 `instance_` 开头）。读取一律走 `sayacode_bench.trialdir`，不要自己 glob。
+
+### 5.6 「四组 served 全是 hy3、零 deepseek」——**不可复核**（2026-11-07 新发现）
+
+**原有声称**：评测窗口（10-31~11-05）内 42681 条 Magpie usage，四组基线 `served` 全是 `hy3`/`hy3-x`，零 `deepseek-v4.1-flash`。这条支撑了"四组统一模型"这个前提。
+
+**复查结果**（`scripts/audit_served.py`，按 `User-Agent` 精确过滤并排除本机 DSH）：
+
+| 项 | 结果 |
+|---|---|
+| 本地唯一数据源 | `C:\sb\magpie-export\config\routing`，**只有 2026-10-26 ~ 10-29 四个文件** |
+| 记录数 | **13,332 条**（排除 DSH 6,005 条后 7,327 条）——**无法复现 42681** |
+| 该窗口 SAYACODE 的 served | **deepseek 3,646 + glm 1,451**，**不是 hy3** |
+| 10-30 之后的 routing 日志 | **本地不存在**（已搜 `C:\sb\` 全盘 jsonl、`AppData\Local\magpie`、`Programs\magpie`） |
+
+**结论**：该声称**在当前机器上不可复核**。
+- **不能**据此推翻它：可见窗口（10-26~10-29）早于 hy3 评测期（10-31 起），两者不重叠，而 10-26~10-29 那批用的确实是 deepseek/glm（与产品 evals 期的模型一致）。
+- **也**不能再把它当"已验证事实"引用：支撑它的 42681 条数据不在本机，重跑不出同样的数。
+
+**处置**：引用"四组统一模型"时，必须写成「按已有记录为 hy3/hy3-x；该记录的数据源已不在本机，**未复核**」，不能说"已验证零 deepseek"。
+产物：`docs/evidence/served-distribution-20261107.json`（含 `comparison` 差异说明）。
 
 ---
 
@@ -192,7 +214,8 @@ git diff --stat v3.2.5 ba43e04 -- src/
 | `partial` | `C:\sb\analysis\dataset.json` | 按 `agent`+`tag` 分组；先题内平均再题间平均 |
 | `touches_snap_pass` | 同上 `dataset.json` 的 `touches_snap` 字段 | 计数；**仅描述性** |
 | 327 vs 3.2.5 配对 | 两批 `FINAL-SUMMARY` 的 trial 级 `effective_reward` | 按 (task, repeat) 对齐取交集 |
-| SWE-EVO pilot | `C:\sb\newset\runs\pilot1\FINAL-SUMMARY-PILOT.json` | 读 `agents.sayacode` |
+| SWE-EVO pilot | `C:\sb\newset\runs\pilot1\FINAL-SUMMARY-PILOT.json`；reward 在 `sayacode\verify\jobs\*\*__*\verifier\reward.txt`（10 个） | 读 `agents.sayacode`；5/10 可复算（镜像已丢，不可重跑） |
+| served 分布 | `C:\sb\magpie-export\config\routing`（**仅 10-26~10-29**） | `scripts/audit_served.py --since ... --until ...`；**无法复现 42681 条**，见 §5.6 |
 | 快照重置行为 | `C:\sb\s\swe-bench-pro-v2-*\v2\tasks\*\tests\test.sh:97-105` | 全量扫描 642 个文件 |
 
 复算脚本：`scripts/build_analysis_dataset.py`、`scripts/final_summary.py`、`scripts/strict_compare.py`（**仅用于历史排查，其 strict 输出不得引用**）。
@@ -205,6 +228,7 @@ git diff --stat v3.2.5 ba43e04 -- src/
 |---|---|---|
 | 2026-11-07 | v1.0 | 建立。废除 `strict` 口径（前提被证伪）；新增 `partial`；移除三行跨批次 McNemar；标注 3.2.7 只含两项修复；标注 SWE-EVO pilot 的选择偏差 |
 | 2026-11-07 | v1.1 | **第二轮复盘**：① 修正 Claude Code 的 trial 级 partial（97.9%→97.8%）；② 明确 `partial` 用 `output.json` 而非 `test-stdout.txt`（差 2.4–6.8pp，见 §5.5）；③ 新增 §3.5 成本与机时（返工 61.4%、并发 1.6–2.0）；④ STATUS/README/HANDOFF 按批次拆表 |
+| 2026-11-07 | v1.2 | 第三轮：① 新增 §5.6——「served 零 deepseek」**不可复核**（数据源只到 10-29，42681 条无法复现），相关表述全部降级；② §6 补 `partial`/`served`/pilot 的精确复算路径；③ 「重建 ledger」端到端打通（`docs/REBUILD-LEDGER.md`，三条命令与本文逐项一致） |
 
 ---
 
