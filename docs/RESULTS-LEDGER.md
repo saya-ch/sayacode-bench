@@ -17,7 +17,7 @@
 |---|---|---|---|
 | **`planned`** | 分母 = 题数 × 重复数（40×2 = 80）；任何缺失按失败计 | **主报**，对外唯一可用 | 必须同时给缺失数与分类 |
 | **`observed`** | 只含有 reward 或显式终态的子集 | **辅助** | **每次出现必须标注「幸存者偏差，会高估」** |
-| **`partial`** | `verifier/output.json` 中 required 测试的通过比例（0–1 连续量） | **辅助**，对小样本对比比 0/1 敏感得多 | 必须写明是 trial 级均值还是题级均值 |
+| **`partial`** | `verifier/output.json` 的 `tests[].status` 中 PASSED 占比（0–1 连续量） | **辅助**，对小样本对比比 0/1 敏感得多 | 必须写明是 trial 级均值还是题级均值；**不得用 `test-stdout.txt` 的 `Required tests` 口径**（见 §5.5） |
 | `touches_snap_pass` | patch 触碰 `.snap` 且 `reward=1` 的 trial 数 | **仅行为描述** | **不参与任何排名**；必须注明"这些快照在判分前已被还原，不影响结果" |
 
 **`task_macro`**：先按题归约重复、再对题取平均。只算 `complete_tasks`（有全部重复的题），因此分母常小于 40 —— **引用时必须标明分母**。
@@ -115,6 +115,23 @@
 **本 ledger 的 `partial` 一律取自 `C:\sb\analysis\dataset.json`**（391 行，`agent` + `tag` 区分批次），覆盖：sayacode/3.2.5 73/77、sayacode/3.2.7 72/77、mini-swe 77/78、claude-code 76/79、opencode 77/80。
 
 **待修**：应让汇总脚本一次产出完整 `partial`，而不是依赖二次构建的 `dataset.json`。
+
+### 5.5 `partial` 的两个数据源不可混用（2026-11-07 第二轮复盘实测）
+
+同一批 trial，两种算法差 **2.4–6.8pp**：
+
+| agent | `output.json`（**本 ledger 采用**）| `test-stdout.txt` | 差 |
+|---|---:|---:|---:|
+| SAYACODE 3.2.5 | **99.2%** (n=73) | 92.4% (n=77) | +6.8pp |
+| mini-swe | **98.5%** (n=77) | 96.2% (n=78) | +2.4pp |
+| Claude Code | **97.8%** (n=76) | 91.2% (n=79) | +6.6pp |
+| OpenCode | **94.4%** (n=77) | 87.7% (n=80) | +6.7pp |
+
+根因是**分母不同**：`output.json` 的 `tests` 集合与 verifier 判定 `reward` 所用集合一致；`test-stdout.txt` 的 `Required tests` 范围更大（同一 trial 上见过 6/6 vs 7/6 这类差异）。
+
+**采用 `output.json` 的理由**：它与 reward 同源。若换成 `test-stdout`，partial 会与 planned 产生内部矛盾（plan 判通过而 partial < 100%）。
+
+复算脚本：`C:\sb\tmp\verify_partial_source.py`。
 
 ### 5.2 Δ −2.6pp 的三重作用面错配
 

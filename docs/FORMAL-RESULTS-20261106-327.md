@@ -20,14 +20,14 @@
 |---|---|---|
 | planned | **76.2%** | 61 / 80（缺失按失败，主报）|
 | observed | 77.2% | 61 / 79（辅助；幸存者偏差：只覆盖 79/80）|
-| **partial** | **97.6%** | 有 test-stdout 的 trial 的 Required tests 通过率均值（n=72/80；题级 97.8%，39 题）|
+| **partial** | **97.6%** | `verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均（n=72/80；题级 97.8%，39 题）|
 | worst / best（planned 界） | **76.25% / 77.5%** | `FINAL-SUMMARY-327.json` 的 `rates.worst_bound=0.7625`、`best_bound=0.775` |
 
 - 缺失 1 条：`vuls-4b680b996061044e93ef5977a0816616 r1`，类别 `empty_patch`（`model.patch` 缺失）。
 - 另有 2 条显式终态（`vuls-dc496468b9e r1`、`qutebrowser-3e21c8214a r1`）按 0 分计入 observed。
 - 题级：完整题 39/40，task-macro **76.9%**，题块 bootstrap95 [66.7%, 85.9%]，题级全通过 24/39 = 61.5%，pass@2 36/39 = 92.3%。
 - **题级分母口径**：`task_macro` 与 `pass@2` 的分母是 `complete_tasks=39`（只算两次都有 reward 的题），而 `planned` 的分母是 80（40 题）。`vuls-4b680b99606` 的 r2 通过、r1 空 patch，因此按 39 题算 `pass@2 36/39`，按 40 题全量算则是 `37/40`；两个数**不是同一口径**，引用时必须注明。
-- **partial 口径**：`verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`，按 trial 平均，分母 = 有该文件的 trial（缺失/空 patch 不计入）。`FINAL-SUMMARY-327.json` 的 `partial` 字段覆盖 77/80，但其中 6 条分母比 test-stdout 多 1（如 `flipt-8bd3604` 0.857=6/7 vs test-stdout 6/6），故主表用 `C:\sb\analysis\dataset.json` 复算值（97.6%，72 trial）。
+- **partial 口径**：`verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均，分母 = 有该文件的 trial（缺失/空 patch 不计入）。主表用 `C:\sb\analysis\dataset.json` 复算值（97.6%，72 trial）。**不要用 `test-stdout.txt` 的 `Required tests` 口径**：实测同一批 trial 会低 2.4–6.8pp，两者不可混用（第二轮复盘实测，见 [STATUS.md](STATUS.md) §2）。
 
 ## 3. 与 3.2.5（本地未发布制品）的配对对比
 

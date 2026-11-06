@@ -29,7 +29,8 @@
 
 - **planned = 80 分母**（缺失按失败，主报）。
 - **observed** 只含有 reward/终态的子集，单独报会高估（mini-swe 的 86.1% 只覆盖 79/80，存在幸存者偏差）。
-- **partial** = `verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`。分母 = 有该文件的 trial（SAYACODE 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80）。数据源 `C:\sb\analysis\dataset.json`（其 `required/passed` 即 test-stdout 的 N/M）。`FINAL-SUMMARY-*.json` 的 `partial` 字段覆盖更全但其中 11–12 条分母比 test-stdout 多 1（如 `flipt-8bd3604` 0.857=6/7 vs test-stdout 6/6），故未作主口径。
+- **partial** = `verifier/output.json` 的 `tests[].status` 中 PASSED 占比（**不是** `test-stdout.txt`——两者口径不同，实测差 2.4–6.8pp，见下）。分母 = 有该文件的 trial（SAYACODE 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80）。数据源 `C:\sb\analysis\dataset.json`（其 `required/passed` 即 output.json 的逐测试结果）。**trial 级均值 99.2% / 98.5% / 97.8% / 94.4%，题级均值 98.9% / 98.6% / 98.0% / 94.6%。**
+  > ⚠️ **两个源不可混用**（2026-11-07 第二轮复盘实测）：同一批 trial 用 `test-stdout.txt` 的 `Required tests that passed / Required tests` 会得到 92.4% / 96.2% / 91.2% / 87.7%，比 `output.json` **低 2.4–6.8pp**。差异来自分母不同（`output.json` 的 tests 集合与 verifier 判定 reward 所用的集合一致；`test-stdout` 的 `Required tests` 范围更大）。**本表一律用 `output.json`**，因为它与 reward 同源。
 - **`touches_snap_pass`**（仅行为描述，**不影响结果、不参与排名**）：SAYACODE 0 / mini-swe 4 / Claude Code 3 / OpenCode 6。这些快照在判分前已被 verifier 还原（见 §2.3）。
 
 ### 2.2 v4-327 批次（运行根 `C:\sb\hard\v4-327`；制品 **PyPI 3.2.7**；2026-11-05 22:55 → 11-06 06:35）

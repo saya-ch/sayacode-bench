@@ -20,7 +20,7 @@
 | ~~Codex CLI~~ | 68.8% | 68.8% | — | 0 | — | — | **不可比**（见下） |
 
 - **mini-swe 行数据源**：本行数字（68/80、macro 87.2%、CI[79.5,94.9]）来自 `FINAL-SUMMARY-V4.json`（补跑后终版）；同名的 `FINAL-SUMMARY-V3.json` 是**中途快照**（67/80、macro 86.84%、CI[78.95,93.42]），两者不可混用。
-- **partial 口径**：`verifier/test-stdout.txt` 的 `Required tests that passed / Required tests`，按 trial 平均；分母 = 有该文件的 trial（SAYACODE 3.2.5 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80），缺失/空 patch 不计入。数据源 `C:\sb\analysis\dataset.json`；题级均值与完整脚注见 [STATUS.md](STATUS.md) §2。
+- **partial 口径**：`verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均；分母 = 有该文件的 trial（SAYACODE 3.2.5 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80），缺失/空 patch 不计入。数据源 `C:\sb\analysis\dataset.json`。**注意不要用 `test-stdout.txt` 的 `Required tests` 口径——实测会低 2.4–6.8pp，两者不可混用**（详见 [STATUS.md](STATUS.md) §2）；题级均值与完整脚注同见该处。
 
 ### 两两配对（题级全通过，McNemar exact）
 
