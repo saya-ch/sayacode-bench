@@ -15,6 +15,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 from .installation import bundled_uv_installer, prepare_uv_installer, verify_installed_runtime
+from .noise import stage_background
 from .worker import audit_metrics, read_object, variant_profile, write_json
 
 ROOT = PurePosixPath("/installed-agent/sayacode")
@@ -163,6 +164,9 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
         ownership = f"chown {shlex.quote(str(owner))} {PRIVATE} {logs}; " if owner else ""
         await self.exec_as_root(environment, command=f"set -eu; mkdir -p {logs}; {ownership}true")
         await self._upload(environment, self.profile_path, PRIVATE / "profile.json")
+        # 长上下文实验：把背景材料放进容器内文件，instruction 只加固定短提示。
+        # 与三个基线走完全相同的函数（sayacode_bench.noise），保证四组输入一致。
+        instruction = await stage_background(instruction, environment)
         variant = read_object(self.variant_path)
         if self.prompt_path:
             original = variant.get("instruction_append", "")

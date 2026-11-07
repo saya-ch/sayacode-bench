@@ -33,6 +33,7 @@ from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E
 
 from sayacode_bench import trialdir  # noqa: E402
 from sayacode_bench.connections import CANONICAL_MODEL as _SRC_CANONICAL_MODEL  # noqa: E402
+from sayacode_bench.noise import stage_background  # noqa: E402
 
 # 规范模型身份的唯一来源是 ``src/sayacode_bench/connections.py``；本文件只保留环境变量
 # 覆盖入口（pin 到固定 served 来源时用），**不再写第二份字面量**。
@@ -53,11 +54,15 @@ NOISE_SEPARATOR = "\n\n"
 
 
 def inject_noise(instruction: str) -> str:
-    """按 ``SAYACODE_BENCH_NOISE_FILE`` 给 instruction 追加噪声；未设置则原样返回。
+    """把噪声**直接拼进 instruction**（旧的 prompt 注入方式）。
 
-    设计约束（``docs/EXPERIMENT-CONTEXT-AB.md`` §2.4）：
-    基线由 Harbor 直接传 instruction，读不到 ``variant.json``，所以只能在这里注入；
-    注入后两条通道的最终 instruction 必须字节一致，否则组间不可比。
+    ⚠️ **已被 ``sayacode_bench.noise.stage_background`` 取代**（2026-11-07）。
+    保留它是因为它是「prompt 里有 100k 噪声」这一语义的唯一实现，可用于对照实验。
+
+    为什么不再用：它让 instruction 达到约 350KB，而三个基线的传参通道全部超限——
+    mini-swe 的 argv 撞 Linux ``execve`` 单参数上限（``Argument list too long``），
+    Claude Code 的环境变量撞 Windows 命令行 32KB（``WinError 206``）。
+    详见 ``docs/EXPERIMENT-CONTEXT-AB-RESULT.md`` §7。
     """
     path = os.environ.get(NOISE_ENV)
     if not path:
@@ -349,7 +354,8 @@ class LockedMiniSwe(MiniSweAgent):
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
         try:
-            await super().run(inject_noise(instruction), environment, context)
+            instruction = await stage_background(instruction, environment)
+            await super().run(instruction, environment, context)
         finally:
             try:
                 result = await environment.exec(command=_CAPTURE, user="root", timeout_sec=300)
@@ -426,7 +432,8 @@ class LockedCodex(Codex):
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
         try:
-            await super().run(inject_noise(instruction), environment, context)
+            instruction = await stage_background(instruction, environment)
+            await super().run(instruction, environment, context)
         finally:
             try:
                 result = await environment.exec(
@@ -481,7 +488,8 @@ class LockedClaudeCode(ClaudeCode):
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
         try:
-            await super().run(inject_noise(instruction), environment, context)
+            instruction = await stage_background(instruction, environment)
+            await super().run(instruction, environment, context)
         finally:
             try:
                 result = await environment.exec(
@@ -535,7 +543,8 @@ class LockedOpenCode(OpenCode):
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
         try:
-            await super().run(inject_noise(instruction), environment, context)
+            instruction = await stage_background(instruction, environment)
+            await super().run(instruction, environment, context)
         finally:
             try:
                 result = await environment.exec(

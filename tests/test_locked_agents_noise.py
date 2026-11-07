@@ -93,12 +93,15 @@ def test_injection_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_all_four_agents_call_the_hook() -> None:
     """四个 `run()` 都必须经过注入点，否则基线与 SAYACODE 的输入不一致。
 
-    用源码静态检查（这里不是 B 类源码文本断言：它锁的是**接线关系**，
-    不是某段代码的写法；函数被重命名时测试会红，这正是想要的）。
+    ⚠️ 2026-11-07 更新：注入通道已从「拼进 instruction」（inject_noise）改为
+    「上传容器内文件 + 固定短提示」（sayacode_bench.noise.stage_background），
+    因为前者让 instruction 达到 350KB，三个基线全部撞平台长度限制。
+    接线断言随之迁移到 ``tests/test_noise.py::test_all_four_baselines_use_the_file_channel``。
     """
     source = Path(locked_agents.__file__).read_text(encoding="utf-8")
-    calls = source.count("inject_noise(instruction)")
-    assert calls == 4, f"期望 4 个 run() 都调用注入钩子，实际 {calls} 处"
+    calls = source.count("await stage_background(instruction, environment)")
+    assert calls == 4, f"期望 4 个 run() 都走文件通道，实际 {calls} 处"
+    assert "super().run(inject_noise(" not in source, "不应再退回会撞长度上限的方式"
 
 
 # --- 超长命令落盘（绕开 Windows 命令行 32KB 上限） ------------------------------
