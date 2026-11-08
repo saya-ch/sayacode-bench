@@ -483,6 +483,103 @@ _TEST_NAME_PATTERN = re.compile(
 )
 
 
+#: 新增**二进制**文件的体积上限。超过则视为构建产物。
+#: 为什么只针对二进制：模型合法地新增一个小二进制资源（测试 fixture、图片）
+#: 时，官方验证器重放补丁需要它，剔掉会让重放缺文件（见
+#: tests/test_adapter.py::test_patch_includes_new_binary_and_committed_changes...）。
+#: 而编译产物（Go/Rust/C 的 ELF、Java 的 class 包）必然是二进制且体积以 MB 计。
+MAX_NEW_BINARY_BYTES = 2_000_000
+
+#: 依赖/构建产物目录（按路径段精确匹配，不做子串匹配，避免误伤 bin/out 之类合法源码目录）。
+_BUILD_DIR_SEGMENTS = frozenset(
+    {
+        "node_modules",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        "target",
+        ".next",
+        ".nuxt",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+        "htmlcov",
+        ".gradle",
+        ".cargo",
+        ".terraform",
+    }
+)
+
+#: 明确属于构建产物的扩展名。
+_BUILD_SUFFIXES = (
+    ".o", ".obj", ".a", ".lib", ".so", ".dylib", ".dll", ".exe",
+    ".class", ".jar", ".war", ".pyc", ".pyo", ".whl",
+)
+
+
+def _looks_binary(path: Path, probe: int = 8_000) -> bool:
+    """沿用 git 的启发式：前 8,000 字节里出现 NUL 即视为二进制。"""
+    try:
+        with path.open("rb") as stream:
+            return b"\0" in stream.read(probe)
+    except OSError:
+        return False
+
+
+def _artifact_reason(path: Path, name: str) -> str | None:
+    """判定一个新增文件是否属于构建产物；是则返回原因，否则 None。
+
+    动机（2026-11-08 实测）：v2 的 flipt-io r2 产出 24.2MB 补丁，其中
+    **25,396,314 字符是 Go 编译产物 `flipt` 可执行文件**，真实代码改动只有
+    4,344 字符。原因是 `git add --intent-to-add --all` 把未跟踪的编译产物
+    一起收进了补丁。
+
+    判定顺序（从严到宽，都不涉及"是不是二进制"这一条，因为小二进制资源
+    可能是模型的合法改动）：
+      1. 路径落在依赖/构建目录里
+      2. 扩展名属于明确的构建产物
+      3. 既是二进制、又超过体积上限（编译产物的共同特征）
+    """
+    segments = name.lower().split("/")
+    if any(segment in _BUILD_DIR_SEGMENTS for segment in segments[:-1]):
+        return "build directory"
+    if segments[-1].endswith(_BUILD_SUFFIXES):
+        return "build artifact suffix"
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return None
+    if size > MAX_NEW_BINARY_BYTES and _looks_binary(path):
+        return f"oversized binary ({size} bytes)"
+    return None
+
+
+def strip_build_artifacts(execute: Any, repo: Path, base_commit: str) -> list[dict[str, str]]:
+    """从补丁中剔除构建产物（工作区保留，仅从临时索引移除）。
+
+    与 `strip_new_test_files` 同一机制：只动临时索引，不碰 Agent 交付的
+    真实工作区，所以被剔除的文件仍在磁盘上，只是不入补丁。
+    """
+    added = (
+        execute("diff", "--name-only", "--diff-filter=A", base_commit, "--")
+        .stdout.decode("utf-8", "replace")
+        .splitlines()
+    )
+    stripped: list[dict[str, str]] = []
+    for raw in added:
+        name = raw.strip()
+        if not name:
+            continue
+        reason = _artifact_reason(repo / name, name)
+        if reason:
+            execute("reset", "-q", "--", name)
+            stripped.append({"path": name, "reason": reason})
+    return stripped
+
+
 def _looks_like_test_path(path: str) -> bool:
     """精确判定测试文件：目录段为 tests/test/__tests__/spec，或文件名符合常见命名。
 
@@ -597,6 +694,18 @@ def capture_patch(baseline_path: Path, patch_path: Path) -> dict[str, Any]:
                 {
                     "stripped": stripped,
                     "reason": "newly added test files do not affect official score",
+                },
+            )
+        # 机制层保护（第三类）：剔除构建产物。未跟踪的编译输出会被
+        # `add --intent-to-add --all` 收进补丁，实测出现过 24.2MB 的
+        # Go 可执行文件挤在几 KB 的真实改动旁边。
+        artifacts = strip_build_artifacts(execute, repo, str(baseline["base_commit"]))
+        if artifacts:
+            write_json(
+                patch_path.with_name("stripped-build-artifacts.json"),
+                {
+                    "stripped": artifacts,
+                    "reason": "build outputs are not source changes and bloat the patch",
                 },
             )
         with patch_path.open("wb") as stream:
