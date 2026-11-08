@@ -93,12 +93,20 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             # wheel 必须保持合法文件名，pip 从文件名读取发行物元数据。
             remote = ROOT / source.name if source == self.product_wheel else target
             await environment.upload_file(source, str(remote))
+        # ⚠️ 这里每步之间必须用 `&&`，**不能**用 `;` 依赖 set -e。
+        # POSIX 规定 set -e 在 if/while 的测试上下文里失效，而整条安装链被包在
+        # `if ( set -eu; ... )` 里（见下方重试循环）。实测（2026-11-08）：
+        #   if ( set -eu; echo a; false; echo b ); then ok=1; fi
+        # 会输出 a、b 并且 ok=1 —— 中间失败被吞掉，最后一条 chmod 成功就返回 0。
+        # 后果：安装失败不会触发重试，一路拖到 verify_installed_runtime 才报
+        # 「安装后 version 检查失败」，错误信息完全误导。v2 实验里 20 个 trial
+        # 有 7 个栽在这里，每个只花 20 秒。
         install_steps = (
-            f"export UV_PYTHON_INSTALL_DIR={ROOT}/python; "
+            f"export UV_PYTHON_INSTALL_DIR={ROOT}/python && "
             # 慢速网络适配：国内 PyPI 镜像 + 放宽 uv 的 HTTP 超时与并发。
-            "export UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple; "
-            "export UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple; "
-            "export UV_HTTP_TIMEOUT=600 UV_CONCURRENT_DOWNLOADS=4; "
+            "export UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple && "
+            "export UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && "
+            "export UV_HTTP_TIMEOUT=600 UV_CONCURRENT_DOWNLOADS=4 && "
             # 确保 {ROOT}/bin/uv 始终可用，绕过「本地 installer 跳过 ensure_curl、
             # 但 install-uv.sh 自身仍需要 curl/wget」的死结（3.2.6 起本地 installer 优先）。
             # 顺序按可靠性排列：
@@ -107,7 +115,7 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             #   2) 系统/镜像已有 uv → 直接软链；
             #   3) 有 curl/wget 且无 pip3 → 回退本地 install-uv.sh；
             #   4) 都没有 → 报错退出（不再静默跳过，避免后续 rc=127 难定位）。
-            f"mkdir -p {ROOT}/bin; "
+            f"mkdir -p {ROOT}/bin && "
             "if command -v pip3 >/dev/null 2>&1; then "
             "( pip3 install -q --break-system-packages uv -i https://pypi.tuna.tsinghua.edu.cn/simple 2>/dev/null || pip3 install -q uv -i https://pypi.tuna.tsinghua.edu.cn/simple ) "
             f'&& ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
@@ -115,26 +123,31 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             f'ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
             "elif command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then "
             f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
-            "else echo 'no pip3/uv/curl available' >&2; exit 1; fi; "
-            f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; "
-            f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv; "
+            "else echo 'no pip3/uv/curl available' >&2; exit 1; fi && "
+            f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)} && "
+            f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --require-hashes "
-            f"-r {ROOT}/requirements.txt; "
+            f"-r {ROOT}/requirements.txt && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --no-deps "
-            f"{shlex.quote(str(ROOT / self.product_wheel.name))}; "
+            f"{shlex.quote(str(ROOT / self.product_wheel.name))} && "
             f"chmod -R a+rX {ROOT}"
         )
-        await self.exec_as_root(
+        install_result = await self.exec_as_root(
             environment,
             # astral.sh/GitHub 的下载间歇性 TLS 失败；整链重试 3 次（下载失败 20 秒即返回，代价小）。
             command=(
-                "set -eu; ok=0; "
+                "set -u; ok=0; "
                 "for attempt in 1 2 3; do "
-                f"if ( set -eu; {install_steps} ); then ok=1; break; fi; "
+                f"if ( {install_steps} ); then ok=1; break; fi; "
                 'echo "install attempt $attempt failed, retrying"; sleep 5; done; '
                 '[ "$ok" = 1 ]'
             ),
         )
+        # 安装命令本身的返回码必须检查：否则失败会静默滑到 verify 阶段，
+        # 报成「安装后 version 检查失败」，把最简单的原因藏起来。
+        install_code = getattr(install_result, "return_code", 0)
+        if install_code:
+            raise RuntimeError(f"SAYACODE 安装命令失败，返回码 {install_code}")
         if bootstrap is None:
             raise RuntimeError("uv 安装引导未完成")
         await verify_installed_runtime(
