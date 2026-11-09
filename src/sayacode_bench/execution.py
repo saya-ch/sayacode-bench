@@ -27,6 +27,23 @@ from .resources import compare_runtimes
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}\Z")
 
 
+def _exception_detail(exc: BaseException, depth: int = 0) -> str:
+    """把异常（含 ExceptionGroup 的子异常）压成一段可诊断的文本。
+
+    只记 type 名的话，``ExceptionGroup`` 这种类型名里不含任何信息，
+    infrastructure_error 就完全无从查起。
+    """
+    if depth > 8:
+        return "…（嵌套过深）"
+    text = f"{type(exc).__name__}: {exc}"
+    children = getattr(exc, "exceptions", None)
+    if children:
+        parts = [_exception_detail(child, depth + 1) for child in list(children)[:8]]
+        more = "" if len(children) <= 8 else f" …（还有 {len(children) - 8} 个）"
+        text += "\n  └─ " + "\n  └─ ".join(parts) + more
+    return text
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -448,6 +465,10 @@ async def run_official_trial(
             "success": False,
             "verified": False,
             "harbor_exception_type": type(exc).__name__,
+            # 只记类型名会让 infrastructure_error 无从诊断——
+            # ExceptionGroup 尤其如此，类型名里没有任何信息。
+            # 这里保留 message 与（最多 8 层）子异常摘要。
+            "harbor_exception_message": _exception_detail(exc),
             "record_complete": True,
         }
     else:

@@ -361,6 +361,13 @@ async def main_async(args) -> int:
     if args.sample is not None:
         overrides["sample"] = args.sample
     paths = FormalPaths.from_env(**overrides)
+    agent_list = args.agents if args.agents else AGENTS
+    # 缺失输入要在启动前报错。原来 require_inputs 只定义未调用，
+    # 结果缺 SAYACODE_BENCH_VARIANT 时会先起容器、跑到一半才抛
+    # FileNotFoundError，被 run_formal_240 的 except 收成 infrastructure_error，
+    # 只留一个类型名，完全看不出缺的是哪个文件。
+    for name in agent_list:
+        paths.require_inputs(agent=name)
     spec = json.loads(paths.sample.read_text(encoding="utf-8"))
     tasks = [t["task_id"] for t in spec["tasks"]]
     print(
@@ -370,7 +377,6 @@ async def main_async(args) -> int:
     install_verifier_throttle(args.verifier_limit)
     out_root = Path(args.out)
     out_root.mkdir(parents=True, exist_ok=True)
-    agent_list = args.agents if args.agents else AGENTS
     for name in agent_list:
         rows = await run_agent(
             name, tasks, out_root, args.repeats, args.concurrency, args.skip_existing, paths
