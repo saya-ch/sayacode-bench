@@ -302,7 +302,14 @@ async def run_agent(
 
     async def one(tid: str, repeat: int) -> None:
         async with sem:
-            job = f"{name}-{tid.replace('instance_', '')[:34]}-r{repeat}"
+            # 题集里的 task_id 可能带题库前缀（``tb21/code-from-image``、
+            # ``pro-v2/instance_xxx``），而题目录名是不带前缀的 native_id。
+            # 直接用 tid 会同时错两处：
+            #   1) job 名里出现 ``/``，被当成子目录
+            #   2) tasks_root / tid 多套一层，找不到题目录 → ValueError
+            # SWE-bench 的 ``instance_xxx`` 不含 ``/``，不受影响。
+            stem = tid.split("/", 1)[1] if "/" in tid else tid
+            job = f"{name}-{stem.replace('instance_', '')[:34]}-r{repeat}"
             job_dir = out / "jobs" / job
             # 阶段1 用 --skip-verifier，完成时既无 reward.txt 也无 terminal.json，
             # 只有 normalized.json（record_complete=True）。续跑必须认它，否则会重复进入
@@ -315,7 +322,7 @@ async def run_agent(
             print(f"[{name}] RUN {tid[:48]} r{repeat}", flush=True)
             try:
                 rec = await run_official_trial(
-                    paths.tasks_root / tid,
+                    paths.tasks_root / stem,
                     out / "jobs",
                     job,
                     agent,
