@@ -125,7 +125,12 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
             "else echo 'no pip3/uv/curl available' >&2; exit 1; fi && "
             f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)} && "
-            f"{ROOT}/bin/uv venv --python {shlex.quote(self.python_version)} {ROOT}/venv && "
+            # --clear：/installed-agent/sayacode/venv 可能已存在（镜像预置、
+            # 或 Harbor 重试复用容器）。不加 --clear 时 uv 直接报
+            # 「Use the --clear flag or set UV_VENV_CLEAR=1」并退出，
+            # 整条安装链失败。2026-11-10 第 3 批实测踩到：
+            # protonmail-webclients-09fcf0db 三次 attempt 全失败。
+            f"{ROOT}/bin/uv venv --clear --python {shlex.quote(self.python_version)} {ROOT}/venv && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --require-hashes "
             f"-r {ROOT}/requirements.txt && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --no-deps "
