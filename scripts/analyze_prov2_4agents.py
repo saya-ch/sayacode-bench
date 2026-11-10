@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 import pathlib
 import re
-import sys
 import statistics
+import sys
 from collections import Counter
 from itertools import combinations
 from math import comb
