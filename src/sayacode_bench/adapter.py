@@ -130,6 +130,17 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             f"-r {ROOT}/requirements.txt && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --no-deps "
             f"{shlex.quote(str(ROOT / self.product_wheel.name))} && "
+            # uv 下载的 Python 分发包偶发 pyc 损坏，表现为 import 链中途抛
+            # ``ValueError: bad marshal data (invalid reference)``，
+            # 而且报在标准库 import 上，看起来像产品依赖坏了，极难定位。
+            # 2026-11-10 的 40 题 x 4 agent 实验里，sayacode 因此拿到 3 个
+            # infrastructure_error（安装后 imports 检查失败），被记成 reward=0。
+            # 清掉 pycache 让解释器重新编译（只删目录，源码不动）。
+            # 用括号包住 || true，保证它不会截断外层的 && 链——
+            # 否则 chmod 会变成独立语句，前面全失败也照样返回 0
+            # （同 L99-103 注释里那个 set -e 陷阱）。
+            f"( find {ROOT}/python {ROOT}/venv -name __pycache__ -type d "
+            "-prune -exec rm -rf {} + 2>/dev/null || true ) && "
             f"chmod -R a+rX {ROOT}"
         )
         install_result = await self.exec_as_root(

@@ -48,11 +48,17 @@ def test_require_inputs_covers_sayacode_inputs() -> None:
         assert f"self.{field}" in body, f"require_inputs 没检查 {field}"
 
 
-def test_execution_records_exception_message() -> None:
-    """infrastructure_error 记录必须带 message，不能只有类型名。"""
+def test_execution_writes_exception_detail_file() -> None:
+    """异常详情必须落单独文件，不能进 normalized.json。
+
+    tests/test_execution.py 里有一条安全约束：异常 body 可能含凭据/用户数据，
+    不得写进汇总记录（用 "SECRET" 断言）。所以详情只能落旁路文件。
+    """
     src = EXECUTION.read_text(encoding="utf-8")
-    assert '"harbor_exception_message"' in src, "execution.py 没记录异常 message"
+    assert "exception-detail.txt" in src, "没有把异常详情落盘"
     assert "_exception_detail" in src, "缺少异常详情展开函数"
+    # 不能又把 message 塞回 record
+    assert '"harbor_exception_message"' not in src, "message 进 record 会违反安全约束"
 
 
 def test_exception_detail_unwraps_group() -> None:

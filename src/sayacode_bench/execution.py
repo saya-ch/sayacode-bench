@@ -465,12 +465,20 @@ async def run_official_trial(
             "success": False,
             "verified": False,
             "harbor_exception_type": type(exc).__name__,
-            # 只记类型名会让 infrastructure_error 无从诊断——
-            # ExceptionGroup 尤其如此，类型名里没有任何信息。
-            # 这里保留 message 与（最多 8 层）子异常摘要。
-            "harbor_exception_message": _exception_detail(exc),
+            # 异常正文不进 normalized.json —— tests/test_execution.py 有
+            # 「SECRET 不得落进记录」的安全约束，异常 message 可能带路径、
+            # 凭据或用户数据。详情另写 exception-detail.txt，只在本地调试用。
             "record_complete": True,
         }
+        # 只有类型名的话 infrastructure_error 完全无从诊断（ExceptionGroup
+        # 的类型名里没有任何信息）。详情落单独文件，不进汇总记录。
+        try:
+            job_dir.mkdir(parents=True, exist_ok=True)
+            (job_dir / "exception-detail.txt").write_text(
+                _exception_detail(exc), encoding="utf-8"
+            )
+        except OSError:
+            pass
     else:
         if len(result.trial_results) != 1:
             record = {
