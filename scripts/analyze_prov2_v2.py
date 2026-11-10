@@ -49,10 +49,19 @@ def classify(rec: dict, job_dir: pathlib.Path, reward: float | None) -> str:
 
     completed 不等于成功：completed + reward=0 是**模型做错了**，
     必须单独算 model，否则「模型失败」永远是 0。
+
+    reward=1.0 一律算 ok，**优先于 status**：2026-11-11 实测发现
+    Harbor 在 artifact 收集阶段遇到 OSError 时，会把已经拿到
+    verifier reward=1.0 的 trial 覆盖成 infrastructure_error
+    （teleport-db89206、qutebrowser-ff1c025 两例：
+    reward.txt 写着 "1"，normalized.json 却记 infrastructure_error）。
+    那类 trial 模型做对了，不能算失败。
     """
+    if reward == 1.0:
+        return "ok"
     status = rec.get("status")
     if status == "completed":
-        return "ok" if reward == 1.0 else "model"
+        return "model"
     etype = rec.get("harbor_exception_type") or ""
     if etype == "AgentTimeoutError":
         return "timeout"
