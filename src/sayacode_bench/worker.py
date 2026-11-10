@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import traceback
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -1151,12 +1152,26 @@ def main() -> int:
     try:
         return asyncio.run(run(args))
     except Exception as exc:
-        # 不向命令日志回显配置和接口错误正文。
+        # 不向命令日志回显配置和接口错误正文（可能含凭据/用户数据），
+        # 但只记类型名会让 infrastructure_error 完全无从诊断：
+        # 2026-11-11 的 40 题实验里 sayacode 有多次 worker exit=2，
+        # result.json 只写 {"error_type": "ValueError"}，查不出任何原因。
+        # 详情写进私有 state 目录（worker 自己拥有，不外泄到日志）。
         if args.logs:
             write_json(
                 args.logs / "result.json",
                 {"status": "infrastructure_error", "error_type": type(exc).__name__},
             )
+        state_dir = getattr(args, "state", None)
+        if state_dir is not None:
+            try:
+                state_dir.mkdir(parents=True, exist_ok=True)
+                (state_dir / "worker-error.txt").write_text(
+                    "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
         return 2
 
 

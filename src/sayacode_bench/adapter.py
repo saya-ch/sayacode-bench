@@ -116,14 +116,30 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             #   3) 有 curl/wget 且无 pip3 → 回退本地 install-uv.sh；
             #   4) 都没有 → 报错退出（不再静默跳过，避免后续 rc=127 难定位）。
             f"mkdir -p {ROOT}/bin && "
+            # 三级回退必须是**真回退**：原来的写法是
+            #   if pip3; then (pip3 install uv) && ln -sf ...; elif uv; ... elif curl; ... fi
+            # pip3 装失败时整条 if 分支直接失败，不会进 elif，于是
+            # 「有 pip3 但没有 uv」的镜像永远装不上。
+            # 2026-11-11 实测：python3.9 的 pip 21.0.1 装 uv 必崩
+            # （KeyError: 'uv' / TypeError: 'str' object is not callable），
+            # sayacode 因此拿到大量 NonZeroAgentExitCodeError。
+            # 改成逐级尝试，任一级成功即返回。
+            "_setup_uv() { "
             "if command -v pip3 >/dev/null 2>&1; then "
-            "( pip3 install -q --break-system-packages uv -i https://pypi.tuna.tsinghua.edu.cn/simple 2>/dev/null || pip3 install -q uv -i https://pypi.tuna.tsinghua.edu.cn/simple ) "
-            f'&& ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
-            "elif command -v uv >/dev/null 2>&1; then "
-            f'ln -sf "$(readlink -f "$(command -v uv)")" {ROOT}/bin/uv; '
-            "elif command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then "
-            f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh; "
-            "else echo 'no pip3/uv/curl available' >&2; exit 1; fi && "
+            "( pip3 install -q --break-system-packages uv -i https://pypi.tuna.tsinghua.edu.cn/simple 2>/dev/null "
+            "|| pip3 install -q uv -i https://pypi.tuna.tsinghua.edu.cn/simple 2>/dev/null ) "
+            f"&& command -v uv >/dev/null 2>&1 && ln -sf \"$(readlink -f \"$(command -v uv)\")\" {ROOT}/bin/uv && return 0; "
+            "fi; "
+            "if command -v uv >/dev/null 2>&1; then "
+            f"ln -sf \"$(readlink -f \"$(command -v uv)\")\" {ROOT}/bin/uv && return 0; "
+            "fi; "
+            "if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then "
+            f"env UV_INSTALL_DIR={ROOT}/bin UV_NO_MODIFY_PATH=1 sh {ROOT}/install-uv.sh >/dev/null 2>&1 "
+            f"&& [ -x {ROOT}/bin/uv ] && return 0; "
+            "fi; "
+            "return 1; "
+            "}; "
+            f"_setup_uv || {{ echo 'no pip3/uv/curl available' >&2; exit 1; }} && "
             f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)} && "
             # --clear：/installed-agent/sayacode/venv 可能已存在（镜像预置、
             # 或 Harbor 重试复用容器）。不加 --clear 时 uv 直接报
