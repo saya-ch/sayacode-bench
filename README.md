@@ -4,14 +4,17 @@
 
 Harbor 管理任务环境、资源、执行与官方验证器；SAYACODE 继续运行生产应用里的 LangChain / LangGraph 图、工具、检查点与异步子任务。两者用独立 Python 环境，避免评测依赖覆盖产品依赖。
 
-**当前状态：两个批次已完成，但不可合成一张对照表。**
+**当前状态：三个独立批次已完成，互相不可合成一张对照表。**
 
 | 批次 | 制品 | planned | 说明 |
 |---|---|---|---|
 | **v2-325**（11-02~05）| SAYACODE **3.2.5**（本地 wheel，PyPI 未发布）| **78.8%** | 同批次还跑了三个基线：mini-swe **85.0%**、Claude Code **77.5%**、OpenCode **75.0%** |
 | **v4-327**（11-06）| SAYACODE **3.2.7**（PyPI 可获取）| **76.2%** | 本批次**只跑了 SAYACODE**，没有基线 |
+| **prov2-40x4**（11-10~11）| SAYACODE **3.3.0** | **55.0%**（effective **64.71%**）| 新题集 40 题 × **1 重复** × 4 agent；mini-swe 70.0/75.68、claude-code 75.0/81.08、opencode 70.0/73.68（planned/effective）；六对不显著（最小 p=0.1094），MDE ≈ 22pp |
 
 两批制品、served 分布、并发、网络修复状态全不同，**组间差异与批次效应完全混淆，不能排名、不能互相比较**。3.2.7 与 3.2.5 的配对对比：Δ −2.6pp、McNemar p = 0.8145（不显著）。
+
+**prov2-40x4 只能用于内部调优方向，不能排名/对外**：40 题 × 1 重复，flaky 13–35%（外部估计），单跑噪声 SD 约 10pp；且旧版「有效通过率 sayacode 75.9% 与 opencode 75.7% 持平」是**分母口径错误**（把两条长跑零产出当基础设施失败删掉，分母 29 vs 应为 34），已更正为 **22/34 = 64.71%**。详见 [RESULT-PROV2-4AGENTS-FINAL](docs/RESULT-PROV2-4AGENTS-FINAL.md) §0 与 [ARCHIVE](docs/ARCHIVE.md) §1 #9。
 
 **唯一能说的一致结论**：在 v2-325 批次内，SAYACODE 3.2.5 与三个基线的题级差异**未检出统计显著性**（6 对比较，最小 p = 0.070 出现在 OpenCode vs SAYACODE，Bonferroni α/6 ≈ 0.0083 下全部未达）。**不能声称谁更强，也不能声称谁更差。** 注意 p = 0.070 属于 **3.2.5**，**不是** 3.2.7——3.2.7 与基线之间从未做过同批次配对。
 
@@ -30,7 +33,10 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 
 | 文档 | 内容 |
 |---|---|
-| **★[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)** | **全部对外数字的唯一权威来源**：两批次分表、口径定义（planned/observed/partial）、配对比较、成本与机时、已知数据缺陷。**其他文档只引用，不复制数字。** |
+| **★[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)** | **全部对外数字的唯一权威来源**：两批次分表 + prov2 批次（不入主表）、口径定义（planned/observed/partial）、配对比较、成本与机时、已知数据缺陷。**其他文档只引用，不复制数字。** |
+| **★[ARCHIVE：docs 腐朽内容清单](docs/ARCHIVE.md)** | **57 份逐条登记**：已推翻 9 份、部分推翻 6 份、已被取代 4 份、有效 30 份、未复核 8 份；每条给日期、核心结论、推翻证据。**引用旧文档前先查这里。** |
+| **★[pro-v2 四 agent 结果（含结论更正）](docs/RESULT-PROV2-4AGENTS-FINAL.md)** | 40 题 × 1 × 4：三口径表、六对 McNemar、MDE、flaky；**旧版"sayacode 与 opencode 持平"已作废**（分母 29→34、75.9%→64.71%）|
+| **[pro-v2 执行与缺陷](docs/EXPERIMENT-PROV2-4AGENTS.md)** | 运行配置、判分口径（reward 优先）、`c8dba0e` 四处修复、**未修的 musl 镜像偏差** |
 | **★[第二轮复盘](docs/review/round2/RETROSPECTIVE-ROUND2.md)** | **证据层 + 运行层**：对第一轮复盘本身的审计（找出 4 处错误并更正）、七通道并行（元复盘/环境考古/产品评测/测试质量/可复现性/时间账本/结论演化）、**返工率 61.4%**、磁盘真实瓶颈、可复现性分级。子报告 [M1](docs/review/round2/M1-meta-review.md)–[M7](docs/review/round2/M7-conclusion-lineage.md) |
 | **★[第一轮复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **结论层**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本。**与它冲突的旧文档以它为准**；子报告 [R1](docs/review/2026-11-07/R1-methodology.md) / [R2](docs/review/2026-11-07/R2-data-verification.md) / [R3](docs/review/2026-11-07/R3-infrastructure.md) / [R4](docs/review/2026-11-07/R4-product-fixes.md) / [R5](docs/review/2026-11-07/R5-doc-debt.md) |
 | [历史全景（部分已被推翻）](docs/RETROSPECTIVE-20261105.md) | v1→v4 六阶段演进、结论账本、文档债；其中 strict 口径、跨批次结论已被上一行推翻 |
@@ -48,7 +54,7 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 | [多模型扩展](docs/MULTI-MODEL-PLAN.md) | 第二模型设计：协议对齐、路由固定、成本、模型×harness 矩阵 |
 | [归档索引](docs/archive/README.md) | 已作废/过期/一次性文档，逐份说明能否引用 |
 | [真实踩坑与教训](docs/LESSONS-20261102-v2.md) | v2 重跑遇到的环境/管线/agent/统计问题与处置（现象/根因/预防）|
-| **[v2 完整重跑结果](docs/FORMAL-RESULTS-20261102-v2.md)** | 三 agent 终版五指标、McNemar、缺失分类、补跑效应与边界 |
+| **[v2 完整重跑结果（已被 v3/v4 取代）](docs/FORMAL-RESULTS-20261102-v2.md)** | 三 agent 78.8/70.0/68.8；**其 `strict` 65/65 已随口径废除而作废**（见 [ARCHIVE](docs/ARCHIVE.md) §1 #1）；保留作历史 |
 | [报告模板](docs/REPORT-TEMPLATE.md) | 出 `FORMAL-RESULTS-<批次>.md` 的固定版式与不可声称清单 |
 | [改测试真相（结论已更正）](docs/TEST-EDIT-ANALYSIS-20261102.md) | **原文的"仅 `.snap` 有效"结论已被证伪**：verifier 同时重置测试代码与测试数据面（含 `__snapshots__`），因此"改快照换 pass"不成立、`strict` 口径废除。保留作历史 |
 | [协作场景验证](docs/COLLABORATION-CHECK-20261102.md) | team/single 小样本；autonomous 题 task_count=0 的原因 |
@@ -143,7 +149,7 @@ uv run --no-sync mypy
 
 历史一次性工具与「被测试/代码身份绑定、不可移动」的脚本见 [scripts/README.md](scripts/README.md)。
 
-横向对比：SAYACODE vs mini-swe-agent vs **Claude Code** vs **OpenCode**（同 hy3）。**分母统一为 `planned` 80**（缺失按失败，主报），`observed` 只作辅助并标注幸存者偏差，另报 `partial`（连续部分得分）。`strict` 口径**已废除**（前提被证伪，见开头的说明）。**不给单一排名**；四组混两个批次，跨批次对照只能描述性并列。Codex 组已作废，不参与对比。
+横向对比：SAYACODE vs mini-swe-agent vs **Claude Code** vs **OpenCode**（同 hy3）。**分母统一为 `planned` 80**（缺失按失败，主报），`observed` 只作辅助并标注幸存者偏差，另报 `partial`（连续部分得分）。`strict` 口径**已废除**（前提被证伪，见开头的说明）。**不给单一排名**；v2-325/v4-327 四组混两个批次，跨批次对照只能描述性并列；prov2-40x4 是独立第三批（1 重复，只能内部调优）。Codex 组已作废，不参与对比。
 
 ## 证据与结果原则
 

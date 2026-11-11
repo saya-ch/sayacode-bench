@@ -1,6 +1,8 @@
 # STATUS：当前真实状态
 
-更新：**2026-11-07（P0 修正）**。本文件只写**当前有效**的事实。历史演进与作废清单一处看：[RETROSPECTIVE-20261105](RETROSPECTIVE-20261105.md)；协议见 [PROTOCOL-V2](PROTOCOL-V2.md)；踩坑见 [LESSONS-20261102-v2](LESSONS-20261102-v2.md)；作废文档见 [docs/archive/](archive/README.md)。
+更新：**2026-11-11（新增 prov2-40x4 批次与结论更正）**。本文件只写**当前有效**的事实。历史演进与作废清单一处看：[RETROSPECTIVE-20261105](RETROSPECTIVE-20261105.md)；协议见 [PROTOCOL-V2](PROTOCOL-V2.md)；踩坑见 [LESSONS-20261102-v2](LESSONS-20261102-v2.md)；作废文档见 [docs/archive/](archive/README.md)；**腐朽内容清单见 [ARCHIVE.md](ARCHIVE.md)**。
+
+> ⚠️ **2026-11-11 结论更正**：pro-v2 40 题批次的旧「有效通过率」（sayacode 75.9% 与 opencode 75.7% 持平）是**分母口径错误**造成的——把两条长跑零产出（`openlibrary-427f1` 2476 s、`teleport-b5d8169` 1332 s，无异常、verifier 跑完给 reward=0、patch 0 字节）当成基础设施失败删掉了。按统一口径重算，sayacode effective 为 **64.71%（22/34）**，「与 opencode 持平」不成立。详见 [RESULT-PROV2-4AGENTS-FINAL.md](RESULT-PROV2-4AGENTS-FINAL.md) §0。
 
 > ⚠️ **本文件已按 2026-11-07 复盘修正：`strict` 口径废除**（其前提「verifier 不重置 `.snap`」被 642/642 个 `tests/test.sh:97-105` 证伪），改用 **planned / observed / partial** 三口径。证据见 [review/RETROSPECTIVE-20261107.md](review/2026-11-07/RETROSPECTIVE-20261107.md)。
 
@@ -10,7 +12,9 @@
 - **v2-325 批次**（2026-11-02~05，SAYACODE **3.2.5** 本地 wheel）：planned **78.8% / 85.0% / 77.5% / 75.0%**（SAYACODE / mini-swe / Claude Code / OpenCode），题级 McNemar **全部不显著（p ≥ 0.070）**。
 - **v4-327 批次**（2026-11-06，SAYACODE **3.2.7** PyPI）：planned **76.2%**。与 3.2.5 配对 Δ −2.6pp、p = 0.8145（不显著）。
 
-两个批次的制品、served 分布、并发、网络修复状态全不同，**组间差异与批次效应完全混淆，不能排名、不能互相比较**。Codex 组整组作废；v1 结论继续作废。`strict` 口径已废除（前提被证伪：verifier 判分前会重置 `.snap`）。数字唯一权威来源见 [RESULTS-LEDGER](RESULTS-LEDGER.md)。
+**新增第三个独立批次**（2026-11-11 完成，**与上面两个批次题集/制品/重复设计全不同，同样不可合并**）：**prov2-40x4**——`large-sample-v1-pro-v2` 40 题 × **1 重复** × 4 agent（SAYACODE 3.3.0）。planned **55.0% / 70.0% / 75.0% / 70.0%**；effective（排除 infra）**64.71% / 75.68% / 81.08% / 73.68%**（SAYACODE / mini-swe / claude-code / opencode）。六对 McNemar **全部不显著（最小 p=0.1094）**，MDE ≈ 22pp，**只能用于内部调优方向，不能排名/对外**。详见 [RESULT-PROV2-4AGENTS-FINAL.md](RESULT-PROV2-4AGENTS-FINAL.md)。
+
+三个批次的制品、题集、served 分布、并发、网络修复状态全不同，**组间差异与批次效应完全混淆，不能排名、不能互相比较**。Codex 组整组作废；v1 结论继续作废。`strict` 口径已废除（前提被证伪：verifier 判分前会重置 `.snap`）。数字唯一权威来源见 [RESULTS-LEDGER](RESULTS-LEDGER.md)。
 
 ## 2. 终版数字
 
@@ -133,15 +137,19 @@
 7. **仅 hy3**：结论不外推其他模型；各脚手架与模型的原生适配度未被统一（Claude Code / Codex 是厂商调优产品，OpenCode / mini-swe 是模型无关脚手架，SAYACODE 围绕该网关打磨过）。
 8. **样本小**：40 题 CI 宽 ±12pp；检测 10pp 差异需约 330 题。
 9. **补跑效应大**：SAYACODE +11.3pp、mini-swe +22.5pp 都发生过；补跑前数字不能当能力。
+10. **prov2-40x4 的单跑不能排名**：40 题 × 1 重复，flaky 估计 13–35%（**外部估计**，来自 `v2-325` 的 r1/r2，未在 prov2 直接测）。25% 翻转下 40 题对 20pp 差异的检出率约 2%，扩到 240 题也只有约 35%。**降 flaky 比加题重要**。
+11. **musl/Alpine 镜像系统性偏差（未修）**：protonmail/webclients 的 2 题上 claude/opencode/sayacode 全灭、mini-swe 独活，按 2/40 上界相当于给 mini-swe 送约 5pp。见 [EXPERIMENT-PROV2-4AGENTS.md](EXPERIMENT-PROV2-4AGENTS.md) §6.2。
 
 ## 7. 下一步（按优先级）
 
-1. **还文档债**：见 [RETROSPECTIVE](RETROSPECTIVE-20261105.md) §6（本文件已重写；README / HANDOFF / AGENTS / LESSONS 已同步）。
+1. **还文档债**：见 [ARCHIVE.md](ARCHIVE.md)（57 份逐条登记；9 份「已推翻」需移入 archive 或加作废横幅）。本文件、README、HANDOFF 已同步。
 2. ~~用 3.2.7（或 HEAD 构建的 3.2.8）重跑 SAYACODE 单组 80 trial~~：**已完成**（`v4-327`，planned 76.2%，见 §9）；但基于该批的「修复有效性」结论因作用面错配不成立，见 327 报告 §3–§4。
-3. **注入长上下文/多文件压力做受控 A/B**（干净 vs 加压，同题同验证器）：直接检验"题太浅导致无判别力"这一假设。
-4. **holdout 提示词配对**（R1/R3 去留）：关掉开发集偏置洞；受硬件与题量限制。
-5. **扩样 ≥100 题**：CI 收到约 ±9pp 才谈得上显著性（`SCALE-WITHOUT-UPGRADE.md`）。
-6. **多模型 / 原生模型对照**：超 ¥50 预算，暂不做。
+3. ~~注入长上下文/多文件压力做受控 A/B~~：**已做**（`EXPERIMENT-CONTEXT-AB-RESULT.md`：clean 12/12=100% vs noise-100k 7/12=58.3%，n=12 方向性强但样本小）。
+4. **降 flaky（最高优先）**：先查 `element-web`/`flipt`/`qutebrowser`/`openlibrary` 为什么同题两次结果不同；把单题翻转率压到 5% 以下，比加题更划算（见 §6.10）。
+5. **修 musl/Alpine 镜像偏差**：install 前检测 musl + `sqlite-vec` 无 musllinux wheel 的明确处理（见 §6.11）。
+6. **100 题 × 4 agent 完整重跑**：**进行中**（代码冻结在 `c8dba0e`，切片 `studies/large-sample-v1-pro-v2-100.json`）；完成后按本文件与 [RESULT-PROV2-4AGENTS-FINAL](RESULT-PROV2-4AGENTS-FINAL.md) 的口径（planned/effective/complete-case + reward 优先）复算。
+7. **holdout 提示词配对**（R1/R3 去留）：关掉开发集偏置洞；受硬件与题量限制。
+8. **多模型 / 原生模型对照**：超 ¥50 预算，暂不做。
 
 ## 8. 证据与文档
 
@@ -151,6 +159,9 @@
 | strict 口径（已废除） | `C:\sb\hard\v2-325\STRICT-COMPARE.json`；仅在重新定义前保留，**不作证据** |
 | 轨迹审计 | `C:\sb\hard\v2-325\TRAJ-AUDIT-{claude-code,opencode}.json` |
 | 四组报告 | [FORMAL-RESULTS-20261105-v3.md](FORMAL-RESULTS-20261105-v3.md) |
+| **prov2-40x4 结果（本次更正）** | [RESULT-PROV2-4AGENTS-FINAL.md](RESULT-PROV2-4AGENTS-FINAL.md)；原始 `C:\sb\hard\ab-ctx\prov2-40x4`；复算 `C:\sb\tmp\run100\analyze.py` |
+| **prov2-40x4 执行与缺陷** | [EXPERIMENT-PROV2-4AGENTS.md](EXPERIMENT-PROV2-4AGENTS.md) |
+| **腐朽内容清单** | [ARCHIVE.md](ARCHIVE.md) |
 | **历史演进 + 文档债** | [RETROSPECTIVE-20261105.md](RETROSPECTIVE-20261105.md) |
 | 现行协议 | [PROTOCOL-V2.md](PROTOCOL-V2.md) |
 | 踩坑记录 | [LESSONS-20261102-v2.md](LESSONS-20261102-v2.md) |
