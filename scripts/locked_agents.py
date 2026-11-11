@@ -279,6 +279,66 @@ _OPENCODE_TARBALL = Path(
 _CLAUDE_TARBALL = Path(
     os.environ.get("SAYACODE_CLAUDE_TARBALL", r"C:\sb\tmp\hard\claude-linux.tgz")
 )
+# musl（Alpine）镜像：glibc 版原生二进制在里面根本不能执行（rc=127
+# ``cannot execute: required file not found``，缺 /lib64/ld-linux-x86-64.so.2）。
+# 2026-11-11 实测（C:\sb\tmp\audit\musl\MUSL.md）：装 gcompat 也救不了
+# （``__pthread_key_create: symbol not found`` / ``unsupported relocation type 37``），
+# 但两家的官方 musl 构建可以直接跑通，所以按镜像 libc 换 tarball。
+# 宿主预下载（与 glibc 版同结构，解包后仍是 package/claude 与 package/bin/opencode）：
+#   curl -L -o claude-linux-musl.tgz \
+#     https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64-musl/-/claude-code-linux-x64-musl-2.1.322.tgz
+#   curl -L -o opencode-linux-x64-musl-1.19.5.tgz \
+#     https://registry.npmjs.org/opencode-linux-x64-musl/-/opencode-linux-x64-musl-1.19.5.tgz
+_CLAUDE_MUSL_TARBALL = Path(
+    os.environ.get("SAYACODE_CLAUDE_MUSL_TARBALL", r"C:\sb\tmp\hard\claude-linux-musl.tgz")
+)
+_OPENCODE_MUSL_TARBALL = Path(
+    os.environ.get(
+        "SAYACODE_OPENCODE_MUSL_TARBALL",
+        r"C:\sb\tmp\hard\opencode-linux-x64-musl-1.19.5.tgz",
+    )
+)
+
+
+async def _image_is_musl(environment: BaseEnvironment) -> bool:
+    """目标镜像是不是 musl（Alpine）？只看只读信号，不装包、不写文件。"""
+    probe = await environment.exec(
+        command="test -f /etc/alpine-release || (ldd --version 2>&1 | grep -qi musl)",
+        user="root",
+        timeout_sec=60,
+    )
+    return probe.return_code == 0
+
+
+async def _select_tarball(
+    environment: BaseEnvironment, *, glibc: Path, musl: Path, label: str
+) -> Path:
+    """按镜像 libc 选原生二进制 tarball；musl 镜像必须用 musl 构建。"""
+    if not await _image_is_musl(environment):
+        if not glibc.is_file():
+            raise RuntimeError(f"{label} glibc tarball 不存在：{glibc}")
+        return glibc
+    if not musl.is_file():
+        raise RuntimeError(
+            f"{label}: 镜像是 musl（Alpine），但 musl tarball 不存在：{musl}；"
+            "先按文件头注释从 npm 预下载，或设 SAYACODE_*_MUSL_TARBALL"
+        )
+    return musl
+
+
+def _install_failure(agent: str, result: Any) -> RuntimeError:
+    """install 失败时保留 rc / stdout / stderr 三样，别再只剩一句 ``failed: None``。
+
+    之前只拼 ``result.stderr``：stderr 为 None 时，rc 和 stdout（里面才有
+    ``cannot execute: required file not found``）全丢，musl 缺陷因此拖到第二轮复盘
+    才被认出来。
+    """
+    stdout = (result.stdout or "").strip()
+    stderr = (result.stderr or "").strip()
+    return RuntimeError(
+        f"{agent} install failed: rc={result.return_code}; "
+        f"stdout={stdout[-800:]!r}; stderr={stderr[-800:]!r}"
+    )
 
 
 class LockedMiniSwe(MiniSweAgent):
@@ -509,9 +569,10 @@ class LockedClaudeCode(ClaudeCode):
         return "claude-code-locked"
 
     async def install(self, environment: BaseEnvironment) -> None:
-        if not _CLAUDE_TARBALL.is_file():
-            raise RuntimeError(f"Claude Code linux tarball 不存在：{_CLAUDE_TARBALL}")
-        await environment.upload_file(_CLAUDE_TARBALL, "/tmp/claude-linux.tgz")
+        tarball = await _select_tarball(
+            environment, glibc=_CLAUDE_TARBALL, musl=_CLAUDE_MUSL_TARBALL, label="Claude Code"
+        )
+        await environment.upload_file(tarball, "/tmp/claude-linux.tgz")
         result = await environment.exec(
             command=(
                 "set -e; rm -rf /opt/claude-code; mkdir -p /opt/claude-code; "
@@ -526,7 +587,7 @@ class LockedClaudeCode(ClaudeCode):
             f"claude-code install: rc={result.return_code} {(result.stdout or '').strip()}"
         )
         if result.return_code != 0:
-            raise RuntimeError(f"claude-code install failed: {result.stderr}")
+            raise _install_failure("claude-code", result)
 
     async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
         needs_timeout = "claude " in command or command.lstrip().startswith("claude")
@@ -566,9 +627,13 @@ class LockedOpenCode(OpenCode):
         return "opencode-locked"
 
     async def install(self, environment: BaseEnvironment) -> None:
-        if not _OPENCODE_TARBALL.is_file():
-            raise RuntimeError(f"OpenCode linux tarball 不存在：{_OPENCODE_TARBALL}")
-        await environment.upload_file(_OPENCODE_TARBALL, "/tmp/opencode-linux.tgz")
+        tarball = await _select_tarball(
+            environment,
+            glibc=_OPENCODE_TARBALL,
+            musl=_OPENCODE_MUSL_TARBALL,
+            label="OpenCode",
+        )
+        await environment.upload_file(tarball, "/tmp/opencode-linux.tgz")
         result = await environment.exec(
             command=(
                 "set -e; rm -rf /opt/opencode; mkdir -p /opt/opencode; "
@@ -583,7 +648,7 @@ class LockedOpenCode(OpenCode):
             f"opencode install: rc={result.return_code} {(result.stdout or '').strip()}"
         )
         if result.return_code != 0:
-            raise RuntimeError(f"opencode install failed: {result.stderr}")
+            raise _install_failure("opencode", result)
 
     async def exec_as_agent(self, environment: BaseEnvironment, command: str, **kwargs: Any) -> Any:
         needs_timeout = "opencode " in command or command.lstrip().startswith("opencode")

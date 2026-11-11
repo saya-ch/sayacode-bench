@@ -13,12 +13,14 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 import traceback
 from contextlib import contextmanager
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -1106,6 +1108,75 @@ async def _run(args: argparse.Namespace, usage_snapshot: Any) -> int:
     return {"completed": 0, "paused": 3, "stopped": 130}.get(str(result["status"]), 1)
 
 
+def _argv_path(flag: str) -> Path | None:
+    """从原始 argv 取路径参数；argparse 尚未运行时也能用。"""
+    try:
+        index = sys.argv.index(flag)
+        return Path(sys.argv[index + 1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _record_worker_start(logs: Path) -> None:
+    """启动第一步留痕：pid、时间、argv、python 版本、关键环境变量。
+
+    SIGKILL 拦不到（OOM、被外部杀死），所以除了 traceback 之外还要有
+    「进程确实起来过」的证据：崩溃后即便没有 traceback，也能从这份文件
+    判断死在哪一步、用的是哪个解释器和哪套环境。
+    """
+    try:
+        logs.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "pid": os.getpid(),
+            "at": datetime.now(timezone.utc).isoformat(),
+            "argv": list(sys.argv),
+            "python": sys.version,
+            "cwd": str(Path.cwd()),
+            "env": {
+                key: os.environ.get(key)
+                for key in ("HOME", "SAYACODE_HOME", "PYTHONPATH", "LANG", "TZ")
+            },
+        }
+        (logs / "worker-start.txt").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+    except OSError:
+        # 留痕失败不能阻止主流程；真正的失败会在主流程里报出来。
+        pass
+
+
+def _emit_crash(stage: str, exc: BaseException) -> None:
+    """把崩溃 traceback 同时写到 stderr 与私有 state 目录。
+
+    现象（``C:\\sb\\tmp\\audit\\infra\\ROOTCAUSE.md`` #17/#19）：worker exit=2，
+    ``result.json`` 只写 ``{"status":"infrastructure_error","error_type":"ValueError"}``，
+    ``worker.log`` 0 字节——异常被 ``except Exception`` 吞掉后既不写 stderr、
+    也不落 traceback，两条 trial 因此只能判 unknown。这不是 SIGKILL（否则不会
+    有 result.json），也不是 import 阶段（``worker.pid.json`` 已写出）。
+
+    这里补两条通道：stderr（Harbor 的 worker.log 由此非空）+ 私有 state 目录。
+    state 路径直接从 argv 取，避免依赖 argparse 是否已完成。
+    """
+    text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    header = (
+        f"stage={stage}\nargv={list(sys.argv)!r}\n"
+        f"python={sys.version}\ncwd={os.getcwd()}\n"
+    )
+    try:
+        sys.stderr.write(header + text)
+        sys.stderr.flush()
+    except (OSError, ValueError):
+        pass
+    state_dir = _argv_path("--state")
+    if state_dir is None:
+        return
+    try:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "worker-error.txt").write_text(header + text, encoding="utf-8")
+    except OSError:
+        pass
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--stop", type=Path)
@@ -1149,6 +1220,8 @@ def main() -> int:
         args.logs / "worker.pid.json",
         {"pid": os.getpid(), "starttime": process_identity(os.getpid())},
     )
+    # 与 pid 同时落盘：SIGKILL 之后仍能看出进程起来过、用的是哪套环境。
+    _record_worker_start(args.logs)
     try:
         return asyncio.run(run(args))
     except Exception as exc:
@@ -1156,24 +1229,22 @@ def main() -> int:
         # 但只记类型名会让 infrastructure_error 完全无从诊断：
         # 2026-11-11 的 40 题实验里 sayacode 有多次 worker exit=2，
         # result.json 只写 {"error_type": "ValueError"}，查不出任何原因。
-        # 详情写进私有 state 目录（worker 自己拥有，不外泄到日志）。
+        # 详情写进私有 state 目录与 stderr（worker.log 由后者补齐）。
         if args.logs:
             write_json(
                 args.logs / "result.json",
                 {"status": "infrastructure_error", "error_type": type(exc).__name__},
             )
-        state_dir = getattr(args, "state", None)
-        if state_dir is not None:
-            try:
-                state_dir.mkdir(parents=True, exist_ok=True)
-                (state_dir / "worker-error.txt").write_text(
-                    "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
-                    encoding="utf-8",
-                )
-            except OSError:
-                pass
+        _emit_crash("main", exc)
         return 2
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - 顶层兜底必须留下证据再抛
+        # 模块级或 argparse 之外的失败：只要 python 起来了就必须有证据。
+        _emit_crash("top-level", exc)
+        raise
