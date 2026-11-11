@@ -187,6 +187,50 @@ def _cache_usage(trial_dir: Path, usage: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def _recover_finished_trial(job_dir: Path, **identity: Any) -> dict[str, Any] | None:
+    """job 收尾抛异常后，从磁盘上**已经跑完的 trial** 抢救出规范化记录。
+
+    为什么需要：Harbor 的 job 级收尾在 Windows 上实测会抛
+    ``OSError [Errno 22]``，而 trial 本身可能已经跑完、验证器已经给出 reward。
+    旧实现在 ``except`` 里无条件记 ``infrastructure_error``，于是**已通过的
+    trial 被记成基建失败** —— 2026-11-11 审计出 2 条假阴性（trial 的
+    ``result.json`` 里 ``exception_info`` 为 null、``verifier_result.reward``
+    为 1.0），它们把通过率算低了，也把「基建不稳」的锅扣到了 agent 头上。
+
+    只在 ``exception_info`` 为 null 时认领：那说明 Harbor 认为 **trial 本身
+    没出错**，只是 job 级别失败了。trial 自己报错时不走这条路，避免把真失败
+    洗成成功。
+
+    反序列化必须用 Harbor 自己的 ``TrialResult`` 模型，不手写字段映射——
+    否则两边口径会漂移（历史教训见 ``trialdir`` 的按前缀匹配事故）。
+    """
+    raw_paths = sorted(job_dir.glob("*/result.json"))
+    if len(raw_paths) != 1:
+        return None
+    raw_path = raw_paths[0]
+    try:
+        raw = _read_object(raw_path)
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if raw.get("exception_info") is not None:
+        return None
+    trial_name = raw_path.parent.name
+    if not _NAME.fullmatch(trial_name):
+        return None
+    try:
+        trial = TrialResult.model_validate(raw)
+    except (ValueError, TypeError):
+        return None
+    record = normalize_trial_result(trial, raw_path.parent, **identity)
+    if record.get("original_reward") is None:
+        # trial 目录里没有验证器结果，无从判断是否通过。此时**不要**认领——
+        # 否则一条实际没跑完的 trial 会被洗成「completed / success=None」，
+        # 把基建失败伪装成正常结束。保留 job 级的 infrastructure_error。
+        return None
+    record["recovered_after_job_exception"] = True
+    return record
+
+
 def normalize_trial_result(
     trial: TrialResult,
     trial_dir: Path,
@@ -457,19 +501,28 @@ async def run_official_trial(
         )
         raise
     except Exception as exc:
-        record = {
-            "schema_version": 1,
-            "task_id": task_path.name,
-            **identity,
-            "status": "infrastructure_error",
-            "success": False,
-            "verified": False,
-            "harbor_exception_type": type(exc).__name__,
-            # 异常正文不进 normalized.json —— tests/test_execution.py 有
-            # 「SECRET 不得落进记录」的安全约束，异常 message 可能带路径、
-            # 凭据或用户数据。详情另写 exception-detail.txt，只在本地调试用。
-            "record_complete": True,
-        }
+        # 先抢救现场：job 收尾失败不代表 trial 失败。trial 已经跑完且
+        # 验证器给了 reward 时，必须按 trial 的真实结果记录，否则会产出
+        # 假阴性并让人误以为是基建不稳。见 ``_recover_finished_trial``。
+        recovered = _recover_finished_trial(job_dir, **identity)
+        if recovered is not None:
+            record = recovered
+            # job 级异常仍然留痕，但不覆盖 trial 的真实状态。
+            record["job_level_exception_type"] = type(exc).__name__
+        else:
+            record = {
+                "schema_version": 1,
+                "task_id": task_path.name,
+                **identity,
+                "status": "infrastructure_error",
+                "success": False,
+                "verified": False,
+                "harbor_exception_type": type(exc).__name__,
+                # 异常正文不进 normalized.json —— tests/test_execution.py 有
+                # 「SECRET 不得落进记录」的安全约束，异常 message 可能带路径、
+                # 凭据或用户数据。详情另写 exception-detail.txt，只在本地调试用。
+                "record_complete": True,
+            }
         # 只有类型名的话 infrastructure_error 完全无从诊断（ExceptionGroup
         # 的类型名里没有任何信息）。详情落单独文件，不进汇总记录。
         try:

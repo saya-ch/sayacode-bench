@@ -54,6 +54,34 @@ def _endpoint(value: str, suffix: str) -> tuple[str, str, str]:
     return f"{parsed.scheme}://{authority}{parsed.path}", host, authority
 
 
+def validate_upstreams(config: GatewayConfig) -> None:
+    """启动前校验三个上游地址，非法时抛出带**具体取值**的 ``ValueError``。
+
+    为什么需要它：``nginx_config`` 在渲染每个 trial 的环境时才调用 ``_endpoint``，
+    所以网关配错（例如 ``SAYACODE_BENCH_GATEWAY`` 少了 ``/v1``）不会在建配置时
+    暴露，而是让**每一个 trial** 在约 10 秒内以 ``ExceptionGroup`` ->
+    ``ValueError`` 失败，异常正文只有一句「模型网关地址必须是无凭据、无参数的
+    固定 HTTP(S) API 路径」，既不说配了什么、也不说期望什么。2026-11-11 因此
+    白跑了一整批 32 个 trial。正式跑批前先调这个函数，把错误提前到启动瞬间。
+
+    这里复用 ``_endpoint`` 而不是另写一份规则，避免两处口径漂移。
+    """
+    for path, upstream in (
+        ("/v1/chat/completions", config.chat_upstream),
+        ("/v1/messages", config.messages_upstream),
+        ("/v1/responses", config.responses_upstream),
+    ):
+        if upstream is None:
+            continue
+        try:
+            _endpoint(upstream, path)
+        except ValueError as exc:
+            raise ValueError(
+                f"上游地址非法：{upstream!r}；路径必须恰好以 {path} 结尾，"
+                f"整条地址不得带凭据或查询参数（{exc}）"
+            ) from exc
+
+
 def nginx_config(config: GatewayConfig) -> str:
     """只接受固定 API；Docker 桥使用 IPv4，DNS 不向不可达的 IPv6 地址轮询。"""
 

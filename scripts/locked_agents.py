@@ -30,6 +30,7 @@ from harbor.agents.installed.opencode import OpenCode  # noqa: E402
 from harbor.environments.base import BaseEnvironment  # noqa: E402
 from harbor.models.agent.context import AgentContext  # noqa: E402
 from harbor.models.trial.config import AgentConfig, EnvironmentConfig  # noqa: E402
+from harbor.trial.errors import AgentTimeoutError  # noqa: E402
 
 from sayacode_bench import trialdir  # noqa: E402
 from sayacode_bench.connections import CANONICAL_MODEL as _SRC_CANONICAL_MODEL  # noqa: E402
@@ -116,6 +117,42 @@ async def rewrite_if_too_long(environment: BaseEnvironment, command: str) -> str
     """把超长命令改写成「执行脚本」的形式；不长则原样返回。"""
     script = await spill_long_command(environment, command)
     return f"bash {script}" if script else command
+
+
+INTERNAL_TIMEOUT_EXIT_CODE = 124
+
+
+def raise_if_internal_timeout(result: Any, needs_timeout: bool) -> None:
+    """容器内 ``timeout`` 触发时，把退出码 124 显式映射为 Harbor 的 agent 超时。
+
+    现象（``C:\\sb\\tmp\\audit\\infra\\ROOTCAUSE.md`` #01/#07/#12，3 条 trial）：
+    agent 跑满内部 ``timeout -k 30 2940`` 被杀，退出码 124，Harbor 归成
+    ``NonZeroAgentExitCodeError`` → 归一化为 ``infrastructure_error``（可补跑），
+    等于把「模型用完时间预算」从分母里删掉，违反「timeout 不补」协议。
+
+    根因：内部 timeout 的预算刻意比 Harbor 的 ``timeout_sec`` 早 60 秒（避免客户端
+    取消不了卡死的流），所以超时**永远**先表现为 exit 124，Harbor 自己的
+    ``asyncio.wait_for`` 来不及触发 ``AgentTimeoutError``。把预算改大不可取——那会让
+    Harbor 先杀容器，卡死的流依旧无法取消。
+
+    修法：保留 timeout 包裹，在拿到执行结果后把 124 翻译成 ``AgentTimeoutError``。
+    该类是 Harbor 原生类型（``harbor/trial/errors.py``，继承 ``asyncio.TimeoutError``），
+    ``ExceptionInfo.from_exception`` 记类名 ``"AgentTimeoutError"``，
+    ``execution.py:217`` 据此判 ``status = "timeout"``——不需要改 execution.py。
+
+    只处理 ``needs_timeout`` 为真的调用：安装、抓补丁等命令不套 timeout，退出码 124
+    在那里没有「用完时间预算」的语义。
+    """
+    if not needs_timeout:
+        return
+    if getattr(result, "return_code", None) != INTERNAL_TIMEOUT_EXIT_CODE:
+        return
+    raise AgentTimeoutError(
+        "agent exhausted its time budget (internal timeout exited 124); "
+        "classified as agent timeout, not infrastructure failure"
+    )
+
+
 DEFAULT_TASKS_ROOT = (
     r"C:\sb\tmp\hard\cache\swe-bench-pro-v2-66f92766bba642462d4bbe5479e83f91f9211862\v2\tasks"
 )
@@ -196,15 +233,26 @@ class FormalPaths:
 
 
 def env_cfg(paths: FormalPaths) -> EnvironmentConfig:
-    """容器内通过 host.docker.internal 回到宿主网关，其余流量由隔离网络拦断。"""
+    """容器内通过 host.docker.internal 回到宿主网关，其余流量由隔离网络拦断。
+
+    网关**必须在启动前校验**。历史事故（2026-11-11）：``SAYACODE_BENCH_GATEWAY``
+    少了 ``/v1`` 后缀，``require_inputs`` 只查文件存在与否、查不出来，于是 32 个
+    trial 全部在 10 秒内失败；而异常只从隔离层的 nginx 渲染处冒出，报错信息不含
+    实际配置值，白跑一整批。现在用 ``validate_upstreams`` 在构造环境配置时就
+    报错，且信息里带具体地址与期望后缀。
+    """
+    from sayacode_bench.network import GatewayConfig, validate_upstreams
+
     gateway = paths.gateway.rstrip("/")
+    upstreams = {
+        "messages_upstream": gateway + "/messages",
+        "chat_upstream": gateway + "/chat/completions",
+        "responses_upstream": gateway + "/responses",
+    }
+    validate_upstreams(GatewayConfig(**upstreams))
     return EnvironmentConfig(
         import_path="sayacode_bench.network:IsolatedDockerEnvironment",
-        kwargs={
-            "messages_upstream": gateway + "/messages",
-            "chat_upstream": gateway + "/chat/completions",
-            "responses_upstream": gateway + "/responses",
-        },
+        kwargs=upstreams,
     )
 
 
@@ -348,7 +396,9 @@ class LockedMiniSwe(MiniSweAgent):
         if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
-        return await super().exec_as_agent(environment, command, **kwargs)
+        result = await super().exec_as_agent(environment, command, **kwargs)
+        raise_if_internal_timeout(result, needs_timeout)
+        return result
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
@@ -426,7 +476,9 @@ class LockedCodex(Codex):
         if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
-        return await super().exec_as_agent(environment, command, **kwargs)
+        result = await super().exec_as_agent(environment, command, **kwargs)
+        raise_if_internal_timeout(result, needs_timeout)
+        return result
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
@@ -482,7 +534,9 @@ class LockedClaudeCode(ClaudeCode):
         if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
-        return await super().exec_as_agent(environment, command, **kwargs)
+        result = await super().exec_as_agent(environment, command, **kwargs)
+        raise_if_internal_timeout(result, needs_timeout)
+        return result
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
@@ -537,7 +591,9 @@ class LockedOpenCode(OpenCode):
         if needs_timeout:
             budget = int(getattr(self, "_timeout_sec", None) or 3000) - 60
             command = f"timeout -k 30 {budget} bash -c {shlex.quote(command)}"
-        return await super().exec_as_agent(environment, command, **kwargs)
+        result = await super().exec_as_agent(environment, command, **kwargs)
+        raise_if_internal_timeout(result, needs_timeout)
+        return result
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext

@@ -798,3 +798,81 @@ def test_canonical_model_has_a_single_source():
 
     assert execution.CANONICAL_MODEL is connections.CANONICAL_MODEL
     assert connections.CANONICAL_MODEL == "auto-hy3"
+
+
+# ---------------------------------------------------------------------------
+# job 收尾失败时不要丢掉已完成的 trial
+# ---------------------------------------------------------------------------
+FIXTURE_REWARD1 = Path(__file__).parent / "fixtures" / "trial-result-reward1.json"
+
+RECOVERY_IDENTITY = {
+    "configuration": "cfg",
+    "repeat": 1,
+    "canonical_model": "auto-hy3",
+    "endpoint": "magpie",
+    "require_replay": False,
+}
+
+
+def recovery_job(tmp_path, payload, trial_name="instance_demo__uniq"):
+    job = tmp_path / "job"
+    trial_dir = job / trial_name
+    trial_dir.mkdir(parents=True, exist_ok=True)
+    write(trial_dir / "result.json", payload)
+    return job, trial_dir
+
+
+def test_recovery_keeps_pass_when_job_cleanup_fails(tmp_path):
+    """harbor job 级收尾抛异常时，已通过 trial 不得被记成 infrastructure_error。
+
+    回归背景（2026-11-11 真实事故）：Harbor 在 Windows 上 job 收尾抛
+    ``OSError [Errno 22]``，而 trial 已经跑完、验证器已经给出 reward=1.0。
+    旧实现在 ``except`` 里无条件写 ``infrastructure_error``，于是通过被算成
+    基建失败。实测 160 条记录里有 2 条（mini-swe 的
+    ``qutebrowser-ff1c025ad``、``teleport-db89206db6``）因此被吞掉。
+    """
+    payload = json.loads(FIXTURE_REWARD1.read_text(encoding="utf-8"))
+    job, _ = recovery_job(tmp_path, payload)
+    record = execution._recover_finished_trial(job, **RECOVERY_IDENTITY)
+    assert record is not None
+    assert record["original_reward"] == 1.0
+    assert record["verified"] is True
+    assert record["success"] is True
+    assert record["status"] == "completed"
+    assert record["recovered_after_job_exception"] is True
+
+
+def test_recovery_refuses_trial_that_itself_errored(tmp_path):
+    """trial 自己报错时不能走抢救路径，否则会把真失败洗成成功。"""
+    payload = json.loads(FIXTURE_REWARD1.read_text(encoding="utf-8"))
+    payload["exception_info"] = {"exception_type": "AgentTimeoutError"}
+    job, _ = recovery_job(tmp_path, payload)
+    assert execution._recover_finished_trial(job, **RECOVERY_IDENTITY) is None
+
+
+def test_recovery_refuses_trial_without_verifier_result(tmp_path):
+    """没有验证器结果就没有判断依据，必须保留 infrastructure_error。"""
+    payload = json.loads(FIXTURE_REWARD1.read_text(encoding="utf-8"))
+    payload["verifier_result"] = None
+    job, _ = recovery_job(tmp_path, payload)
+    assert execution._recover_finished_trial(job, **RECOVERY_IDENTITY) is None
+
+
+def test_recovery_requires_exactly_one_trial(tmp_path):
+    """多 trial 时无法确定哪一个是本次结果，不猜。"""
+    payload = json.loads(FIXTURE_REWARD1.read_text(encoding="utf-8"))
+    job, _ = recovery_job(tmp_path, payload, trial_name="instance_demo__one")
+    second = job / "instance_demo__two"
+    second.mkdir()
+    write(second / "result.json", payload)
+    assert execution._recover_finished_trial(job, **RECOVERY_IDENTITY) is None
+
+
+def test_recovery_ignores_unsafe_trial_dir_name(tmp_path):
+    """trial 目录名必须满足单层目录约定，防止用畸形名字做路径穿越。"""
+    payload = json.loads(FIXTURE_REWARD1.read_text(encoding="utf-8"))
+    job = tmp_path / "job"
+    bad = job / "bad name"
+    bad.mkdir(parents=True)
+    write(bad / "result.json", payload)
+    assert execution._recover_finished_trial(job, **RECOVERY_IDENTITY) is None
