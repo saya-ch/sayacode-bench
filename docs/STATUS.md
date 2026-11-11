@@ -189,6 +189,6 @@
 
 完整报告：[FORMAL-RESULTS-20261106-327.md](FORMAL-RESULTS-20261106-327.md)。
 
-## 10. P1（下一步）
+## 10. P1：长上下文 A/B（已执行）
 
-设计见 [EXPERIMENT-CONTEXT-AB.md](EXPERIMENT-CONTEXT-AB.md)；工具已就绪：`scripts/make_context_noise.py`（确定性噪声生成，已 smoke）、`scripts/analyze_context_ab.py`（配对退化分析）。**噪声注入钩子尚未加入 `locked_agents.py`**——P0 跑批进程依赖该文件，改它会污染 P0 结果。
+设计见 [EXPERIMENT-CONTEXT-AB.md](EXPERIMENT-CONTEXT-AB.md)，**已执行**：`clean` 12/12 = 100% vs `noise-100k` 7/12 = 58.3%（n=12，方向性强但样本小），见 [EXPERIMENT-CONTEXT-AB-RESULT.md](EXPERIMENT-CONTEXT-AB-RESULT.md)。工具：`scripts/make_context_noise.py`（确定性噪声）、`scripts/analyze_context_ab.py`（配对退化）。若要复跑，保持 `locked_agents.py` 不变以免污染其他批次。
