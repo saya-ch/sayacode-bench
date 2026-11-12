@@ -356,6 +356,17 @@ class LockedMiniSwe(MiniSweAgent):
         # CPython 3.12 tarball 由宿主预先下载（GitHub 在容器内不可达/不稳定）：
         # 每 trial 先上传解压到共享 UV_PYTHON_INSTALL_DIR，uv 即可离线找到 3.12。
         py_tar = Path(os.environ.get("SAYACODE_PY312_TARBALL", r"C:\sb\tmp\hard\py312.tar.gz"))
+        # The pre-seeded interpreter must be addressed by *path*, not by version.
+        # ``uv tool install --python 3.12`` resolves through uv's managed-install
+        # discovery, which only recognises directories named
+        # ``$UV_PYTHON_INSTALL_DIR/cpython-<ver>-<target>/``.  Our tarball is a
+        # plain ``python-build-standalone`` archive that extracts to ``python/``,
+        # so uv never saw it, fell through to downloading from
+        # github.com/astral-sh/python-build-standalone, and that host is blocked
+        # inside the trial container ("tls handshake eof").  Every mini-swe trial
+        # therefore died in *install*, not in the agent — a systematic harness
+        # defect, since the cache was present the whole time.
+        py_expr = "3.12"
         if py_tar.is_file():
             try:
                 await environment.upload_file(py_tar, "/tmp/py312.tar.gz")
@@ -363,15 +374,18 @@ class LockedMiniSwe(MiniSweAgent):
                     command=(
                         "rm -rf /opt/uv-python; mkdir -p /opt/uv-python; "
                         "tar -xzf /tmp/py312.tar.gz -C /opt/uv-python && "
-                        "chmod -R a+rX /opt/uv-python && rm -f /tmp/py312.tar.gz"
+                        "chmod -R a+rX /opt/uv-python && rm -f /tmp/py312.tar.gz && "
+                        "test -x /opt/uv-python/python/bin/python3.12"
                     ),
                     user="root",
                     timeout_sec=240,
                 )
+                py_expr = "/opt/uv-python/python/bin/python3.12"
             except Exception as exc:  # noqa: BLE001
                 self.logger.warning(
                     f"py312 tarball upload failed ({str(exc)[:120]}); will rely on uv download"
                 )
+                py_expr = "3.12"
         # 容器内 deb.debian.org / archive.ubuntu.com 经 Clash fake-ip 返回 198.18.x，
         # 而 TUN 不还原 Docker 容器的出站流量，apt 必然 Connection failed。
         # 改为清华 HTTPS 镜像（容器内直连可达，已实测 HTTP/2 200）：只替换源域名，
@@ -439,7 +453,7 @@ class LockedMiniSwe(MiniSweAgent):
                 '  echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"; fi && '
                 'if [ -f "$HOME/.local/bin/env" ]; then source "$HOME/.local/bin/env"; fi && '
                 'export PATH="$HOME/.local/bin:$PATH" && '
-                f"uv tool install --python 3.12 mini-swe-agent{version_spec} "
+                f"uv tool install --python {py_expr} mini-swe-agent{version_spec} "
                 "--with litellm --with orjson --with fastapi --with mcp && mini-swe-agent --help"
             ),
         )
