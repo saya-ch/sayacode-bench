@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import shlex
 import tempfile
@@ -93,6 +94,39 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             # wheel 必须保持合法文件名，pip 从文件名读取发行物元数据。
             remote = ROOT / source.name if source == self.product_wheel else target
             await environment.upload_file(source, str(remote))
+        # CPython 由宿主预置上传，而不是让 uv 在 trial 里现下载。
+        #
+        # 原实现只有 ``uv python install <ver>``，它需要访问
+        # github.com/astral-sh/python-build-standalone。该主机在 trial 容器内
+        # 不可达（网络隔离只放行模型网关），2026-11-12 的 100 题实验里
+        # 表现为 ``tls handshake eof``，sayacode 32 个 trial 中有 21 个栽在
+        # 安装阶段被记为 infrastructure_error——而 claude-code / opencode
+        # 用的是预置 tarball，同期 0 个安装失败。这个偏差会让 sayacode 的
+        # 有效分母塌到 11 题，足以把对比结论整体带偏。
+        #
+        # 解压放在 ROOT 下（**不能**放 PRIVATE：那是 chmod 700 的私有目录，
+        # agent 用户无法穿过它执行解释器）。是否可用的判定放在安装脚本内部
+        # 用 ``[ -x ... ]`` 现场做，而不是靠 Python 侧的跨调用布尔量——
+        # 上一版正是把「上传/解压成功」当成「解释器可用」，解压后路径不存在
+        # 时仍然把绝对路径塞给 uv，三个 attempt 全报
+        # "No interpreter found at path"，却没人知道解压其实没落地。
+        py_dir = f"{ROOT}/py313"
+        py_bin = f"{py_dir}/python/bin/python3.13"
+        py_tar = Path(os.environ.get("SAYACODE_PY313_TARBALL", r"C:\sb\tmp\hard\py313.tar.gz"))
+        if py_tar.is_file():
+            try:
+                await environment.upload_file(py_tar, "/tmp/py313.tar.gz")
+                await self.exec_as_root(
+                    environment,
+                    command=(
+                        f"rm -rf {py_dir}; mkdir -p {py_dir}; "
+                        f"tar -xzf /tmp/py313.tar.gz -C {py_dir} && "
+                        f"rm -f /tmp/py313.tar.gz && "
+                        f"chmod -R a+rX {py_dir}"
+                    ),
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning(f"py313 预置失败（{str(exc)[:120]}），回退到 uv 下载")
         # ⚠️ 这里每步之间必须用 `&&`，**不能**用 `;` 依赖 set -e。
         # POSIX 规定 set -e 在 if/while 的测试上下文里失效，而整条安装链被包在
         # `if ( set -eu; ... )` 里（见下方重试循环）。实测（2026-11-08）：
@@ -140,13 +174,19 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             "return 1; "
             "}; "
             f"_setup_uv || {{ echo 'no pip3/uv/curl available' >&2; exit 1; }} && "
-            f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)} && "
+            # 解释器选择在 shell 里现场判定：预置目录里真有可执行文件就用绝对
+            # 路径，否则回退 ``uv python install``。这样「预置失败」不会静默
+            # 变成「拿一个不存在的路径去建 venv」。
+            f"_py_expr() {{ if [ -x {py_bin} ]; then echo {py_bin}; else echo {shlex.quote(self.python_version)}; fi; }} && "
+            f"_py=$(_py_expr) && "
+            f"if [ \"$_py\" = {shlex.quote(self.python_version)} ]; then "
+            f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; fi && "
             # --clear：/installed-agent/sayacode/venv 可能已存在（镜像预置、
             # 或 Harbor 重试复用容器）。不加 --clear 时 uv 直接报
             # 「Use the --clear flag or set UV_VENV_CLEAR=1」并退出，
             # 整条安装链失败。2026-11-10 第 3 批实测踩到：
             # protonmail-webclients-09fcf0db 三次 attempt 全失败。
-            f"{ROOT}/bin/uv venv --clear --python {shlex.quote(self.python_version)} {ROOT}/venv && "
+            f"{ROOT}/bin/uv venv --clear --python \"$_py\" {ROOT}/venv && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --require-hashes "
             f"-r {ROOT}/requirements.txt && "
             f"{ROOT}/bin/uv pip install --python {ROOT}/venv/bin/python --no-deps "
