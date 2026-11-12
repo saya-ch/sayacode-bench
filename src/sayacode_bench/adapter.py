@@ -174,10 +174,17 @@ class SayacodeAgent(BaseInstalledAgent):  # type: ignore[misc]
             "return 1; "
             "}; "
             f"_setup_uv || {{ echo 'no pip3/uv/curl available' >&2; exit 1; }} && "
-            # 解释器选择在 shell 里现场判定：预置目录里真有可执行文件就用绝对
-            # 路径，否则回退 ``uv python install``。这样「预置失败」不会静默
-            # 变成「拿一个不存在的路径去建 venv」。
-            f"_py_expr() {{ if [ -x {py_bin} ]; then echo {py_bin}; else echo {shlex.quote(self.python_version)}; fi; }} && "
+            # 解释器选择在 shell 里现场判定，而且要**真的试运行一次**。
+            #
+            # 只查 ``[ -x ]`` 不够：预置的 CPython 是 glibc 构建，在
+            # musl/alpine 镜像上可执行位是有的，但一跑就报
+            # ``not found``（缺 ld-linux），uv 于是报
+            # "No interpreter found at path"。2026-11-12 16:29 的
+            # protonmail-webclients 就是这样白跑三次安装尝试。
+            # 现在用 ``--version`` 实测，跑不起来就回退 ``uv python install``。
+            f"_py_expr() {{ "
+            f"if [ -x {py_bin} ] && {py_bin} --version >/dev/null 2>&1; "
+            f"then echo {py_bin}; else echo {shlex.quote(self.python_version)}; fi; }} && "
             f"_py=$(_py_expr) && "
             f"if [ \"$_py\" = {shlex.quote(self.python_version)} ]; then "
             f"{ROOT}/bin/uv python install {shlex.quote(self.python_version)}; fi && "
