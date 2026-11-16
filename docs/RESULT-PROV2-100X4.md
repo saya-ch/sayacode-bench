@@ -22,8 +22,14 @@
 | 分批 | 4 题一批，25 批 |
 | 并发 | 每 agent 1，后提到 2（WSL 7 GB 上限）|
 | 输出 | `C:\sb\hard\ab-ctx\prov2-100x4` |
-| 进度 | **74 题有记录（四家齐全 69 题），26 题完全未跑** |
+| 进度 | **74 题四家都有记录，26 题完全未跑**（见下注）|
 | 耗时 | 2026-11-11 起，至 11-16 暂停，仍未跑完 |
+
+> **「74 题」的口径**：`analyze_ab.collect()` 会把 `abandoned-*` 目录里的记录也计入
+> （那是 Docker 崩溃中断的 job）。按主目录统计是 sayacode 69 / mini-swe 70 /
+> claude-code 74 / opencode 74——**sayacode 有 5 题只留下 abandoned 记录**，这些必然
+> 归入 infrastructure（没有 reward），所以不虚增它的通过率，但会让它的分母偏小。
+> 四家都干净跑完（无 infra、无 timeout）的题是 **59** 题。
 
 执行细节与被发现的基建缺陷见 [EXPERIMENT-PROV2-100X4](EXPERIMENT-PROV2-100X4.md)。
 
