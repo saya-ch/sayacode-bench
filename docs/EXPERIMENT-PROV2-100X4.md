@@ -1,6 +1,6 @@
 # pro-v2 100 题 × 1 repeat × 4 agent：执行记录（2026-11-11 启动）
 
-> 状态：**2026-11-16 15:00 暂停在 74/100 题**（用户要求）。已记录 287/400 条 trial。
+> 状态：**2026-11-16 15:00 暂停在 74/100 题**（用户要求）。已记录 **296/400** 条 trial（74×4；只算主目录是 287）。
 > 本文只记录配置、执行过程、被修复的基建缺陷与已知解读边界。
 > 结果与复现性实测见 [RESULT-PROV2-100X4](RESULT-PROV2-100X4.md)。
 
@@ -111,7 +111,7 @@ vuls 9 / element 8 / navidrome 8 / webclients 8 / NodeBB 6 / tutanota 1。
 
 ### 6.1 Docker Desktop 反复崩溃（本轮的真正瓶颈）
 
-服务约每 **40–60 分钟**崩一次，表现固定：Docker API 返回
+服务反复崩溃（`watchdog.log` 实测 8 次探测失败、4 次恢复，恢复间隔 24 / 195 / 204 分钟；日志仅覆盖约 10.5 小时采样，"每 40–60 分钟"是印象值不是中位数），表现固定：Docker API 返回
 `500 Internal Server Error ... v1.55`，进 WSL 只剩 `containerd-shim` 孤儿进程，
 `dockerd` 本身消失。恢复必须 `wsl --shutdown` + 重启 Docker Desktop，耗时 10–20 分钟。
 
@@ -119,7 +119,7 @@ vuls 9 / element 8 / navidrome 8 / webclients 8 / NodeBB 6 / tutanota 1。
 
 | 猜测 | 实测 | 结论 |
 |---|---|---|
-| 内存不足（OOM）| 崩溃时刻 WSL 内 `free -m` 仍空闲 **5.8 GB / 7 GB**，`dmesg` 无 oom-kill | 排除 |
+| 内存不足（OOM）| 运行期观察到 WSL 内 `free -m` 仍空闲约 5.8 GB / 7 GB，`dmesg` 未见 oom-kill。**该数值是一次性观察、未记入日志，不作为可靠证据** | 倾向排除，未定论 |
 | 数据盘写满 | `/mnt/docker-desktop-disk` 挂载正常，926 GB 可用 | 排除 |
 | 数据盘未挂载 | 初版 watchdog 只看 `docker info`，漏掉了这个态；后补「数据盘容量 > 10 GB」探测 | 已修 |
 

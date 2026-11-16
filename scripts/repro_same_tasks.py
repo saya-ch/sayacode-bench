@@ -35,7 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from analyze_ab import AGENTS, AGENT_LABEL, classify, collect  # noqa: E402
+from analyze_ab import AGENT_LABEL, AGENTS, classify, collect  # noqa: E402
 
 
 def stem(task_id: str) -> str:
@@ -107,8 +107,7 @@ def main() -> int:
         agree_rate = agree / compar * 100 if compar else float("nan")
         flip_rate = flips / compar * 100 if compar else float("nan")
         drift = (ok_b - ok_a) / compar * 100 if compar else float("nan")
-        rows.append((AGENT_LABEL[agent], compar, agree_rate, flip_rate, drift,
-                     flip_ab, flip_ba))
+        rows.append((AGENT_LABEL[agent], compar, agree_rate, flip_rate, drift, flip_ab, flip_ba))
         lines.append(
             f"| {AGENT_LABEL[agent]} | {compar} | {agree} | {agree_rate:.1f}% | "
             f"{flip_ab} | {flip_ba} | **{flip_rate:.1f}%** | {drift:+.2f}pp |"

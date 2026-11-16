@@ -53,7 +53,7 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 | **★[RESULT-PROV2-4AGENTS-FINAL](docs/RESULT-PROV2-4AGENTS-FINAL.md)** | 40 题 × 1 × 4：三口径表、六对 McNemar、MDE、flaky；**旧版"sayacode 与 opencode 持平"已作废**（分母 29→34、75.9%→64.71%）|
 | **[EXPERIMENT-PROV2-100X4](docs/EXPERIMENT-PROV2-100X4.md)** | 100x4 执行记录：配置、**Docker 每 40–60 分钟崩一次**、vhdx 膨胀、代理配额耗尽、settled 机制、本轮 5 个代码修复 |
 | **[EXPERIMENT-PROV2-4AGENTS](docs/EXPERIMENT-PROV2-4AGENTS.md)** | 40x4 运行配置、判分口径（reward 优先）、`c8dba0e` 四处修复、**未修的 musl 镜像偏差** |
-| **★[ARCHIVE：docs 腐朽内容清单](docs/ARCHIVE.md)** | **57 份逐条登记**：已推翻 9、部分推翻 6、已被取代 4、有效 30、未复核 8；每条给日期、核心结论、推翻证据。**引用旧文档前先查这里。** |
+| **★[ARCHIVE：docs 腐朽内容清单](docs/ARCHIVE.md)** | **57 条逐条登记**（= 已判定条目数，**不是文件总数**）：已推翻 9、部分推翻 6、已被取代 4、有效 32、未复核 8；每条给日期、核心结论、推翻证据，另标注本文自身的 6 处账目缺陷。**引用旧文档前先查这里。** |
 | **★[第二轮复盘](docs/review/round2/RETROSPECTIVE-ROUND2.md)** | **证据层 + 运行层**：对第一轮复盘本身的审计、七通道并行、**返工率 61.4%**、磁盘真实瓶颈、可复现性分级 |
 | **★[第一轮复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **结论层**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本 |
 | **[STATUS](docs/STATUS.md)** | 当前真实状态：终版数字、制品身份、作废结论、已知局限 |
@@ -111,6 +111,17 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 | [影响面清单实验](docs/EXPERIMENT-IMPACT-CHECKLIST.md) | 覆盖率 +6.7pp、通过率仅 +2.5pp（p=1.0）——证伪了「清单能提分」|
 | [工具并行度实验](docs/EXPERIMENT-TOOL-BATCHING.md) | 负面结果：并行化无效、反而变差 |
 | [Ledger 重建操作卡](docs/REBUILD-LEDGER.md) | 重建 RESULTS-LEDGER 的步骤 |
+| [测试级指标方法（修正版）](docs/METHOD-TEST-LEVEL-METRICS-V2.md) | F2P/P2P 的正确算法（旧版 `METHOD-TEST-LEVEL-METRICS` 已归档）|
+| **[长上下文 A/B 结果](docs/EXPERIMENT-CONTEXT-AB-RESULT.md)** | clean 100% vs noise 58.3%（n=12）|
+| **[探索护栏结果](docs/EXPERIMENT-EXPLORE-GUARD-RESULT.md)** | 58.3%→83.3%、空 patch 2/12→0/12 |
+| [系统提示精简](docs/EXPERIMENT-PROMPT-SCALING.md) | 负面结果：精简提示无收益 |
+| [系统提示 v2](docs/EXPERIMENT-PROMPT-V2.md) | 精简做对了就有效 |
+| [系统提示 v2 扩样本](docs/EXPERIMENT-PROMPT-V2-SCALED.md) | 扩样本后优势消失（Δ=0，p=1.0）——**以本文件为 v2 的最终结论** |
+| [TodoList 压缩](docs/EXPERIMENT-TODO-COMPRESSION.md) | 成本优化：耗时 −40% |
+| [只读不写失效模式](docs/FAILURE-MODE-EXPLORE-ONLY-20261107.md) | 探索型 agent 只读不写的诊断 |
+| [两次误判的更正](docs/MISJUDGMENTS-20261109.md) | 更正记录本身有效 |
+| **[第三轮复盘](docs/review/round3/RETROSPECTIVE-ROUND3.md)** | round1/round2 之后的第三轮 |
+| [实验条件记录](docs/evidence/EXPERIMENT-CONDITIONS.md) | 历史实验的条件快照 |
 
 </details>
 

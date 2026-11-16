@@ -41,19 +41,19 @@
    `strict_compare.py:138-141` 的判据是"patch 中出现 `.snap` 路径"，这是**相关性**，不是因果。即使快照真的不被重置，也不能据此断言该 trial 的通过依赖快照。详见 [D08](#d08strict-口径用相关性替代因果p1)。
 
 3. **四组正式结果不是同批次实验，却被当作一张对照表使用。**
-   SAYACODE 行来自 `v4-327`（11-06，PyPI 3.2.7，served 零 `hy3-x`），三个基线来自 `v2-325`（11-02~11-04，served 约 14.3% `hy3-x`），并发、网络修复状态、缺失构成均不同。`STATUS.md:24` 自己承认"只可做描述性对照"，但同文件 `:7` 仍以"四组对照"陈述结论，且 §2.1 给出了跨批次 McNemar 的 p 值。详见 [D29](#d29四组正式表混用两个批次p0)。
+   SAYACODE 行来自 `v4-327`（11-06，PyPI 3.2.7，served 零 `hy3-x`），三个基线来自 `v2-325`（11-02~11-04，served 约 14.3% `hy3-x`），并发、网络修复状态、缺失构成均不同。`STATUS.md:24` 自己承认"只可做描述性对照"，但同文件 `:7` 仍以"四组对照"陈述结论，且 §2.1 给出了跨批次 McNemar 的 p 值。详见 [D29](#d29四组正式表混用两个批次p0-未修复)。
 
 4. **"检测 10pp 差异需约 330 题"没有出处。**
-   `STATUS.md:114`、`LARGE-EVAL-SET.md:14` 反复引用 330，但唯一的设计文档 `MULTI-MODEL-PLAN.md:98-106` 只给出"≥100 题、CI 约 ±9pp"，从未推导 330。这个数字支撑了"扩样到 100 题仍不足"的判断，而它本身不可追溯。详见 [D18](#d18330-题功效数字无出处p1)。
+   `STATUS.md:114`、`LARGE-EVAL-SET.md:14` 反复引用 330，但唯一的设计文档 `MULTI-MODEL-PLAN.md:98-106` 只给出"≥100 题、CI 约 ±9pp"，从未推导 330。这个数字支撑了"扩样到 100 题仍不足"的判断，而它本身不可追溯。详见 [D18](#d18330-题功效数字无出处p1-标题有误见更正)。
 
 5. **`timeout` 是声明了但代码永远返回不到的分类。**
-   `formal.py:35` 的 `MISSING_CLASSES` 含 `timeout`，但 `formal.py:464-476` 的 `classify_missing` 没有 timeout 分支。一个超时但有部分 patch 的 trial 会落到 `unverified`（协议规定**可补**），而协议 `PROTOCOL-V2 §6` 明确 `timeout` **不补**——直接违反自己的补跑纪律。详见 [D12](#d12timeout-分类声明但不可达p0)。
+   `formal.py:35` 的 `MISSING_CLASSES` 含 `timeout`，但 `formal.py:464-476` 的 `classify_missing` 没有 timeout 分支。一个超时但有部分 patch 的 trial 会落到 `unverified`（协议规定**可补**），而协议 `PROTOCOL-V2 §6` 明确 `timeout` **不补**——直接违反自己的补跑纪律。详见 [D12](#d12timeout-分类声明但不可达p0-未修复)。
 
 6. **开发集分数被当作能力分数使用，且偏置方向对被测对象有利。**
-   40 题在 `README.md:41`、`AGENTS.md:20` 被定义为开发迭代集，`protocol.md:157` 明确禁止把开发期数字当正式成绩。SAYACODE 的提示词规则 R1–R5 正是从这 40 题的失败个案调出。`RETROSPECTIVE §5.1` 承认了这一点，但 `FORMAL-RESULTS-20261105-v3.md:136` 的"可写进简历的口径"仍直接写 78.8%，没有附偏置声明。详见 [D25](#d25开发集当正式成绩已承认但仍在对外使用p0)。
+   40 题在 `README.md:41`、`AGENTS.md:20` 被定义为开发迭代集，`protocol.md:157` 明确禁止把开发期数字当正式成绩。SAYACODE 的提示词规则 R1–R5 正是从这 40 题的失败个案调出。`RETROSPECTIVE §5.1` 承认了这一点，但 `FORMAL-RESULTS-20261105-v3.md:136` 的"可写进简历的口径"仍直接写 78.8%，没有附偏置声明。详见 [D25](#d25开发集当正式成绩p0-未修复)。
 
 7. **同一批数据在不同工具里给出不同的通过数与缺失数，且陈旧产物未重生成。**
-   `claude-code` 在 `FINAL-SUMMARY-V4.json` 是 62 pass、在 `dataset.json` 的 `partial==1.0` 是 65；`mini-swe` 缺失数在 `STRICT-COMPARE.json` 是 2、在 `FINAL-SUMMARY-V4.json` 是 1；`mini-swe` 的 `touches_snap` 在 `dataset.json` 是 0、在 `STRICT-COMPARE.json` 的 `snap_passes` 是 4。详见 [D14](#d14同一批数据多工具结果不一致p0)。
+   `claude-code` 在 `FINAL-SUMMARY-V4.json` 是 62 pass、在 `dataset.json` 的 `partial==1.0` 是 65；`mini-swe` 缺失数在 `STRICT-COMPARE.json` 是 2、在 `FINAL-SUMMARY-V4.json` 是 1；`mini-swe` 的 `touches_snap` 在 `dataset.json` 是 0、在 `STRICT-COMPARE.json` 的 `snap_passes` 是 4。详见 [D14](#d14同一批数据多工具结果不一致p0-未修复)。
 
 **一句话结论**：这套评测的**基建与轨迹审计是同类工作中偏强的**（独立 pristine 重放、适配健康审计、三口径分母、缺失分类、对账与 lint 工具都已建成），但**统计叙事层建立在两个错误前提（snap 不重置、四组同批次）和一个未验证数字（330 题）之上**。当前可以对外说的只有"未检出显著差异"，其余排名、差距、口径敏感性结论一律需要重跑或撤回。
 

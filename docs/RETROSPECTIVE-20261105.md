@@ -29,7 +29,7 @@
 ### 阶段 1：v2 重建（11-01 ~ 11-02）—— 基建优先，重跑 240 trial
 
 - 修 3 个真实基建 bug（都有 commit）：安装证据目录不幂等 `5c59126`、产品版本硬编码 `a1e51d3`、阶段1 续跑判据不认 `normalized.json` `5f8b138`。
-- 终版：SAYACODE **78.8%** / mini-swe **70.0%** / Codex **68.8%**（planned 80 分母），缺失 15 条已分类（`docs/FORMAL-RESULTS-20261102-v2.md`）。
+- 终版：SAYACODE **78.8%** / mini-swe **70.0%** / Codex **68.8%**（planned 80 分母），缺失 15 条已分类（`docs/archive/FORMAL-RESULTS-20261102-v2.md`）。
 - **关键发现：补跑效应巨大**——SAYACODE 67.5%→78.8%（+11.3pp）、mini-swe 47.5%→70.0%（+22.5pp）。环境失败系统性惩罚某些 agent，**补跑前数字不能当能力**。
 - 三 agent 经 Bonferroni 校正后**均不显著**。
 - **教训**：环境噪声项的量级（±10~20pp）大于被比较的效应量级（1~10pp）时，任何对比都得先修环境。
@@ -72,7 +72,7 @@
 
 ### 阶段 6：四组对照定稿 + 方法批判（11-05）
 
-**最终数字**（40 题 × 2 重复 = 80 trial/组，同一模型 `auto-hy3`，官方 Harbor 验证器，见 `FORMAL-RESULTS-20261105-v3.md`）：
+**最终数字**（40 题 × 2 重复 = 80 trial/组，同一模型 `auto-hy3`，官方 Harbor 验证器，见 `docs/archive/FORMAL-RESULTS-20261105-v3.md`）：
 
 | agent | planned | observed | **strict** | 缺失 | 题级 task-macro | bootstrap95 | snap pass |
 |---|---|---|---|---|---|---|---|
@@ -255,7 +255,7 @@
 |---|---|
 | 四组最终数字 | `C:\sb\hard\v2-325\FINAL-SUMMARY-V4.json`、`STRICT-COMPARE.json` |
 | 轨迹健康审计 | `C:\sb\hard\v2-325\TRAJ-AUDIT-{claude-code,opencode}.json` |
-| 正式报告 | `docs/FORMAL-RESULTS-20261105-v3.md`（四组）、`docs/FORMAL-RESULTS-20261102-v2.md`（三组历史） |
+| 正式报告 | `docs/archive/FORMAL-RESULTS-20261105-v3.md`（四组）、`docs/archive/FORMAL-RESULTS-20261102-v2.md`（三组历史） |
 | 协议 | `docs/PROTOCOL-V2.md` |
 | 基线适配 | `docs/{CODEX-BASELINE-INVALID,CLAUDE-CODE-BASELINE,OPENCODE-BASELINE}.md` |
 | 产品侧验证 | `C:\develop\sayacode\docs\{VERIFY-20261103,SUMMARY-FALLBACK-CHECK,PROMPT-OVERFIT-RISK,COMPLETION-GUARD-AB}.md` |

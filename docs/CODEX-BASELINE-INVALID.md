@@ -37,7 +37,7 @@
 }
 ```
 
-`auto-hy3` 是 Magpie 网关上的 **hy3**（`owned_by=workbuddy`，192k/64k），**不是 DeepSeek-V4.1-Flash**——后者是网关上的另一个模型（`owned_by=opencode-zen`，1M/200k），评测窗口 42681 条 usage 里四组基线一次都没命中它（见 `FORMAL-RESULTS-20261105-v3.md` §五.6）。常量见 `locked_agents.py: CANONICAL_MODEL = "auto-hy3"`。
+`auto-hy3` 是 Magpie 网关上的 **hy3**（`owned_by=workbuddy`，192k/64k），**不是 DeepSeek-V4.1-Flash**——后者是网关上的另一个模型（`owned_by=opencode-zen`，1M/200k），评测窗口 42681 条 usage 里四组基线一次都没命中它（见 `docs/archive/FORMAL-RESULTS-20261105-v3.md` §五.6）。常量见 `locked_agents.py: CANONICAL_MODEL = "auto-hy3"`。
 三个 agent 统一用它，是「控制变量」设计；但 Codex CLI 的 system prompt、工具契约与推理格式是围绕 OpenAI 模型写死的。
 
 ### 轨迹原文（`agent/codex.txt`）
@@ -63,7 +63,7 @@
 
 - **v2 主表里的 Codex 68.75%（严格 65.0%）作废为「能力结论」**，只能作为「本次适配条件下的观测值」。
 - 三组对照（SAYACODE / mini-swe / Codex）**不构成对 Codex 产品的公平比较**；任何「优于 Codex」「不输 Codex」的表述都不可用。
-- 之前写进 `docs/FORMAL-RESULTS-20261102-v2.md` / `DEEP-DIVE-20261102.md` 的 Codex 相关推论需加本注记。
+- 之前写进 `docs/archive/FORMAL-RESULTS-20261102-v2.md` / `DEEP-DIVE-20261102.md` 的 Codex 相关推论需加本注记。
 
 ### 不能说的
 
