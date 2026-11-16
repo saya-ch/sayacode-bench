@@ -51,9 +51,9 @@ Codex 组因适配缺陷**整组作废**；`task_count` 全 0，本批不能评�
 | **★[RESULTS-LEDGER](docs/RESULTS-LEDGER.md)** | **全部对外数字的唯一权威来源**：两批次分表 + prov2 批次（不入主表）、口径定义（planned/observed/partial）、配对比较、成本与机时、已知数据缺陷。**其他文档只引用，不复制数字。** |
 | **★[RESULT-PROV2-100X4](docs/RESULT-PROV2-100X4.md)** | **100 题 × 1 × 4（暂停在 74/100）**：三口径表 + **同题重跑翻转率实测 24%–29%** + 一个未解释的单向翻转成分 |
 | **★[RESULT-PROV2-4AGENTS-FINAL](docs/RESULT-PROV2-4AGENTS-FINAL.md)** | 40 题 × 1 × 4：三口径表、六对 McNemar、MDE、flaky；**旧版"sayacode 与 opencode 持平"已作废**（分母 29→34、75.9%→64.71%）|
-| **[EXPERIMENT-PROV2-100X4](docs/EXPERIMENT-PROV2-100X4.md)** | 100x4 执行记录：配置、**Docker 每 40–60 分钟崩一次**、vhdx 膨胀、代理配额耗尽、settled 机制、本轮 5 个代码修复 |
+| **[EXPERIMENT-PROV2-100X4](docs/EXPERIMENT-PROV2-100X4.md)** | 100x4 执行记录：配置、**Docker 反复崩溃（根因未定位）**、vhdx 膨胀到 136.7GB 而内部只用 17.8GB、代理配额耗尽 97.2%、settled 机制、本轮 5 个代码修复 |
 | **[EXPERIMENT-PROV2-4AGENTS](docs/EXPERIMENT-PROV2-4AGENTS.md)** | 40x4 运行配置、判分口径（reward 优先）、`c8dba0e` 四处修复、**未修的 musl 镜像偏差** |
-| **★[ARCHIVE：docs 腐朽内容清单](docs/ARCHIVE.md)** | **57 条逐条登记**（= 已判定条目数，**不是文件总数**）：已推翻 9、部分推翻 6、已被取代 4、有效 32、未复核 8；每条给日期、核心结论、推翻证据，另标注本文自身的 6 处账目缺陷。**引用旧文档前先查这里。** |
+| **★[ARCHIVE：docs 腐朽内容清单](docs/ARCHIVE.md)** | **57 条逐条登记**（= 已判定条目数，**不是文件总数**，且桶间有重复；按实际行数是 59）：已推翻 9、部分推翻 6、已被取代 4、有效 30/32、未复核 8；每条给日期、核心结论、推翻证据，另用 §8 列出本文自身的 6 处账目缺陷。**引用旧文档前先查这里。** |
 | **★[第二轮复盘](docs/review/round2/RETROSPECTIVE-ROUND2.md)** | **证据层 + 运行层**：对第一轮复盘本身的审计、七通道并行、**返工率 61.4%**、磁盘真实瓶颈、可复现性分级 |
 | **★[第一轮复盘](docs/review/2026-11-07/RETROSPECTIVE-20261107.md)** | **结论层**：五类缺陷 78 条、必须撤回的五件事、三分法结论账本 |
 | **[STATUS](docs/STATUS.md)** | 当前真实状态：终版数字、制品身份、作废结论、已知局限 |

@@ -42,9 +42,10 @@
 
 ### 题集构成
 
-前 40 题与 `large-sample-v1-pro-v2.json` **逐字段一致**（仅 `memory_mb` 由历史占位符 0
-归一为真实值 4096，该字段不参与执行——`run_formal_240` 只读 `task_id`，容器内存由
-Harbor 从 `task.toml` 解析）。新增 60 题全部来自干净池，逐条断言与任何历史实验零重叠。
+前 40 题与 `large-sample-v1-pro-v2.json` **题目相同，但元数据不完全一致**：`memory_mb`
+在 40 题集里是历史占位符 `0`，这里是 `4096`。该字段不参与执行（`run_formal_240` 只读
+`task_id`，容器内存由 Harbor 从 `task.toml` 解析），所以**题目可比、字段不可比**——
+不要写「逐字段一致」。新增 60 题全部来自干净池，逐条断言与任何历史实验零重叠。
 
 stratum 分布：ansible 13 / openlibrary 13 / flipt 12 / qutebrowser 11 / teleport 11 /
 vuls 9 / element 8 / navidrome 8 / webclients 8 / NodeBB 6 / tutanota 1。
