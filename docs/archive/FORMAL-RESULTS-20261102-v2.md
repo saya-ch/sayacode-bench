@@ -1,3 +1,6 @@
+> ⛔ **已作废，停止引用。** 本文件整篇作废。其中的 `strict` 口径假设「verifier 不重置 `__snapshots__`」，已被 642/642 个 `tests/test.sh:97-105` 实测证伪；Codex 组整组作废；结论已由 v3/v4 取代。现行数字见 [RESULTS-LEDGER](../RESULTS-LEDGER.md)。
+> 归档于 2026-11-16；原文内容不再维护，仅作取证保留。
+
 # v2 完整重跑结果（2026-11-02）
 
 > 运行根：`C:\sb\hard\v2-325`；设计 40 题 × 2 重复 × 3 agent = 240 trial。
@@ -5,7 +8,7 @@
 > 口径：planned = 80 分母（缺失按失败）；observed = 有 reward/终态；task_macro = 题级宏平均。
 
 > ⚠️ **本文数字是 v2 批次的终版快照（2026-11-02），不是当前状态。**
-> - mini-swe 的 **70.0%（56/80，缺 14 条）在 v3 补跑 12 条后变为 85.0%（68/80，缺 1 条）**，以 [FORMAL-RESULTS-20261105-v3](FORMAL-RESULTS-20261105-v3.md) 与 [RESULTS-LEDGER](RESULTS-LEDGER.md) 为准。
+> - mini-swe 的 **70.0%（56/80，缺 14 条）在 v3 补跑 12 条后变为 85.0%（68/80，缺 1 条）**，以 [FORMAL-RESULTS-20261105-v3](FORMAL-RESULTS-20261105-v3.md) 与 [RESULTS-LEDGER](../RESULTS-LEDGER.md) 为准。
 > - 该结果根（`C:\sb\hard\v2-325`）随后被 v3/v4 批次继续写入。因此 `scripts/reconcile_results.py --root C:\sb\hard\v2-325` 会报 **6 个 `missing_job_inconsistent`**（mini-swe 的 6 个 `qutebrowser` trial 在本汇总里记为 `no_job`，但磁盘已有补跑产物）。**这是「汇总快照早于磁盘」的时序现象，不是汇总错误**——用当前磁盘重算会得到与 `FINAL-SUMMARY-V4.json` 一致的 68/80（已用 `final_summary.py` 复算确认）。
 > - Codex 组整组作废（`docs/CODEX-BASELINE-INVALID.md`），其 68.8% 不参与任何排名。
 
@@ -17,7 +20,7 @@
 | mini-swe | 80 | 66 | 56 | **70.0%** | 84.8% | 84.8% | [75.8, 92.4] | 33/40 | 72.7% | 97.0% |
 | Codex | 80 | 80 | 55 | **68.8%** | 68.8% | 68.8% | [57.5, 80.0] | 40/40 | 52.5% | 85.0% |
 
-> **严格口径（扣除「靠改 `.snap` 快照通过」）**：SAYACODE **78.8%** / mini-swe **65.0%** / Codex **65.0%**（mini −4、Codex −3 个 pass）。verifier 会重置测试代码（`tests/`、`*_test.go`）但**不重置 `__snapshots__/*.snap`**；主表仍用 planned，快照项作敏感性分析。详见 [TEST-EDIT-ANALYSIS](TEST-EDIT-ANALYSIS-20261102.md)。
+> **严格口径（扣除「靠改 `.snap` 快照通过」）**：SAYACODE **78.8%** / mini-swe **65.0%** / Codex **65.0%**（mini −4、Codex −3 个 pass）。verifier 会重置测试代码（`tests/`、`*_test.go`）但**不重置 `__snapshots__/*.snap`**；主表仍用 planned，快照项作敏感性分析。详见 [TEST-EDIT-ANALYSIS](../TEST-EDIT-ANALYSIS-20261102.md)。
 
 ## 二、题级 McNemar（任务块）
 

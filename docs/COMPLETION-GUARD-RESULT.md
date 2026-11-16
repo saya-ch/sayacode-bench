@@ -1,5 +1,8 @@
 # CompletionGuard 本地 A/B 结果（2026-11-04）
 
+> ⚠️ **部分作废。** guard 确实触发、token +53%，但「+10pp」不显著（p≈0.29），不得当收益引用。见 [ARCHIVE](ARCHIVE.md) §2 #14。
+
+
 > 目的：验证 `completion_guard`（纯文本收尾保护）是否值得默认开启。
 > 设计：20 题（sample-40 分层抽样）× 2 重复 × 2 变体（guard-off / guard-on）= **80 trial**；产品 SAYACODE 3.2.6；模型 hy3；本地并发 2；¥0（Magpie 免费额度）。
 > 结论先行：**guard 确实触发（on 36/40 = 90%，off 0%，以 `checkpoints.sqlite3` 实测为准），pass@1 方向为正（+10pp）但统计不显著（p≈0.29，n=20），而 token 成本 +53%（远超 <15% 护栏）→ 仍不建议默认开启。**

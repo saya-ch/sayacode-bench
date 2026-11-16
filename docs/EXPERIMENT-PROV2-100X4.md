@@ -1,7 +1,8 @@
 # pro-v2 100 题 × 1 repeat × 4 agent：执行记录（2026-11-11 启动）
 
-> 状态：**运行中**。本文只记录启动时的配置、为什么这样配、以及已知的解读边界。
-> 结果另文（结题后写 `RESULT-PROV2-100X4.md`）。
+> 状态：**2026-11-16 15:00 暂停在 74/100 题**（用户要求）。已记录 287/400 条 trial。
+> 本文只记录配置、执行过程、被修复的基建缺陷与已知解读边界。
+> 结果与复现性实测见 [RESULT-PROV2-100X4](RESULT-PROV2-100X4.md)。
 
 ## 1. 为什么要重跑
 
@@ -29,11 +30,15 @@
 | 题集 | `studies/large-sample-v1-pro-v2-100.json`（100 题）|
 | agent | sayacode 3.3.0 / mini-swe / claude-code / opencode |
 | 重复 | **1**（100×1×4 = 400 trial）|
-| 并发 | 2（WSL 7GB 上限；容器实测约 0.8–1.0GB each）|
-| 分批 | 5 题一批，共 20 批 |
-| 代码 | `d6530ea`（含四处缺陷修复 + musl 修复）|
+| 分批 | **4 题一批，共 25 批**（原计划 5 题 20 批，实际按 4 题切）|
+| 并发 | **每 agent 1 起步**，后按内存余量提到 2（WSL 上限 7 GB；容器实测 0.2–1.3 GB each）|
+| 代码 | `d6530ea` 起，执行期间持续修复（见 §7）|
 | 输出 | `C:\sb\hard\ab-ctx\prov2-100x4` |
-| 预计 | 约 40 小时 |
+| 实际耗时 | 2026-11-11 起至 11-16 暂停，**跑完 74 题，未达 100**（原估 40 小时）|
+
+> **实际进度远低于预计，原因是宿主环境而不是题量**：Docker Desktop 平均每 40–60
+> 分钟崩一次（§6），每次恢复要 10–20 分钟，叠加镜像反复重拉。把「预计 40 小时」
+> 当成可靠数字是错的，这条已保留在此作为教训。
 
 ### 题集构成
 
@@ -72,7 +77,8 @@ vuls 9 / element 8 / navidrome 8 / webclients 8 / NodeBB 6 / tutanota 1。
 4. 三套分母分别报：`all` / `effective`（排除 infrastructure）/ `complete-case`
    （只用四家都干净跑完的题）。
 
-复算脚本：`C:\sb\tmp\run100\analyze.py`。
+复算脚本：`scripts/analyze_ab.py`（仓库内，非临时目录）：
+`python scripts/analyze_ab.py --root <输出目录> --out <报告路径>`。
 
 ## 5. 已知的解读边界（必须和结果一起看）
 
@@ -102,3 +108,78 @@ vuls 9 / element 8 / navidrome 8 / webclients 8 / NodeBB 6 / tutanota 1。
   Docker 代理指向它。拉 4.4GB 镜像从"卡死"变成 4.1 分钟（约 18MB/s）。
 - 期间 Clash 的数据面（`verge-mihomo`）死过一次，导致 pull 再次全部卡住。
   driver 现在每批开始前检查 7897/17897 端口，缺了就自动重启 Clash 与 relay。
+
+### 6.1 Docker Desktop 反复崩溃（本轮的真正瓶颈）
+
+服务约每 **40–60 分钟**崩一次，表现固定：Docker API 返回
+`500 Internal Server Error ... v1.55`，进 WSL 只剩 `containerd-shim` 孤儿进程，
+`dockerd` 本身消失。恢复必须 `wsl --shutdown` + 重启 Docker Desktop，耗时 10–20 分钟。
+
+**已排查并排除的原因**：
+
+| 猜测 | 实测 | 结论 |
+|---|---|---|
+| 内存不足（OOM）| 崩溃时刻 WSL 内 `free -m` 仍空闲 **5.8 GB / 7 GB**，`dmesg` 无 oom-kill | 排除 |
+| 数据盘写满 | `/mnt/docker-desktop-disk` 挂载正常，926 GB 可用 | 排除 |
+| 数据盘未挂载 | 初版 watchdog 只看 `docker info`，漏掉了这个态；后补「数据盘容量 > 10 GB」探测 | 已修 |
+
+**根因未定位。** 诱因里最可疑的是每批「拉 4 个镜像 → 跑 → prune 掉旧镜像」造成的
+vhdx 反复伸缩。把 `--disk-floor-gb` 从 80 降到 40（少触发 prune）之后崩溃频率没有
+明显下降，所以这条也只是猜测。
+
+**代价**：崩溃时正在跑的 trial 全部作废，容器被重建，agent 已完成的工作丢失，
+但 trial 仍可能"跑完"并拿到 0 分。这与
+[RESULT-PROV2-100X4](RESULT-PROV2-100X4.md) §3.2 里那个未解释的单向翻转高度可疑相关，
+但**没有实证**。
+
+### 6.2 磁盘：vhdx 膨胀与两次删除重建
+
+`docker_data.vhdx` 一度涨到 **136.7 GB**，而内部实际只用了 **17.8 GB**。WSL 不支持
+在线压缩，宿主无管理员权限跑不了 `diskpart compact vdisk`，`wsl --manage --set-sparse`
+也不缩文件。最终两次直接删除该 vhdx 让 Docker 重建，各回收约 110–136 GB。
+
+副作用：镜像缓存清零，需要重新从镜像站拉。**这在磁盘紧张的机器上是最有效的办法，
+但它掩盖了真正的浪费源——prune 策略。** 早期的 prune 按「可回收容量」判定，
+把整个共享层缓存每批清空一次，导致每批都要重拉十几 GB。
+
+### 6.3 代理订阅配额耗尽
+
+运行中期代理订阅 1 TB 配额用掉 **97.2%**（上传 294.1 GB + 下载 678.2 GB），64 个节点
+全部探测失败。其中下载量主要是这一轮反复拉 4.4 GB 镜像造成的。恢复办法是改用
+国内镜像站 `ghcr.nju.edu.cn` 直连（不走代理），并给 Docker 加代理排除列表
+`OverrideProxyExclude=localhost,127.0.0.1,ghcr.nju.edu.cn,docker.nju.edu.cn`。
+
+> 教训：**「Docker 全部走代理」是错的**。国内镜像站必须直连，Docker Hub 才需要代理。
+> 两者要在同一个 Docker 里共存，只能用排除列表。
+
+### 6.4 分批驱动器：同批反复重跑
+
+驱动器原本的判定是「这一批四家不全就重试」，而某些题对某个 agent 是**持久性**失败
+（例如 musl 题上 sayacode 装不上 `sqlite-vec`）。结果同一批题被反复重跑：批 3 单独
+跑了**九次**，每次都重新拉四个镜像、跑十六个 trial，判定失败、进下一批——重启后又
+从头来过。
+
+修法：加 `settled-batches.json`，把「已判定为持久性失败」的 task_id 记下来，重启后
+直接跳过。副作用是要留意：被 settle 的题如果后来环境变好了也不会再补，所以每次恢复
+运行前应检查 `settled` 里有多少题缺记录。
+
+## 7. 本轮新修复的基建缺陷（代码层）
+
+全部在 `C:\develop\sayacode-bench`，均已提交：
+
+| 提交 | 缺陷 | 症状 |
+|---|---|---|
+| `d6530ea` | musl/alpine 镜像按 libc 选原生二进制；worker 崩溃必留 traceback | claude/opencode 在 protonmail 题上全灭 |
+| `d2b3f3f` | `uv tool install --python 3.12` 走 uv 的托管发现逻辑，忽略预置 tarball | mini-swe 每次安装都去 GitHub 下载，失败 |
+| `d08d558` | sayacode 需要 CPython 3.13，`uv python install` 同样要 GitHub | sayacode 安装失败率极高 |
+| `c8aef61` | 供应商侧 502 被记成模型失败 | sayacode 的 provider 中断混进能力统计 |
+| `e0cd417` | 预置 CPython 是 glibc 构建，musl 镜像上可执行但跑不起来，`[ -x ]` 拦不住 | 白跑三次安装尝试才报错 |
+
+补充说明：
+
+- **musl 上 sayacode 仍然装不上**。`sqlite-vec==0.1.9` 既无 musllinux wheel 也无
+  sdist，这是上游依赖的硬限制。分析时必须把 musl 题单独标注，**不能**把它当能力差异，
+  也**不能**悄悄从 sayacode 的分母里删掉——那正是 40 题那批犯过的错。
+- 驱动器侧新增：单实例锁（防两个 driver 抢同一 state）、按 agent 并发覆盖
+  （`--agent-concurrency sayacode=2,mini-swe=2`）、按仓库交错重排题序
+  （避免同类慢题扎堆导致批次耗时翻倍）、settled 机制（§6.4）。

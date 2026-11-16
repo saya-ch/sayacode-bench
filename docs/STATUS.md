@@ -94,7 +94,7 @@
 - **3.2.5 批次**（`v2-325`，本地构建 `sayacode-3.2.5-py3-none-any.whl`，`scripts/locked_agents.py:48`；PyPI 从未发布 3.2.5/3.2.6）：planned **78.8%（63/80）**，该数字**第三方不可复现**。
 - **3.2.7 批次**（`v4-327`，PyPI `sayacode-3.2.7-py3-none-any.whl`，sha256 `49db58d1…`）：planned **76.2%（61/80）**，制品可获取；但 PyPI 3.2.7 **没有对应 git tag**（最后 tag 是 `v3.2.6`），HEAD 另有 4 个提交不在制品内。
 - PyPI 上 `sayacode` 的版本是 `… 3.2.3, 3.2.4, **3.2.7**`——**3.2.5 / 3.2.6 从未发布**。
-- 因此：**不能说「78.8% 是 PyPI 版本的分数」**；「修复带来提升」目前**无评测证据**（3.2.6/3.2.7 的修复存在三重作用面错配，见 [FORMAL-RESULTS-20261106-327.md](FORMAL-RESULTS-20261106-327.md) §3–§4）。
+- 因此：**不能说「78.8% 是 PyPI 版本的分数」**；「修复带来提升」目前**无评测证据**（3.2.6/3.2.7 的修复存在三重作用面错配，见 [FORMAL-RESULTS-20261106-327.md](archive/FORMAL-RESULTS-20261106-327.md) §3–§4）。
 
 ## 4. v1 结论仍作废（不得引用）
 
@@ -158,7 +158,7 @@
 | 四组逐 trial 汇总 | `C:\sb\hard\v2-325\FINAL-SUMMARY-V4.json` |
 | strict 口径（已废除） | `C:\sb\hard\v2-325\STRICT-COMPARE.json`；仅在重新定义前保留，**不作证据** |
 | 轨迹审计 | `C:\sb\hard\v2-325\TRAJ-AUDIT-{claude-code,opencode}.json` |
-| 四组报告 | [FORMAL-RESULTS-20261105-v3.md](FORMAL-RESULTS-20261105-v3.md) |
+| 四组报告 | [FORMAL-RESULTS-20261105-v3.md](archive/FORMAL-RESULTS-20261105-v3.md) |
 | **prov2-40x4 结果（本次更正）** | [RESULT-PROV2-4AGENTS-FINAL.md](RESULT-PROV2-4AGENTS-FINAL.md)；原始 `C:\sb\hard\ab-ctx\prov2-40x4`；复算 `C:\sb\tmp\run100\analyze.py` |
 | **prov2-40x4 执行与缺陷** | [EXPERIMENT-PROV2-4AGENTS.md](EXPERIMENT-PROV2-4AGENTS.md) |
 | **腐朽内容清单** | [ARCHIVE.md](ARCHIVE.md) |
@@ -187,7 +187,7 @@
 → **3.2.7 制品内实际只有两项产品修复**（摘要失败降级 `c5d2973`、提示/工具集一致性 `60ca2f0`；`41b1e38` 晚于发布提交 `ba43e04`、不在制品内），且两者在**这套题 × 这套配置**下作用面为零（摘要路径从未触发；`team_enabled=true` 时提示逐字节不变）。因此 Δ 的信息量为零，**不能解读为「修复无效」**。
 翻转的 18 个 trial 里有多组「同题 r1/r2 镜像反转」，说明题目级随机性是主要噪声来源。
 
-完整报告：[FORMAL-RESULTS-20261106-327.md](FORMAL-RESULTS-20261106-327.md)。
+完整报告：[FORMAL-RESULTS-20261106-327.md](archive/FORMAL-RESULTS-20261106-327.md)。
 
 ## 10. P1：长上下文 A/B（已执行）
 

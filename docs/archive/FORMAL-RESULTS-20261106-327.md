@@ -1,3 +1,6 @@
+> ⛔ **已作废，停止引用。** 本文件整篇作废。「含三项修复」与发布时序不符（`41b1e38` 晚于 `ba43e04`），「修复没有可测收益」应改述为「未检出」。现行数字见 [RESULTS-LEDGER](../RESULTS-LEDGER.md)。
+> 归档于 2026-11-16；原文内容不再维护，仅作取证保留。
+
 # SAYACODE 3.2.7 正式结果（2026-11-06）
 
 > 目的：把评测数字从「本地未发布的 3.2.5 wheel」换成**第三方可获取的 PyPI 制品**，并给出「3.2.6/3.2.7 的产品修复是否有效」的第一份评测证据。
@@ -11,7 +14,7 @@
 | 制品 | `sayacode-3.2.7-py3-none-any.whl`（PyPI，sha256 `49db58d1…`）| Harbor `config.json` 的 `agent.kwargs.product_wheel` |
 | 依赖 | `product-requirements-3.2.6.txt` | 3.2.7 METADATA 与 3.2.6 运行时依赖逐项相同，仅多 `evals` extra |
 | 模型 | `auto-hy3`（多池分摊）| worker `result.json` 的 `model_id` |
-| served | 按已有记录 `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572 | `scripts/annotate_served.py` 逐 trial；记录为零 `hy3-x`、零 deepseek。⚠️ **2026-11-07 降级：该记录不可复核**——本机 Magpie routing 日志只到 10-29，见 [RESULTS-LEDGER](RESULTS-LEDGER.md) §5.6 |
+| served | 按已有记录 `hy3/workbuddy` 6206 + `hy3/workbuddy-ai` 3572 | `scripts/annotate_served.py` 逐 trial；记录为零 `hy3-x`、零 deepseek。⚠️ **2026-11-07 降级：该记录不可复核**——本机 Magpie routing 日志只到 10-29，见 [RESULTS-LEDGER](../RESULTS-LEDGER.md) §5.6 |
 | agent 版本 | `SAYACODE 3.2.7` | Harbor `result.json` 的 `agent_info.version` |
 
 ## 2. 三口径结果
@@ -27,7 +30,7 @@
 - 另有 2 条显式终态（`vuls-dc496468b9e r1`、`qutebrowser-3e21c8214a r1`）按 0 分计入 observed。
 - 题级：完整题 39/40，task-macro **76.9%**，题块 bootstrap95 [66.7%, 85.9%]，题级全通过 24/39 = 61.5%，pass@2 36/39 = 92.3%。
 - **题级分母口径**：`task_macro` 与 `pass@2` 的分母是 `complete_tasks=39`（只算两次都有 reward 的题），而 `planned` 的分母是 80（40 题）。`vuls-4b680b99606` 的 r2 通过、r1 空 patch，因此按 39 题算 `pass@2 36/39`，按 40 题全量算则是 `37/40`；两个数**不是同一口径**，引用时必须注明。
-- **partial 口径**：`verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均，分母 = 有该文件的 trial（缺失/空 patch 不计入）。主表用 `C:\sb\analysis\dataset.json` 复算值（97.6%，72 trial）。**不要用 `test-stdout.txt` 的 `Required tests` 口径**：实测同一批 trial 会低 2.4–6.8pp，两者不可混用（第二轮复盘实测，见 [STATUS.md](STATUS.md) §2）。
+- **partial 口径**：`verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均，分母 = 有该文件的 trial（缺失/空 patch 不计入）。主表用 `C:\sb\analysis\dataset.json` 复算值（97.6%，72 trial）。**不要用 `test-stdout.txt` 的 `Required tests` 口径**：实测同一批 trial 会低 2.4–6.8pp，两者不可混用（第二轮复盘实测，见 [STATUS.md](../STATUS.md) §2）。
 
 ## 3. 与 3.2.5（本地未发布制品）的配对对比
 

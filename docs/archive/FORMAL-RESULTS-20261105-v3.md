@@ -1,3 +1,6 @@
+> ⛔ **已作废，停止引用。** 本文件整篇作废。`strict` 列（78.8/80.0/73.8/67.5）及其衍生的「三种口径三种排名」叙事随口径废除而失效；四组数字还跨了两个批次，受批次效应污染。现行数字见 [RESULTS-LEDGER](../RESULTS-LEDGER.md)。
+> 归档于 2026-11-16；原文内容不再维护，仅作取证保留。
+
 # SWE-bench Pro V2 多方对照最终结果（2026-11-05）
 
 > 题集：冻结 `studies/sample-40-final.json` 40 题 × 2 重复 = 80 trial/组
@@ -7,7 +10,7 @@
 
 > ⚠️ **2026-11-05 更正**：本文初版把 `auto-hy3` 标成「DeepSeek-V4.1-Flash」，**这是错的**。网关 `/v1/models` 显示 `auto/hy3`（owned_by `workbuddy`，192k/64k）与 `auto/deepseek-v4.1-flash`（owned_by `opencode-zen`，1M/200k）是**两个不同模型**；评测窗口内 42681 条 usage 记录里，四个基线的 `served` **全部是 `hy3` / `hy3-x`，没有任何 `deepseek-v4.1-flash`**（后者只出现在本机 DSH 会话）。详见 §五.6。
 
-> 🛑 **2026-11-07 状态：本文的 `strict` 列、`snap pass` 列与「三种口径三种排名」结论已作废。** 复盘证实 verifier 在判分前会对 `*__snapshots__/*` 执行 `git checkout HEAD`（642/642 个 `tests/test.sh:97-105`），「改快照换 pass」的前提不成立。本文保留仅作历史记录；现行口径见 [STATUS.md](STATUS.md) 与 [review/RETROSPECTIVE-20261107.md](review/2026-11-07/RETROSPECTIVE-20261107.md)。**另：§一 mini-swe 行的数字来自 `FINAL-SUMMARY-V4.json`（不是同名的 V3 文件）**，见该节注。
+> 🛑 **2026-11-07 状态：本文的 `strict` 列、`snap pass` 列与「三种口径三种排名」结论已作废。** 复盘证实 verifier 在判分前会对 `*__snapshots__/*` 执行 `git checkout HEAD`（642/642 个 `tests/test.sh:97-105`），「改快照换 pass」的前提不成立。本文保留仅作历史记录；现行口径见 [STATUS.md](../STATUS.md) 与 [review/RETROSPECTIVE-20261107.md](../review/2026-11-07/RETROSPECTIVE-20261107.md)。**另：§一 mini-swe 行的数字来自 `FINAL-SUMMARY-V4.json`（不是同名的 V3 文件）**，见该节注。
 
 ## 一、最终数字
 
@@ -20,7 +23,7 @@
 | ~~Codex CLI~~ | 68.8% | 68.8% | — | 0 | — | — | **不可比**（见下） |
 
 - **mini-swe 行数据源**：本行数字（68/80、macro 87.2%、CI[79.5,94.9]）来自 `FINAL-SUMMARY-V4.json`（补跑后终版）；同名的 `FINAL-SUMMARY-V3.json` 是**中途快照**（67/80、macro 86.84%、CI[78.95,93.42]），两者不可混用。
-- **partial 口径**：`verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均；分母 = 有该文件的 trial（SAYACODE 3.2.5 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80），缺失/空 patch 不计入。数据源 `C:\sb\analysis\dataset.json`。**注意不要用 `test-stdout.txt` 的 `Required tests` 口径——实测会低 2.4–6.8pp，两者不可混用**（详见 [STATUS.md](STATUS.md) §2）；题级均值与完整脚注同见该处。
+- **partial 口径**：`verifier/output.json` 的 `tests[].status` 中 PASSED 占比，按 trial 平均；分母 = 有该文件的 trial（SAYACODE 3.2.5 73/80、mini-swe 77/80、Claude Code 76/80、OpenCode 77/80），缺失/空 patch 不计入。数据源 `C:\sb\analysis\dataset.json`。**注意不要用 `test-stdout.txt` 的 `Required tests` 口径——实测会低 2.4–6.8pp，两者不可混用**（详见 [STATUS.md](../STATUS.md) §2）；题级均值与完整脚注同见该处。
 
 ### 两两配对（题级全通过，McNemar exact）
 
@@ -44,7 +47,7 @@
 | Claude Code | — | 77.5% | — | 单批跑完（首跑即含修复后的网络配置）|
 | OpenCode | — | 75.0% | — | 单批跑完，零缺失 |
 
-⚠️ **mini-swe 的 +15.0pp 必须一直带着看**：它的 85.0% planned 是在补跑 12 条之后得到的；补的那 12 条按语义是 `infra`，不是能力。原始 `exception.txt` 证据在 `C:\sb\hard\v2-325\mini-swe\abandoned-retry-20261102-165011\`，分析见 [RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)。
+⚠️ **mini-swe 的 +15.0pp 必须一直带着看**：它的 85.0% planned 是在补跑 12 条之后得到的；补的那 12 条按语义是 `infra`，不是能力。原始 `exception.txt` 证据在 `C:\sb\hard\v2-325\mini-swe\abandoned-retry-20261102-165011\`，分析见 [RETROSPECTIVE §5.6](../RETROSPECTIVE-20261105.md)。
 
 ### 口径说明（2026-11-07 修正：strict 已废除，本节排名作废）
 
@@ -131,7 +134,7 @@
 
 ## 六、可写进简历的口径（2026-11-07 修正版）
 
-> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2 的 **40 题开发迭代集**上，`planned` 口径 pass@1 **78.8%（63/80，3.2.5 本地制品）**；3.2.7 批次为 **76.2%（61/80，PyPI）**。该题集**不是冻结签收集**，与三个基线**跨批次**（3.2.7 vs 3.2.5 期），**不可横向排名**。与 mini-swe-agent / Claude Code / OpenCode 的题级 McNemar **未检出统计显著差异（p ≥ 0.070）**，不能表述为『同量级』或『优于/劣于』。每**成功任务**约 1.5M tokens（3.2.5 / v2-325 批次口径；按 planned 80 是 1.20M、按实际 119 个 job 是 0.81M——引用必须带分母，见 [RESULTS-LEDGER](RESULTS-LEDGER.md) §3.5）。建设可复现评测体系（planned/observed/partial 三口径、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位 **11 项产品缺陷**（其中 2 项有前后对照证据、1 项为 p≈0.289 的不显著 A/B、**7 项仅有代码与单元测试、按证据标准属"未证实"**）与 8 项评测基建缺陷。」
+> 「独立开发 SAYACODE（LangGraph/LangChain 1.x，PyPI 发布）。在 SWE-bench Pro V2 的 **40 题开发迭代集**上，`planned` 口径 pass@1 **78.8%（63/80，3.2.5 本地制品）**；3.2.7 批次为 **76.2%（61/80，PyPI）**。该题集**不是冻结签收集**，与三个基线**跨批次**（3.2.7 vs 3.2.5 期），**不可横向排名**。与 mini-swe-agent / Claude Code / OpenCode 的题级 McNemar **未检出统计显著差异（p ≥ 0.070）**，不能表述为『同量级』或『优于/劣于』。每**成功任务**约 1.5M tokens（3.2.5 / v2-325 批次口径；按 planned 80 是 1.20M、按实际 119 个 job 是 0.81M——引用必须带分母，见 [RESULTS-LEDGER](../RESULTS-LEDGER.md) §3.5）。建设可复现评测体系（planned/observed/partial 三口径、缺失分类、题级统计、结果对账、指标 lint、轨迹级适配审计），并通过轨迹归因定位 **11 项产品缺陷**（其中 2 项有前后对照证据、1 项为 p≈0.289 的不显著 A/B、**7 项仅有代码与单元测试、按证据标准属"未证实"**）与 8 项评测基建缺陷。」
 
 **不能写**：「strict 78.8% / 80.0% / 73.8% / 67.5%」「三种口径三种排名」「优于/劣于某基线」「与基线同量级」「SAYACODE snap=0 更干净」「修复带来提升」。
 

@@ -1,5 +1,8 @@
 # 深度分析：榨干已有四组数据（2026-11-06）
 
+> ⚠️ **部分作废。** 「部分得分高说明基本做对」已降级为描述性；饱和题 26 vs 28 两套阈值互相矛盾；token 字段与 `behavior.json` 差 16.2%。见 [ARCHIVE](ARCHIVE.md) §2 #10。
+
+
 > 数据：`C:\sb\analysis\dataset.json`，**391 条 trial**
 > （SAYACODE 3.2.7 / 3.2.5、mini-swe、Claude Code、OpenCode，各 40 题 × 2 重复，个别缺失）
 > 关键新维度：verifier 的 `output.json` 给出**每个测试的 PASSED/FAILED**，因此可算**连续的部分得分**，不再只有 0/1。

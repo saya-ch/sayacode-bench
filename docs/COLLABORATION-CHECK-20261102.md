@@ -1,5 +1,8 @@
 # Collaboration 场景小样本验证（2026-11-02）
 
+> ⚠️ **部分作废。** 「team 变体 0 派发」已被部分修正；实验用的是 64K 上下文模型。见 [ARCHIVE](ARCHIVE.md) §2 #12。
+
+
 > 目的：验证「开放团队工具」的 `team` 变体在**适合协作的任务**上是否真的派发子 agent（`task_count > 0`）。
 > 背景：v2 的 240 trial（SWE-bench Pro）`task_count` 全 0，但那批是单点修复题，不能据此评价协作机制。本验证用产品自带场景补上。
 > 结论先行：**`task_count = 0`——team 变体没有派发子 agent；两种变体都靠单 agent 完成，质量都通过。**

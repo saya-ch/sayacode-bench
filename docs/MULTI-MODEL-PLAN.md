@@ -8,7 +8,7 @@
 
 ## 1. 现状与目标
 
-- **现状**：只有 hy3（`auto-hy3` 组），3 个 harness（SAYACODE / mini-swe-agent / Codex CLI），40 题 × 2 重复的开发期矩阵（[FORMAL-RESULTS-20261102-v2.md](FORMAL-RESULTS-20261102-v2.md)）。
+- **现状**：只有 hy3（`auto-hy3` 组），3 个 harness（SAYACODE / mini-swe-agent / Codex CLI），40 题 × 2 重复的开发期矩阵（[FORMAL-RESULTS-20261102-v2.md](archive/FORMAL-RESULTS-20261102-v2.md)）。
 - **目标**：加入第二模型，回答两个可分离的问题：
   1. **固定 harness 换模型**差多少（控制 harness）；
   2. **固定模型换 harness**差多少（控制模型）；
@@ -97,7 +97,7 @@
 
 ## 8. 样本量要求
 
-- 40 题 × 2 重复的 CI 半宽约 **±11–15pp**（[FORMAL-RESULTS §五.6](FORMAL-RESULTS-20261102-v2.md)），只能检出 >15pp 差异。
+- 40 题 × 2 重复的 CI 半宽约 **±11–15pp**（[FORMAL-RESULTS §五.6](archive/FORMAL-RESULTS-20261102-v2.md)），只能检出 >15pp 差异。
 - **多模型放大假设数**：2 模型 × 3 harness = 6 格，两两比较 15 对；Bonferroni α = 0.05/15 ≈ 0.0033，比现在的 α/3 = 0.0167 严格得多，40 题远远不够。
 - **结论**：
   - 2 模型 × 3 harness 若做显著性检验，需 **≥100 题**（CI 收窄到约 ±9pp）；

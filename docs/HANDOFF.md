@@ -2,7 +2,7 @@
 
 > 接手者必读。本文件说明**当前进度、关键事实、环境、坑、下一步**。
 > **数字与口径以 [2026-11-07 复盘](review/2026-11-07/RETROSPECTIVE-20261107.md) 为准**；本文件已按其结论修订，`strict` 口径已废除。
-> 配套：[STATUS](STATUS.md)（状态）、[PROTOCOL-V2](PROTOCOL-V2.md)（协议）、[四组结果](FORMAL-RESULTS-20261105-v3.md)（strict 部分作废）、[踩坑](LESSONS-20261102-v2.md)。
+> 配套：[STATUS](STATUS.md)（状态）、[PROTOCOL-V2](PROTOCOL-V2.md)（协议）、[四组结果](archive/FORMAL-RESULTS-20261105-v3.md)（strict 部分作废）、[踩坑](LESSONS-20261102-v2.md)。
 
 ## 1. 当前进度（一句话）
 
@@ -28,7 +28,7 @@
 1. **[2026-11-07 复盘](review/2026-11-07/RETROSPECTIVE-20261107.md)**：必须撤回的五件事、三分法结论账本、五类缺陷、P0/P1/P2。**与它冲突的旧文档以它为准。**
 2. [STATUS](STATUS.md)：当前数字、制品身份、局限、下一步。
 3. [PROTOCOL-V2](PROTOCOL-V2.md)：planned 分母、缺失分类、补跑规则（口径条款待按复盘修正）。
-4. [FORMAL-RESULTS-20261105-v3](FORMAL-RESULTS-20261105-v3.md)：四组 planned/observed、六组 McNemar；**strict 部分作废**。
+4. [FORMAL-RESULTS-20261105-v3](archive/FORMAL-RESULTS-20261105-v3.md)：四组 planned/observed、六组 McNemar；**strict 部分作废**。
 5. [LESSONS-20261102-v2](LESSONS-20261102-v2.md)：真实踩过的坑（现象/根因/处置/预防）。
 
 ## 3. 关键事实（别搞错）

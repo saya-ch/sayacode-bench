@@ -15,6 +15,20 @@
 
 ## 逐份说明
 
+### 2026-11-16 归档批（5 份，整篇作废）
+
+[ARCHIVE](../ARCHIVE.md) 在 2026-11-11 就登记了这 5 份「核心结论已被证据推翻」，但当时只出清单、没搬文件，导致它们继续与现行文档并排。2026-11-16 实际迁移，并在每份顶部加了作废横幅。
+
+| 文档 | 为何归档 | 现在能否引用 |
+|---|---|---|
+| [FORMAL-RESULTS-20261102-v2](FORMAL-RESULTS-20261102-v2.md) | `strict` 口径假设「verifier 不重置 `__snapshots__`」，被 642/642 个 `tests/test.sh:97-105` 的 `git checkout HEAD` 证伪；Codex 组整组作废 | **不能**。数字改用 [RESULTS-LEDGER](../RESULTS-LEDGER.md) |
+| [FORMAL-RESULTS-20261105-v3](FORMAL-RESULTS-20261105-v3.md) | `strict` 列（78.8/80.0/73.8/67.5）与「三种口径三种排名」随口径废除而失效；四组数字跨两个批次 | **不能**。同上 |
+| [FORMAL-RESULTS-20261106-327](FORMAL-RESULTS-20261106-327.md) | 「含三项修复」与发布时序不符（`41b1e38` 晚于 `ba43e04`）；「修复无收益」应为「未检出」 | **不能**。同上 |
+| [HARDWARE-ASSESSMENT-20261103](HARDWARE-ASSESSMENT-20261103.md) | 「100 题扩样不可行（磁盘不够）」已被同日 [SCALE-WITHOUT-UPGRADE](../SCALE-WITHOUT-UPGRADE.md) 推翻 | **不能**。扩样方案看后者 |
+| [METHOD-TEST-LEVEL-METRICS](METHOD-TEST-LEVEL-METRICS.md) | 文件自标「数字已被 V2 取代」：F2P/P2P 受作者自己的匹配 bug 影响 | **不能**。用 [V2](../METHOD-TEST-LEVEL-METRICS-V2.md) |
+
+> 另有 9 份判为「部分作废」的文档**保留在 `docs/` 根**（搬走会连仍有效的那一半一起埋掉），已逐份在正文顶部加 `⚠️ 部分作废` 横幅，清单见 [ARCHIVE](../ARCHIVE.md) §2 与 §1 #4/#5/#8。
+
 ### FORMAL-RESULTS-20261031.md（v1 开发期三 agent 对比）
 
 - **为何归档**：v1 跑批的结果报告。三处关键错误：① 三 agent 分母不同（SAYACODE 55/80、mini-swe 69/80、Codex 56/65）却并列成 68.8% / 86.2% / 86.2%，17.4pp 差距是分母假象（统一 80 分母后 Codex = 56/80 = 70.0%）；② 把「改测试率 49%」写成 SAYACODE 独有行为，实际 49%≈48.8% 是**产品侧检测率**（39/80，验证器恢复后 patch 不含测试），而 patch 含测试文件的比例是 SAYACODE 0%、mini-swe 70.9%、Codex 54.2%，两个口径不可混；③ 称题集「gold patch 全绿」不成立。

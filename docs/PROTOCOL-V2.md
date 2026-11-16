@@ -2,7 +2,7 @@
 
 > 更新：2026-11-02。状态：**现行正式协议（统计 / 缺失 / 补跑 / 冻结签收部分）**。
 > 关系：本文件取代 [protocol.md](protocol.md) 中与统计口径、缺失分类、补跑规则、冻结签收相关的条款；[protocol.md](protocol.md) 作为 v1 预注册保留（研究问题、数据来源、模型连接、评分器校准、预算与交付边界继续有效）。两者冲突时，以本文件为准，且仅限上述四类条款。
-> 依据：v2 开发期 240-trial 重跑（[FORMAL-RESULTS-20261102-v2.md](FORMAL-RESULTS-20261102-v2.md)）与真实踩坑记录（[LESSONS-20261102-v2.md](LESSONS-20261102-v2.md)）。
+> 依据：v2 开发期 240-trial 重跑（[FORMAL-RESULTS-20261102-v2.md](archive/FORMAL-RESULTS-20261102-v2.md)）与真实踩坑记录（[LESSONS-20261102-v2.md](LESSONS-20261102-v2.md)）。
 
 ## 0. 一句话
 
@@ -134,7 +134,7 @@ done < /tmp/v6_modified.txt
 - **`empty_patch` 必须先排除 infra**（2026-11-05 修正）：agent 安装失败（apt 撞 fake-ip、`NetworkConnectError`）时 patch 同样是 0 字节，但根因是环境，**必须判 `infra` 而不是 `empty_patch`**。判定方式是 job 级 `normalized.json` 的 `harbor_exception_type`；`formal.py:classify_missing` 已按此优先判 `infra`。v2 的 mini-swe 8 条曾因此被错分类（证据：[RETROSPECTIVE §5.6](RETROSPECTIVE-20261105.md)）。
 - **补跑纪律**（LESSONS §2.6、§四）：
   1. 归档清单与 retry sample 必须**由同一份数据生成**（先列 job → 生成 sample → 归档），并核对数量，否则会出现「归档 28 个但 sample 只覆盖 8 题」。
-  2. 补跑前后数字**同表并报**。v2 初始缺失 24 条（16 条环境/TLS/apt + 8 条 timeout），补跑后剩 **15 条**（SAYACODE 1 + mini-swe 14 + Codex 0）。补跑前后以**终版** [FORMAL-RESULTS-20261102-v2](FORMAL-RESULTS-20261102-v2.md) 为准：SAYACODE 67.5%→78.8%，mini-swe 47.5%→70.0%。（LESSONS §四 的「+21.3pp / +6pp」是定稿前的中间值，与终版 70.0% 略有差异，引用时以终版为准。）
+  2. 补跑前后数字**同表并报**。v2 初始缺失 24 条（16 条环境/TLS/apt + 8 条 timeout），补跑后剩 **15 条**（SAYACODE 1 + mini-swe 14 + Codex 0）。补跑前后以**终版** [FORMAL-RESULTS-20261102-v2](archive/FORMAL-RESULTS-20261102-v2.md) 为准：SAYACODE 67.5%→78.8%，mini-swe 47.5%→70.0%。（LESSONS §四 的「+21.3pp / +6pp」是定稿前的中间值，与终版 70.0% 略有差异，引用时以终版为准。）
   3. 补跑使任何 agent 数字变化 **>1pp 必须更新报告并说明来源**；补跑收益不能归因于产品修复。
   4. 补跑**不改变 planned 分母**，只改变终态覆盖；补跑次数与时间窗在 manifest 冻结。
 - **环境失败会系统性惩罚某些 agent**：不能把补跑前数字当能力（LESSONS §0）。

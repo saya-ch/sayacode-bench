@@ -1,3 +1,6 @@
+> ⛔ **已作废，停止引用。** 本文件整篇作废。文中 F2P/P2P 数字受作者自己的匹配 bug 影响，已在文件顶部自标「数字已被 V2 取代」。修正版见 [METHOD-TEST-LEVEL-METRICS-V2](../METHOD-TEST-LEVEL-METRICS-V2.md)。
+> 归档于 2026-11-16；原文内容不再维护，仅作取证保留。
+
 # 评价方法改进：建立 F2P/P2P 测试级指标（2026-11-09）
 
 > ## ⚠️ 本文数字已被 V2 取代
@@ -5,7 +8,7 @@
 > 本文的 +7.36pp / +2.21pp 等数字受到**我自己的匹配 bug** 影响：
 > verify job 匹配没带 repeat，r1 的 trial 会拿到 r2 的验证结果。
 > 修正后并用严格口径（排除 parser 空输出）的最终结论见
-> [METHOD-TEST-LEVEL-METRICS-V2.md](METHOD-TEST-LEVEL-METRICS-V2.md)：**Δ = -0.17pp**。
+> [METHOD-TEST-LEVEL-METRICS-V2.md](../METHOD-TEST-LEVEL-METRICS-V2.md)：**Δ = -0.17pp**。
 > 
 > 本文保留作过程记录。
 

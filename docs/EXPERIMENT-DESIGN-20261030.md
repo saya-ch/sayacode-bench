@@ -152,6 +152,6 @@
 - ✅ 窗口/权限/网络/依赖全部对齐（SAYACODE 192k/176k、mini-swe registry 176k+16k、Codex 182400；三者均完全权限）
 - ⚠️ **gold patch 筛题结果**：40 题中 **36 good / 1 bad / 3 null**；bad 题不在最终 40 题内，3 个 null 表示未取得有效 gold 结论。**「40 题全绿」不成立**，不能把 null 当通过，也不能把坏题率写成 1/40。
 - ⛔ **v1 240 次跑批结论作废**：221/240 完整（19 条缺口），且三 agent 分母不同（SAYACODE 55/80、mini-swe 69/80、Codex 56/65），并列成 68.8%/86.2%/86.2% 制造了 17.4pp 假差距；Codex 统一 80 分母为 70.0%。
-- ✅ **v2 已完成**（`C:\sb\hard\v2-325`）：40 题 × 2 重复 × 3 agent，planned **78.8% / 70.0% / 68.8%**，缺失 15 条已分类，校正后均不显著。见 [FORMAL-RESULTS-20261102-v2](FORMAL-RESULTS-20261102-v2.md)、[PROTOCOL-V2](PROTOCOL-V2.md)。
+- ✅ **v2 已完成**（`C:\sb\hard\v2-325`）：40 题 × 2 重复 × 3 agent，planned **78.8% / 70.0% / 68.8%**，缺失 15 条已分类，校正后均不显著。见 [FORMAL-RESULTS-20261102-v2](archive/FORMAL-RESULTS-20261102-v2.md)、[PROTOCOL-V2](PROTOCOL-V2.md)。
 - 🔄 下一步：TLS 预置 installer、partial/轨迹采集、扩样 100 题、多 agent 场景、第二模型（见 [STATUS](STATUS.md) §6）。
 - 当前真实状态与作废结论清单见 [STATUS](STATUS.md)。
